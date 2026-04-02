@@ -1,0 +1,25 @@
+# INVALID: negative GPU count
+# Expected: validation error
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T10:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: 86400
+    cpu-work: 200000
+    cpu:
+      num-cores: {"min": 1, "max": 4}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 3, "max": null}
+    gpu:
+      count: {"min": -1, "max": 2}  # ERROR: negative min
+      ram-mb: 8192
+      vendor: nvidia
+      compute-capability: {"min": "8.0", "max": null}
+    tags: "cvmfs:lhcb"

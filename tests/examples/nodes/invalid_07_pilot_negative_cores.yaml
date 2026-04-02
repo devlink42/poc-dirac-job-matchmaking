@@ -1,0 +1,20 @@
+# INVALID: negative core count on a pilot
+# Expected: validation error
+
+site: "LCG.CERN.cern"
+system:
+  name: Linux
+  glibc: "2.28"
+wall-time: 259200
+cpu-work: 600000
+cpu:
+  num-nodes: 1
+  num-cores: -4  # ERROR: negative
+  ram-mb: 24576
+  architecture:
+    name: x86_64
+    microarchitecture-level: 4
+gpu:
+  count: 0
+tags:
+  - cvmfs:lhcb

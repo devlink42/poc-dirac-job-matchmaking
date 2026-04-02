@@ -1,0 +1,50 @@
+# Job: WGProduction job with RAM requirements
+# Third most common type: ~16% of waiting jobs (~140K)
+# Owner: lbprods / Group: lhcb_data (second largest owner group)
+# Long CPU time (12.5 days), multi-core, WITH RAM requirement
+# This is one of the rare jobs (~2%) that specifies RAM needs
+# Demonstrates the computed RAM model: overhead + per-core * N
+
+owner: lbprods
+group: lhcb_data
+job_type: WGProduction
+submission_time: "2026-03-27T14:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: 1080000  # 12.5 days
+    cpu-work: 2000000
+    cpu:
+      num-cores: {"min": 4, "max": 8}
+      ram-mb:
+        request:
+          overhead: 2048    # 2 GB base
+          per-core: 512     # 512 MB per core
+        limit:
+          overhead: 3072
+          per-core: 512
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 3, "max": null}
+    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"
+
+  - site: "LCG.GRIDKA.de"
+    system:
+      name: Linux
+    wall-time: 1080000
+    cpu-work: 2000000
+    cpu:
+      num-cores: {"min": 4, "max": 8}
+      ram-mb:
+        request:
+          overhead: 2048
+          per-core: 512
+        limit:
+          overhead: 3072
+          per-core: 512
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 3, "max": null}
+    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"

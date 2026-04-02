@@ -1,0 +1,35 @@
+# Job: GPU-accelerated simulation job
+# NOT currently dominant in LHCb production, but the spec requires GPU support
+# This example tests GPU matching, multi-core + GPU, and complex tag expressions
+# Owner: lbprods / Group: lhcb_mc / Type: MCSimulation
+# Requires NVIDIA GPU with compute capability >= 8.0 (Ampere+)
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T12:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: 43200  # 12 hours (GPU jobs tend to be shorter)
+    cpu-work: 200000
+    cpu:
+      num-cores: {"min": 1, "max": 4}
+      ram-mb:
+        request:
+          overhead: 4096
+          per-core: 1024
+        limit:
+          overhead: 6144
+          per-core: 1024
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 3, "max": null}
+    gpu:
+      count: {"min": 1, "max": 1}
+      ram-mb: 8192
+      vendor: nvidia
+      compute-capability: {"min": "8.0", "max": null}
+    tags: "cvmfs:lhcb & cvmfs:lhcbdev & (os:el9 | os:alma9 | os:ubuntu22) & gpu:nvidia"

@@ -1,0 +1,29 @@
+# Pilot: GPU-equipped worker node at CERN
+# Has an NVIDIA A100 GPU (compute capability 8.0)
+# Should match GPU jobs AND regular CPU-only jobs
+# Tests that GPU pilots can still serve the non-GPU majority
+
+site: "LCG.CERN.cern"
+system:
+  name: Linux
+  glibc: "2.28"
+  user-namespaces: true
+wall-time: 172800  # 2 days
+cpu-work: 400000
+cpu:
+  num-nodes: 1
+  num-cores: 8
+  ram-mb: 32768  # 32 GB
+  architecture:
+    name: x86_64
+    microarchitecture-level: 4
+gpu:
+  count: 1
+  ram-mb: 40960  # 40 GB (A100)
+  vendor: nvidia
+  compute-capability: "8.0"
+tags:
+  - cvmfs:lhcb
+  - cvmfs:lhcbdev
+  - os:el9
+  - gpu:nvidia

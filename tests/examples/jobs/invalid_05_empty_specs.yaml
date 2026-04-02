@@ -1,0 +1,10 @@
+# INVALID: empty matching_specs
+# A job must have at least one matching spec
+# Expected: validation error
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T10:00:00Z"
+
+matching_specs: []  # ERROR: no specs

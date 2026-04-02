@@ -1,0 +1,26 @@
+# Job: Sprucing job (niche type)
+# From the long tail: only 6 TQs in production, small number of jobs
+# Owner: lbprods / Group: lhcb_data / Type: Sprucing
+# Medium CPU time (2 days), specific platform requirement (skylake+)
+# Tests that niche job types get matched despite being rare
+
+owner: lbprods
+group: lhcb_data
+job_type: Sprucing
+submission_time: "2026-03-28T06:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+      user-namespaces: true
+    wall-time: 172800  # 2 days
+    cpu-work: 300000
+    cpu:
+      num-cores: {"min": 1, "max": 2}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 4, "max": null}  # Needs AVX-512 (skylake+)
+    io:
+      scratch-mb: 5120   # 5 GB scratch space
+    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"

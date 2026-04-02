@@ -1,0 +1,106 @@
+# Job: MCSimulation job eligible for multiple sites
+# Most MCSimulation jobs can run at many sites (site distribution is flat: top 20 sites all ~700K jobs)
+# This uses multiple matching_specs to express multi-site eligibility
+# Owner: lbprods / Group: lhcb_mc / Type: MCSimulation
+# 3 days CPU time, accepts multiple x86_64 microarchitecture levels
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T09:30:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: 259200  # 3 days
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536
+          per-core: 256
+        limit:
+          overhead: 2048
+          per-core: 256
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+
+  - site: "LCG.RAL.uk"
+    system:
+      name: Linux
+    wall-time: 259200
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536
+          per-core: 256
+        limit:
+          overhead: 2048
+          per-core: 256
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+
+  - site: "LCG.GRIDKA.de"
+    system:
+      name: Linux
+    wall-time: 259200
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536
+          per-core: 256
+        limit:
+          overhead: 2048
+          per-core: 256
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+
+  - site: "LCG.CNAF.it"
+    system:
+      name: Linux
+    wall-time: 259200
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536
+          per-core: 256
+        limit:
+          overhead: 2048
+          per-core: 256
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+
+  - site: "LCG.IN2P3.fr"
+    system:
+      name: Linux
+    wall-time: 259200
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536
+          per-core: 256
+        limit:
+          overhead: 2048
+          per-core: 256
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"

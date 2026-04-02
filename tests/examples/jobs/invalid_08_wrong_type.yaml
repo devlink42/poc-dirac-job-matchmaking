@@ -1,0 +1,20 @@
+# INVALID: wrong type for wall-time (string instead of integer)
+# Expected: validation error
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T10:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: "three days"  # ERROR: should be integer (seconds)
+    cpu-work: 500000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 2, "max": null}
+    tags: "cvmfs:lhcb"

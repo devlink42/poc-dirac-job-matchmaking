@@ -1,0 +1,24 @@
+# Pilot: Older Tier-2 worker node (NCBJ Poland)
+# x86_64 v2 (sandy bridge era), limited RAM, shorter wall time
+# Should match MCFastSimulation and User jobs but NOT jobs requiring v4+
+# Tests that microarchitecture filtering works correctly
+
+site: "LCG.NCBJ.pl"
+system:
+  name: Linux
+  glibc: "2.17"
+  user-namespaces: false
+wall-time: 86400  # 1 day only
+cpu-work: 150000
+cpu:
+  num-nodes: 1
+  num-cores: 8
+  ram-mb: 16384  # 16 GB
+  architecture:
+    name: x86_64
+    microarchitecture-level: 2
+gpu:
+  count: 0
+tags:
+  - cvmfs:lhcb
+  - os:el9

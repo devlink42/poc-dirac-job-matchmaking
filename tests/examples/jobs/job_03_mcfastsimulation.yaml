@@ -1,0 +1,47 @@
+# Job: MCFastSimulation job
+# Second most common type: ~21% of waiting jobs (~180K)
+# Shorter CPU time (6 hours), lower platform requirements
+# Owner: lbprods / Group: lhcb_mc / Type: MCFastSimulation
+# Can run at many sites, accepts older x86_64 microarchitectures
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCFastSimulation
+submission_time: "2026-03-28T08:00:00Z"
+
+matching_specs:
+  - site: "LCG.CERN.cern"
+    system:
+      name: Linux
+    wall-time: 21600  # 6 hours
+    cpu-work: 100000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 1, "max": null}
+    tags: "cvmfs:lhcb"
+
+  - site: "LCG.Beijing.cn"
+    system:
+      name: Linux
+    wall-time: 21600
+    cpu-work: 100000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 1, "max": null}
+    tags: "cvmfs:lhcb"
+
+  - site: "LCG.NCBJ.pl"
+    system:
+      name: Linux
+    wall-time: 21600
+    cpu-work: 100000
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 1, "max": null}
+    tags: "cvmfs:lhcb"

@@ -1,0 +1,29 @@
+# Job: Typical MCSimulation job
+# Represents the dominant workload: ~60% of all waiting jobs
+# Owner: lbprods / Group: lhcb_mc / Type: MCSimulation
+# Based on production: 3-day CPU time, x86_64-v4, no GPU
+# No site restriction — this job can run anywhere
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T10:00:00Z"
+
+matching_specs:
+  - system:
+      name: Linux
+    wall-time: 259200  # 3 days in seconds
+    cpu-work: 500000   # DB12 seconds
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      ram-mb:
+        request:
+          overhead: 1536  # 1.5 GB base for 1 thread
+          per-core: 0
+        limit:
+          overhead: 4096
+          per-core: 0
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 4, "max": null}
+    tags: "cvmfs:lhcb"
