@@ -31,8 +31,7 @@ class Gpu(BaseModel):
     count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
-    # TODO: check if compute_capability can really be a string!
-    compute_capability: Range[NonNegativeFloat | str] = Field(validation_alias="compute-capability")
+    compute_capability: Range[NonNegativeFloat] = Field(validation_alias="compute-capability")
 
 
 class Io(BaseModel):
