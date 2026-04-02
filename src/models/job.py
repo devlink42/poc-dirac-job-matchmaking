@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 class System(BaseModel):
     name: str
-    glibc: str
-    user_namespaces: str
+    glibc: float
+    user_namespaces: bool
 
 
 class Request(BaseModel):
@@ -30,9 +30,25 @@ class Cpu(BaseModel):
     architecture: Architecture
 
 
+class Gpu(BaseModel):
+    count: dict[str, int]
+    ram_mb: int
+    vendor: str
+    compute_capability: dict[str, int]
+
+
+class Io(BaseModel):
+    scratch_mb: int
+    lan_mbitps: int
+
+
 class Job(BaseModel):
     jobID: str
+    site: str
     system: System
     wall_time: int
     cpu_work: int
     cpu: Cpu
+    gpu: Gpu
+    io: Io
+    tags: str
