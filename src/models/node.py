@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, PositiveFloat, PositiveInt
+from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, NonNegativeInt
 
 
 class System(BaseModel):
@@ -9,7 +9,6 @@ class System(BaseModel):
 
 class Architecture(BaseModel):
     name: str
-    # TODO: if it as a range, from whichever is the lowest to the highest?
     microarchitecture_level: PositiveInt = Field(validation_alias="microarchitecture-level")
 
 
@@ -21,7 +20,7 @@ class Cpu(BaseModel):
 
 
 class Gpu(BaseModel):
-    count: dict[str, PositiveInt]
+    count: NonNegativeInt
 
 
 class Node(BaseModel):

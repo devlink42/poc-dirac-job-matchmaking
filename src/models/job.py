@@ -1,58 +1,52 @@
-from typing import Union
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, PositiveFloat, PositiveInt
+from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, NonNegativeInt, NonNegativeFloat
+
+from src.models.utils import Range, StrictRange, ResourceSpec
 
 
 class System(BaseModel):
     name: str
-    glibc: PositiveFloat
-    user_namespaces: bool = Field(validation_alias="user-namespaces")
+    glibc: PositiveFloat | None = None
+    user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 
 
-class Request(BaseModel):
-    overhead: PositiveInt
-    per_core: PositiveInt = Field(validation_alias="per-core")
-
-
-class Limit(BaseModel):
-    overhead: PositiveInt
-    per_core: PositiveInt = Field(validation_alias="per-core")
+class ComputeMemory(BaseModel):
+    request: ResourceSpec
+    limit: ResourceSpec
 
 
 class Architecture(BaseModel):
     name: str
-    # TODO: what it is the min and max for the range?
-    microarchitecture_level: dict[str, PositiveInt] = Field(validation_alias="microarchitecture-level")
+    microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
-    # TODO: what it is the min for the range?
-    num_cores: dict[str, PositiveInt] = Field(validation_alias="num-cores")
-    ram_mb: Union[Request, Limit] = Field(validation_alias="ram-mb")
+    num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
+    ram_mb: ComputeMemory | None = Field(default=None, validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
-    # TODO: what it is the min and max for the range?
-    count: dict[str, PositiveInt]
+    count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
-    # TODO: what it is the min for the range?
-    compute_capability: dict[str, PositiveInt] = Field(validation_alias="compute-capability")
+    # TODO: check if compute_capability can really be a string!
+    compute_capability: Range[NonNegativeFloat | str] = Field(validation_alias="compute-capability")
 
 
 class Io(BaseModel):
-    scratch_mb: PositiveInt
-    lan_mbitps: PositiveInt = Field(validation_alias="lan-mbitps")
+    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
+    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")
 
 
 class Job(BaseModel):
     job_id: str
-    site: str
+    site: str | None = None
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
     cpu_work: PositiveInt = Field(validation_alias="cpu-work")
     cpu: Cpu
-    gpu: Gpu
-    io: Io
+    gpu: Gpu | None = None
+    io: Io | None = None
     tags: str
