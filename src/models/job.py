@@ -1,53 +1,57 @@
 from typing import Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, PositiveFloat, PositiveInt
 
 
 class System(BaseModel):
     name: str
-    glibc: float
-    user_namespaces: bool
+    glibc: PositiveFloat
+    user_namespaces: bool = Field(validation_alias="user-namespaces")
 
 
 class Request(BaseModel):
-    overhead: int
-    per_core: int
+    overhead: PositiveInt
+    per_core: PositiveInt = Field(validation_alias="per-core")
 
 
 class Limit(BaseModel):
-    overhead: int
-    per_core: int
+    overhead: PositiveInt
+    per_core: PositiveInt = Field(validation_alias="per-core")
 
 
 class Architecture(BaseModel):
     name: str
-    microarchitecture_level: dict[str, int]
+    # TODO: what it is the min and max for the range?
+    microarchitecture_level: dict[str, PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
-    num_cores: dict[str, int]
-    ram_mb: Union[Request, Limit]
+    # TODO: what it is the min for the range?
+    num_cores: dict[str, PositiveInt] = Field(validation_alias="num-cores")
+    ram_mb: Union[Request, Limit] = Field(validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
-    count: dict[str, int]
-    ram_mb: int
+    # TODO: what it is the min and max for the range?
+    count: dict[str, PositiveInt]
+    ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
-    compute_capability: dict[str, int]
+    # TODO: what it is the min for the range?
+    compute_capability: dict[str, PositiveInt] = Field(validation_alias="compute-capability")
 
 
 class Io(BaseModel):
-    scratch_mb: int
-    lan_mbitps: int
+    scratch_mb: PositiveInt
+    lan_mbitps: PositiveInt = Field(validation_alias="lan-mbitps")
 
 
 class Job(BaseModel):
-    jobID: str
+    job_id: str
     site: str
     system: System
-    wall_time: int
-    cpu_work: int
+    wall_time: PositiveInt = Field(validation_alias="wall-time")
+    cpu_work: PositiveInt = Field(validation_alias="cpu-work")
     cpu: Cpu
     gpu: Gpu
     io: Io
