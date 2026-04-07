@@ -43,7 +43,7 @@ def test_valid_job_with_node_success():
                 "microarchitecture-level": {"min": 2, "max": 4}
             }
         },
-        "tags": ["cvmfs:lhcb"]
+        "tags": "cvmfs:lhcb"
     }
 
     job = Job.model_validate(job_data)
@@ -166,6 +166,7 @@ def test_valid_job_with_node_ram_fail():
             "wall-time": 100,
             "cpu-work": 100,
             "cpu": {
+                "num-cores": {"min": 1, "max": 1},
                 "ram-mb": {
                     "request": {"overhead": 500, "per-core": 300},
                     "limit": {"overhead": 1000, "per-core": 500}
@@ -212,7 +213,7 @@ def test_valid_job_with_node_tags():
             "cpu": {
                 "num-cores": {"min": 1, "max": 1},
                 "architecture": {"name": "x86_64", "microarchitecture-level": {"min": 1}}},
-            "tags": ["tag1", "tag3"]
+            "tags": "tag1 tag3"
         }
     )
 
@@ -228,7 +229,7 @@ def test_valid_job_with_node_tags():
             "cpu": {
                 "num-cores": {"min": 1, "max": 1},
                 "architecture": {"name": "x86_64", "microarchitecture-level": {"min": 1}}},
-            "tags": ["tag1", "tag2"]
+            "tags": "tag1 tag2"
         }
     )
 
@@ -238,8 +239,8 @@ def test_valid_job_with_node_tags():
 def test_valid_pilot_from_files():
     # Use real examples
     with (
-        open("examples/jobs/job_01_mcsimulation_any_site.yaml", "r") as fj,
-        open("examples/nodes/pilot_01_cern_typical.yaml", "r") as fn
+        open("tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "r") as fj,
+        open("tests/examples/nodes/pilot_01_cern_typical.yaml", "r") as fn
     ):
         job_yaml = fj.read()
         node_yaml = fn.read()

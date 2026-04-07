@@ -7,7 +7,7 @@ from src.models.node import Node
 
 
 def test_job_validation_invalid_range():
-    with open("examples/jobs/invalid_01_min_gt_max.yaml", "r") as f:
+    with open("tests/examples/jobs/invalid_01_min_gt_max.yaml", "r") as f:
         data = yaml.safe_load(f)
 
     # Prends le premier spec
@@ -21,7 +21,7 @@ def test_job_validation_invalid_range():
 
 
 def test_job_validation_negative_walltime():
-    with open("examples/jobs/invalid_02_negative_walltime.yaml", "r") as f:
+    with open("tests/examples/jobs/invalid_02_negative_walltime.yaml", "r") as f:
         data = yaml.safe_load(f)
 
     spec = data["matching_specs"][0]
@@ -32,7 +32,7 @@ def test_job_validation_negative_walltime():
 
 
 def test_node_validation_negative_cores():
-    with open("examples/nodes/invalid_07_pilot_negative_cores.yaml", "r") as f:
+    with open("tests/examples/nodes/invalid_07_pilot_negative_cores.yaml", "r") as f:
         data = yaml.safe_load(f)
 
     data["node_id"] = "test"
@@ -43,7 +43,7 @@ def test_node_validation_negative_cores():
 
 def test_job_gpu_validation():
     # Test valid GPU
-    with open("examples/jobs/job_06_gpu.yaml", "r") as f:
+    with open("tests/examples/jobs/job_06_gpu.yaml", "r") as f:
         data = yaml.safe_load(f)
 
     spec = data["matching_specs"][0]

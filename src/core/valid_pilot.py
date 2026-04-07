@@ -106,7 +106,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
 def main():
     parser = argparse.ArgumentParser(description="Matchmaking and validation for DIRAC jobs and pilots.")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
-    parser.add_argument("node", "pilot", nargs="?", help="Path to the node/pilot YAML file")
+    parser.add_argument("node", nargs="?", help="Path to the node/pilot YAML file")
     parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
     parser.add_argument("--validate-node", "-VN", "--validate-pilot", "-VP", action="store_true", help="Only validate the node/pilot file")
 
