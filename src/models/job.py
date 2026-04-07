@@ -40,7 +40,7 @@ class Io(BaseModel):
 
 
 class Job(BaseModel):
-    job_id: str
+    job_id: str | None = None
     site: str | None = None
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
