@@ -1,23 +1,24 @@
+#!/usr/bin/env python3
+
 import os
-import subprocess
-import sys
+from subprocess import run
+from sys import executable
 
 
 def run_cli(*args):
     env = os.environ.copy()
     env["PYTHONPATH"] = env.get("PYTHONPATH", "") + ":" + os.getcwd()
-    result = subprocess.run(
-        [sys.executable, "src/core/valid_pilot.py"] + list(args),
-        capture_output=True,
-        text=True,
-        env=env
-    )
+
+    result = run([executable, "src/core/valid_pilot.py"] + list(args), capture_output=True, text=True, env=env)
 
     return result
 
 
 def test_cli_match_success():
-    result = run_cli("tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml")
+    result = run_cli(
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+        "tests/examples/nodes/pilot_01_cern_typical.yaml"
+    )
 
     assert result.returncode == 0
     assert "Match found!" in result.stdout

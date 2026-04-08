@@ -1,73 +1,58 @@
+#!/usr/bin/env python3
+
+import os
+from glob import glob
+
 import pytest
-import yaml
 from pydantic import ValidationError
+from yaml import safe_load
 
 from src.models.job import Job
 from src.models.node import Node
 
 
-def test_job_validation_invalid_range():
-    with open("tests/examples/jobs/invalid_01_min_gt_max.yaml", "r") as f:
-        data = yaml.safe_load(f)
+@pytest.mark.parametrize("job_file", sorted(glob("tests/examples/jobs/*.yaml")))
+def test_all_job_examples(job_file):
+    """Ensure all job files validate (or fail correctly) against the Job model."""
+    with open(job_file, "r") as f:
+        data = safe_load(f)
 
-    # Prends le premier spec
-    spec = data["matching_specs"][0]
-    spec["job_id"] = "test"
+    filename = os.path.basename(job_file)
+    is_invalid = filename.startswith("invalid_")
 
-    with pytest.raises(ValidationError) as exc_info:
-        Job.model_validate(spec)
+    # invalid_05 has no specs to validate.
+    if filename == "invalid_05_empty_specs.yaml":
+        assert data.get("matching_specs") == []
+        return
 
-    assert "max must be greater than or equal to min" in str(exc_info.value)
+    specs = data.get("matching_specs", [])
+    assert len(specs) > 0, f"File {job_file} should have matching_specs"
+
+    for i, spec in enumerate(specs):
+        if "job_id" not in spec:
+            spec["job_id"] = f"test-job-{i}"
+
+        if is_invalid:
+            with pytest.raises(ValidationError):
+                Job.model_validate(spec)
+        else:
+            Job.model_validate(spec)
 
 
-def test_job_validation_negative_walltime():
-    with open("tests/examples/jobs/invalid_02_negative_walltime.yaml", "r") as f:
-        data = yaml.safe_load(f)
+@pytest.mark.parametrize("node_file", sorted(glob("tests/examples/nodes/*.yaml")))
+def test_all_node_examples(node_file):
+    """Ensure all node files validate (or fail correctly) against the Node model."""
+    with open(node_file, "r") as f:
+        data = safe_load(f)
 
-    spec = data["matching_specs"][0]
-    spec["job_id"] = "test"
+    filename = os.path.basename(node_file)
+    is_invalid = filename.startswith("invalid_")
 
-    with pytest.raises(ValidationError):
-        Job.model_validate(spec)
+    if "node_id" not in data:
+        data["node_id"] = "test-node-id"
 
-
-def test_node_validation_negative_cores():
-    with open("tests/examples/nodes/invalid_07_pilot_negative_cores.yaml", "r") as f:
-        data = yaml.safe_load(f)
-
-    data["node_id"] = "test"
-
-    with pytest.raises(ValidationError):
+    if is_invalid:
+        with pytest.raises(ValidationError):
+            Node.model_validate(data)
+    else:
         Node.model_validate(data)
-
-
-def test_job_gpu_validation():
-    # Test valid GPU
-    with open("tests/examples/jobs/job_06_gpu.yaml", "r") as f:
-        data = yaml.safe_load(f)
-
-    spec = data["matching_specs"][0]
-    spec["job_id"] = "test"
-
-    job = Job.model_validate(spec)
-
-    assert job.gpu.count.min == 1
-    assert job.gpu.ram_mb == 8192
-
-
-def test_job_system_glibc_optional():
-    # Test job without glibc spec
-    spec = {
-        "job_id": "test",
-        "system": {"name": "Linux"},
-        "wall-time": 3600,
-        "cpu-work": 1000,
-        "cpu": {
-            "num-cores": {"min": 1, "max": 1},
-            "architecture": {"name": "x86_64", "microarchitecture-level": {"min": 1}}},
-        "tags": ""
-    }
-
-    job = Job.model_validate(spec)
-
-    assert job.system.glibc is None

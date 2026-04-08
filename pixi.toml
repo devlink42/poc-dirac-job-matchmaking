@@ -4,6 +4,9 @@ name = "matchmaking"
 platforms = ["linux-64"]
 version = "0.1.0"
 
+[activation]
+env = { PYTHONPATH = "." }
+
 [tasks]
 
 [dependencies]

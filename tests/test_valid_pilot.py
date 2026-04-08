@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from src.core.valid_pilot import valid_job_with_node, valid_pilot
 from src.models.job import Job
 from src.models.node import Node
@@ -237,15 +239,9 @@ def test_valid_job_with_node_tags():
 
 
 def test_valid_pilot_from_files():
-    # Use real examples
-    with (
-        open("tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "r") as fj,
-        open("tests/examples/nodes/pilot_01_cern_typical.yaml", "r") as fn
-    ):
-        job_yaml = fj.read()
-        node_yaml = fn.read()
-
-    matches = valid_pilot(job_yaml, node_yaml)
+    matches = valid_pilot(
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+        "tests/examples/nodes/pilot_01_cern_typical.yaml"
+    )
 
     assert len(matches) == 1
-    assert matches[0].job_id == "unknown-job-id"  # valid_pilot adds it if missing

@@ -1,4 +1,8 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
+
+from typing import Literal
 
 from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, NonNegativeInt, NonNegativeFloat
 
@@ -17,7 +21,8 @@ class ComputeMemory(BaseModel):
 
 
 class Architecture(BaseModel):
-    name: str
+    # TODO: see for a better way to handle this (e.g. enum) to help adding new arch for the future
+    name: Literal["x86_64", "aarch64"]
     microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
