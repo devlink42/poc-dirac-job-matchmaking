@@ -13,7 +13,11 @@ from src.models.node import Node
 
 
 def valid_job_with_node(job: Job, node: Node) -> bool:
-    # 1. System check
+    # Site check
+    if job.site and job.site != node.site:
+        return False
+
+    # System check
     if job.system.name != node.system.name:
         return False
 
@@ -23,50 +27,38 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if job.system.user_namespaces is not None and job.system.user_namespaces != node.system.user_namespaces:
         return False
 
-    # 2. Architecture check
+    # Architecture check
     if job.cpu.architecture.name != node.cpu.architecture.name:
         return False
 
     if node.cpu.architecture.microarchitecture_level < job.cpu.architecture.microarchitecture_level.min:
         return False
 
-    if (
-            job.cpu.architecture.microarchitecture_level.max is not None and
-            node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
-    ):
-        return False
-
-    # 3. CPU Cores check
+    # CPU Cores check
     if node.cpu.num_cores < job.cpu.num_cores.min:
         return False
 
-    # 4. RAM check
+    # RAM check
     if job.cpu.ram_mb:
-        required_ram_request = job.cpu.ram_mb.request.overhead or 0
+        if required_ram_request := job.cpu.ram_mb.request.overhead:
+            if job.cpu.ram_mb.request.per_core:
+                required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
 
-        if job.cpu.ram_mb.request.per_core:
-            required_ram_request += job.cpu.ram_mb.request.per_core * node.cpu.num_cores
+            if node.cpu.ram_mb < required_ram_request:
+                return False
 
-        if node.cpu.ram_mb < required_ram_request:
-            return False
-
-    # 5. Wall-time and CPU work
-    if node.wall_time < job.wall_time:
-        return False
-
+    # CPU work
     if node.cpu_work < job.cpu_work:
         return False
 
-    # 6. GPU check (if required)
+    # GPU check (if required)
     if job.gpu:
         if node.gpu.count < job.gpu.count.min:
             return False
         if job.gpu.count.max is not None and node.gpu.count > job.gpu.count.max:
             return False
-    elif node.gpu.count > 0:
-        pass
 
-    # 7. Tags check (all job tags must be present in node tags)
+    # Tags check (all job tags must be present in node tags)
     if job.tags:
         job_tags = set(tag.strip() for tag in job.tags.replace(',', ' ').split())
         node_tags = set(node.tags)

@@ -29,6 +29,7 @@ class Gpu(BaseModel):
 
 class Node(BaseModel):
     node_id: str | None = None
+    site: str
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
     cpu_work: PositiveInt = Field(validation_alias="cpu-work")

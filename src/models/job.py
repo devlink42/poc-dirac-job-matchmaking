@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt, PositiveFloat, PositiveInt
 
-from src.models.utils import Range, ResourceSpec, StrictRange
+from src.models.utils import Io, Range, ResourceSpec, StrictRange
 
 
 class System(BaseModel):
@@ -37,11 +37,6 @@ class Gpu(BaseModel):
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
     compute_capability: Range[NonNegativeFloat] = Field(validation_alias="compute-capability")
-
-
-class Io(BaseModel):
-    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
-    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")
 
 
 class Job(BaseModel):

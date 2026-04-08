@@ -17,6 +17,8 @@ platforms = ["linux-64"]
 poc_dirac_job_matchmaking = { path = ".", editable = true }
 
 [tool.pixi.tasks]
+lint = "ruff check . && ruff format --check ."
+test = "pytest tests/"
 
 [tool.ruff]
 line-length = 120

@@ -4,14 +4,9 @@ from __future__ import annotations
 
 from typing import Generic, Self, TypeVar
 
-from pydantic import BaseModel, Field, NonNegativeInt, model_validator
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
 T = TypeVar("T")
-
-
-class ResourceSpec(BaseModel):
-    overhead: NonNegativeInt | None = None
-    per_core: NonNegativeInt | None = Field(default=None, validation_alias="per-core")
 
 
 class StrictRange(BaseModel, Generic[T]):
@@ -28,3 +23,13 @@ class StrictRange(BaseModel, Generic[T]):
 
 class Range(StrictRange, Generic[T]):
     max: T | None = None
+
+
+class ResourceSpec(BaseModel):
+    overhead: NonNegativeInt | None = None
+    per_core: NonNegativeInt | None = Field(default=None, validation_alias="per-core")
+
+
+class Io(BaseModel):
+    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
+    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")
