@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, NonNegativeInt, NonNegativeFloat
+from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt, PositiveFloat, PositiveInt
 
-from src.models.utils import Range, StrictRange, ResourceSpec
+from src.models.utils import Range, ResourceSpec, StrictRange
 
 
 class System(BaseModel):

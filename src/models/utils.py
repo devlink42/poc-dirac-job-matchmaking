@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TypeVar, Generic, Self
+from typing import Generic, Self, TypeVar
 
-from pydantic import BaseModel, Field, model_validator, NonNegativeInt
+from pydantic import BaseModel, Field, NonNegativeInt, model_validator
 
 T = TypeVar("T")
 

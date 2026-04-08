@@ -16,14 +16,4 @@ pixi-pycharm = ">=0.0.11,<0.0.12"
 pydantic = ">=2.12.5,<3"
 pyyaml = ">=6.0.3,<7"
 pytest = ">=8.1.1"
-
-[feature.analysis.dependencies]
-matplotlib = ">=3.9"
-pandas = ">=2.2"
-jupyterlab = ">=4.2"
-
-[feature.analysis.tasks]
-lab = "jupyter lab analysis/"
-
-[environments]
-analysis = { features = ["analysis"], solve-group = "analysis" }
+ruff = ">=0.15.9,<0.16"

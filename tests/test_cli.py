@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import os
-from subprocess import run
+import subprocess
 from sys import executable
 
 
@@ -9,7 +11,13 @@ def run_cli(*args):
     env = os.environ.copy()
     env["PYTHONPATH"] = env.get("PYTHONPATH", "") + ":" + os.getcwd()
 
-    result = run([executable, "src/core/valid_pilot.py"] + list(args), capture_output=True, text=True, env=env)
+    try:
+        result = subprocess.run(  # noqa: S603
+            [executable, "src/core/valid_pilot.py"] + list(args),
+            capture_output=True, text=True, env=env, check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to run CLI with args: {args}") from e
 
     return result
 

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-import yaml
+from __future__ import annotations
+
 import argparse
 import sys
+
+import yaml
 from pydantic import ValidationError
 
 from src.models.job import Job
@@ -27,7 +30,10 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if node.cpu.architecture.microarchitecture_level < job.cpu.architecture.microarchitecture_level.min:
         return False
 
-    if job.cpu.architecture.microarchitecture_level.max is not None and node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max:
+    if (
+            job.cpu.architecture.microarchitecture_level.max is not None and
+            node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
+    ):
         return False
 
     # 3. CPU Cores check
@@ -72,8 +78,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
 
 
 def valid_pilot(job: str, pilot: str) -> list[Job]:
-    """
-    Validate a job against a node/pilot configuration.
+    """Validate a job against a node/pilot configuration.
 
     Args:
         job (str): Path to the job YAML file.
@@ -121,7 +126,10 @@ def main():
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
     parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
-    parser.add_argument("--validate-node", "-VN", "--validate-pilot", "-VP", action="store_true", help="Only validate the node/pilot file")
+    parser.add_argument(
+        "--validate-node", "-VN", "--validate-pilot", "-VP",
+        action="store_true", help="Only validate the node/pilot file"
+    )
 
     args = parser.parse_args()
 

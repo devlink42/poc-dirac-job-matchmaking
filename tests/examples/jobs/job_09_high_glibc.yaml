@@ -1,0 +1,19 @@
+# Job: Requires high GLIBC
+
+owner: lbprods
+group: lhcb_mc
+job_type: MCSimulation
+submission_time: "2026-03-28T10:00:00Z"
+
+matching_specs:
+  - system:
+      name: Linux
+      glibc: "2.35"  # High GLIBC requirement
+    wall-time: 100
+    cpu-work: 100
+    cpu:
+      num-cores: {"min": 1, "max": 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 1, "max": null}
+    tags: ""

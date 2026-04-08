@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, NonNegativeInt
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt
 
 
 class System(BaseModel):
