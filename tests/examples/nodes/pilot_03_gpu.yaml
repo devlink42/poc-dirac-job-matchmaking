@@ -22,6 +22,7 @@ gpu:
   ram-mb: 40960  # 40 GB (A100)
   vendor: nvidia
   compute-capability: "8.0"
+  driver-version: 510.47.03
 tags:
   - cvmfs:lhcb
   - cvmfs:lhcbdev

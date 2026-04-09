@@ -32,4 +32,5 @@ matching_specs:
       ram-mb: 8192
       vendor: nvidia
       compute-capability: {"min": "8.0", "max": null}
+      driver-version: 356.42.9
     tags: "cvmfs:lhcb & cvmfs:lhcbdev & (os:el9 | os:alma9 | os:ubuntu22) & gpu:nvidia"

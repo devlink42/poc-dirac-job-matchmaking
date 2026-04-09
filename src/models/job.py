@@ -34,7 +34,7 @@ class Gpu(BaseModel):
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
     compute_capability: Range[CustomVersion] = Field(validation_alias="compute-capability")
-    driver_version: CustomVersion = Field(validation_alias="driver-version")
+    driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
 class Job(BaseModel):

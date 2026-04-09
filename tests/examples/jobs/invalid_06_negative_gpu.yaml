@@ -22,4 +22,5 @@ matching_specs:
       ram-mb: 8192
       vendor: nvidia
       compute-capability: {"min": "8.0", "max": null}
+      driver-version: 495.29.05
     tags: "cvmfs:lhcb"

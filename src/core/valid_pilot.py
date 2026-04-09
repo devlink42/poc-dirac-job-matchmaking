@@ -34,6 +34,12 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if node.cpu.architecture.microarchitecture_level < job.cpu.architecture.microarchitecture_level.min:
         return False
 
+    if (
+        job.cpu.architecture.microarchitecture_level.max is not None
+        and node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
+    ):
+        return False
+
     # CPU Cores check
     if node.cpu.num_cores < job.cpu.num_cores.min:
         return False
@@ -63,9 +69,12 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 if node.gpu.compute_capability < job.gpu.compute_capability.min:
                     return False
 
-            # Probably not needed, because of backwards compatibility
             if job.gpu.compute_capability.max and node.gpu.compute_capability:
                 if node.gpu.compute_capability > job.gpu.compute_capability.max:
+                    return False
+
+            if job.gpu.driver_version and node.gpu.driver_version:
+                if node.gpu.driver_version < job.gpu.driver_version:
                     return False
 
     # Tags check (all job tags must be present in node tags)
