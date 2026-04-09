@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import re
 import sys
 
 import yaml
@@ -10,6 +12,46 @@ from pydantic import ValidationError
 
 from src.models.job import Job
 from src.models.node import Node
+
+
+def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
+    """Evaluate a simple boolean expression of tags against a set of node tags.
+
+    Supported syntax examples:
+      - "a & b"
+      - "a | (b & c)"
+      - "not a"
+      - Operators: '&' for AND, '|' for OR, 'not' for NOT, parentheses for grouping
+    """
+
+    def repl_token(m: re.Match[str]) -> str:
+        token = m.group(0)
+        if token in {"and", "or", "not"}:
+            return token
+
+        return "True" if token in node_tags else "False"
+
+    expr_norm = expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
+    expr_bool = re.sub(r"[A-Za-z0-9:_+-]+", repl_token, expr_norm)
+
+    def evaluate_node(node):
+        if isinstance(node, ast.Constant):  # True or False
+            return bool(node.value)
+        elif isinstance(node, ast.BoolOp):  # 'and' / 'or'
+            if isinstance(node.op, ast.And):
+                return all(evaluate_node(val) for val in node.values)
+            elif isinstance(node.op, ast.Or):
+                return any(evaluate_node(val) for val in node.values)
+        elif isinstance(node, ast.UnaryOp):  # 'not'
+            if isinstance(node.op, ast.Not):
+                return not evaluate_node(node.operand)
+        raise ValueError(f"Operation not supported: {expr_norm} =>")
+
+    try:
+        tree = ast.parse(expr_bool, mode="eval")
+        return evaluate_node(tree.body)
+    except Exception:
+        return False
 
 
 def valid_job_with_node(job: Job, node: Node) -> bool:
@@ -79,11 +121,15 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
 
     # Tags check (all job tags must be present in node tags)
     if job.tags:
-        job_tags = set(tag.strip() for tag in job.tags.replace(",", " ").split())
         node_tags = set(node.tags)
-
-        if not job_tags.issubset(node_tags):
-            return False
+        # Support boolean expressions like "a & (b | ~c)"; if not present, do simple subset
+        if any(op in job.tags for op in ("&", "|", "~", "(", ")")):
+            if not _eval_tag_expression(job.tags, node_tags):
+                return False
+        else:
+            job_tags = set(tag.strip() for tag in job.tags.replace(",", " ").split())
+            if not job_tags.issubset(node_tags):
+                return False
 
     return True
 
