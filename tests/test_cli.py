@@ -4,16 +4,36 @@ from __future__ import annotations
 
 import os
 import subprocess
+from pathlib import Path
 from sys import executable
+
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
 
 def run_cli(*args):
     env = os.environ.copy()
-    env["PYTHONPATH"] = env.get("PYTHONPATH", "") + ":" + os.getcwd()
+    # Use proper path separator for Windows/Linux
+    current_pythonpath = env.get("PYTHONPATH", "")
+    if current_pythonpath:
+        env["PYTHONPATH"] = f"{str(PROJECT_ROOT)}{os.pathsep}{current_pythonpath}"
+    else:
+        env["PYTHONPATH"] = str(PROJECT_ROOT)
+
+    script_path = str(PROJECT_ROOT / "src" / "core" / "valid_pilot.py")
+
+    processed_args = []
+    for arg in args:
+        if isinstance(arg, str) and not arg.startswith("-"):
+            potential_path = PROJECT_ROOT / arg
+            if potential_path.exists():
+                processed_args.append(str(potential_path))
+            else:
+                processed_args.append(arg)
+        else:
+            processed_args.append(str(arg))
 
     result = subprocess.run(  # noqa: S603
-        [executable, "src/core/valid_pilot.py"] + list(args),
-        capture_output=True, text=True, env=env
+        [executable, script_path] + processed_args, capture_output=True, text=True, env=env
     )
 
     return result
@@ -21,8 +41,7 @@ def run_cli(*args):
 
 def test_cli_match_success():
     result = run_cli(
-        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-        "tests/examples/nodes/pilot_01_cern_typical.yaml"
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml"
     )
 
     assert result.returncode == 0

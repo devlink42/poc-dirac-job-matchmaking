@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
+
+from src.models.utils import ArchitectureName, CustomVersion, Io
 
 
 class System(BaseModel):
     name: str
-    glibc: PositiveFloat
+    glibc: CustomVersion
     user_namespaces: bool = Field(validation_alias="user-namespaces")
 
 
 class Architecture(BaseModel):
-    name: str
+    name: ArchitectureName
     microarchitecture_level: PositiveInt = Field(validation_alias="microarchitecture-level")
 
 
@@ -25,6 +27,10 @@ class Cpu(BaseModel):
 
 class Gpu(BaseModel):
     count: NonNegativeInt
+    ram_mb: PositiveInt = Field(default=None, validation_alias="ram-mb")
+    vendor: str | None = None
+    compute_capability: CustomVersion | None = Field(default=None, validation_alias="compute-capability")
+    driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
 class Node(BaseModel):
@@ -35,4 +41,5 @@ class Node(BaseModel):
     cpu_work: PositiveInt = Field(validation_alias="cpu-work")
     cpu: Cpu
     gpu: Gpu
+    io: Io | None = None
     tags: list[str]

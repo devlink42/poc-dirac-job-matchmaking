@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
-from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt, PositiveFloat, PositiveInt
-
-from src.models.utils import Io, Range, ResourceSpec, StrictRange
+from src.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
 
 
 class System(BaseModel):
     name: str
-    glibc: PositiveFloat | None = None
+    glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 
 
@@ -21,8 +19,7 @@ class ComputeMemory(BaseModel):
 
 
 class Architecture(BaseModel):
-    # TODO: see for a better way to handle this (e.g. enum) to help adding new arch for the future
-    name: Literal["x86_64", "aarch64"]
+    name: ArchitectureName
     microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
@@ -36,7 +33,8 @@ class Gpu(BaseModel):
     count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
-    compute_capability: Range[NonNegativeFloat] = Field(validation_alias="compute-capability")
+    compute_capability: Range[CustomVersion] = Field(validation_alias="compute-capability")
+    driver_version: CustomVersion = Field(validation_alias="driver-version")
 
 
 class Job(BaseModel):

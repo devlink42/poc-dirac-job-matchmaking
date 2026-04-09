@@ -36,38 +36,46 @@ def load_job_specs(job_path: str) -> list[Job]:
     return specs
 
 
-@pytest.mark.parametrize("job_file, node_file, node_id, expected_match", [
-    # SUCCESS CASES
-    # Typical MCSimulation on CERN node
-    ("tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-     "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, True),
-    # MCFastSimulation (v1) on Older Tier-2 node (v2)
-    ("tests/examples/jobs/job_03_mcfastsimulation.yaml",
-     "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, True),
-    # GPU job on GPU node
-    ("tests/examples/jobs/job_06_gpu.yaml",
-     "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
-    
-    # FAILURE CASES
-    # OS Mismatch (Darwin vs Linux)
-    ("tests/examples/jobs/job_08_darwin.yaml",
-     "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-    # GLIBC too old on node (Job 2.35 vs Node 2.28)
-    ("tests/examples/jobs/job_09_high_glibc.yaml",
-     "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-    # Microarchitecture level too low (Job v4 vs Node v2)
-    ("tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-     "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, False),
-    # RAM too small (Job 1.5GB vs Node 1GB)
-    ("tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-     "tests/examples/nodes/pilot_04_low_ram.yaml", 4, False),
-    # Missing GPU on node
-    ("tests/examples/jobs/job_06_gpu.yaml",
-     "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-    # Tag mismatch (missing gpu:nvidia tag)
-    ("tests/examples/jobs/job_06_gpu.yaml",
-     "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-])
+@pytest.mark.parametrize(
+    "job_file, node_file, node_id, expected_match",
+    [
+        # SUCCESS CASES
+        # Typical MCSimulation on CERN node
+        (
+            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+            "tests/examples/nodes/pilot_01_cern_typical.yaml",
+            1,
+            True,
+        ),
+        # MCFastSimulation (v1) on Older Tier-2 node (v2)
+        ("tests/examples/jobs/job_03_mcfastsimulation.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, True),
+        # GPU job on GPU node
+        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
+        # FAILURE CASES
+        # OS Mismatch (Darwin vs Linux)
+        ("tests/examples/jobs/job_08_darwin.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+        # GLIBC too old on node (Job 2.35 vs Node 2.28)
+        ("tests/examples/jobs/job_09_high_glibc.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+        # Microarchitecture level too low (Job v4 vs Node v2)
+        (
+            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+            "tests/examples/nodes/pilot_02_tier2_older.yaml",
+            2,
+            False,
+        ),
+        # RAM too small (Job 1.5GB vs Node 1GB)
+        (
+            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+            "tests/examples/nodes/pilot_04_low_ram.yaml",
+            4,
+            False,
+        ),
+        # Missing GPU on node
+        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+        # Tag mismatch (missing gpu:nvidia tag)
+        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+    ],
+)
 def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
     """Test the core matchmaking logic between jobs and nodes from YAML examples."""
     node = load_node(node_file, node_id)
@@ -85,8 +93,7 @@ def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
 def test_valid_pilot_from_files():
     """Test the higher-level valid_pilot function using real YAML paths."""
     matches = valid_pilot(
-        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-        "tests/examples/nodes/pilot_01_cern_typical.yaml"
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml"
     )
 
     assert len(matches) == 1

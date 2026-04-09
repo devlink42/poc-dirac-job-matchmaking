@@ -58,9 +58,19 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         if job.gpu.count.max is not None and node.gpu.count > job.gpu.count.max:
             return False
 
+        if node.gpu.count > 0:
+            if job.gpu.compute_capability.min and node.gpu.compute_capability:
+                if node.gpu.compute_capability < job.gpu.compute_capability.min:
+                    return False
+
+            # Probably not needed, because of backwards compatibility
+            if job.gpu.compute_capability.max and node.gpu.compute_capability:
+                if node.gpu.compute_capability > job.gpu.compute_capability.max:
+                    return False
+
     # Tags check (all job tags must be present in node tags)
     if job.tags:
-        job_tags = set(tag.strip() for tag in job.tags.replace(',', ' ').split())
+        job_tags = set(tag.strip() for tag in job.tags.replace(",", " ").split())
         node_tags = set(node.tags)
 
         if not job_tags.issubset(node_tags):
@@ -101,7 +111,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
             # Add a dummy job_id if not present for validation
             if "job_id" not in job_spec:
                 job_spec["job_id"] = "unknown-job-id"
-            
+
             job_obj = Job.model_validate(job_spec)
 
             if valid_job_with_node(job_obj, node_obj):
@@ -119,8 +129,12 @@ def main():
     parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
     parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
     parser.add_argument(
-        "--validate-node", "-VN", "--validate-pilot", "-VP",
-        action="store_true", help="Only validate the node/pilot file"
+        "--validate-node",
+        "-VN",
+        "--validate-pilot",
+        "-VP",
+        action="store_true",
+        help="Only validate the node/pilot file",
     )
 
     args = parser.parse_args()
@@ -132,12 +146,12 @@ def main():
         try:
             with open(args.job, "r") as f:
                 content = yaml.safe_load(f)
-            
+
             jobs = content.get("matching_specs", [])
             if not jobs:
                 print(f"No matching_specs found in {args.job}")
                 sys.exit(1)
-            
+
             print(f"Validating {len(jobs)} job(s) from {args.job}...")
             for i, job_spec in enumerate(jobs):
                 if "job_id" not in job_spec:
@@ -161,10 +175,10 @@ def main():
         try:
             with open(node_path, "r") as f:
                 content = yaml.safe_load(f)
-            
+
             if "node_id" not in content:
                 content["node_id"] = "unknown-node"
-            
+
             Node.model_validate(content)
             print(f"Node file {node_path} is VALID.")
         except Exception as e:
@@ -174,7 +188,7 @@ def main():
     elif args.job and args.node_pilot:
         try:
             matched_jobs = valid_pilot(args.job, args.node_pilot)
-            
+
             if matched_jobs:
                 print(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
 
