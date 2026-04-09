@@ -47,20 +47,50 @@ def load_job_specs(job_path: str) -> list[Job]:
             1,
             True,
         ),
+        (
+            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
+            "tests/examples/nodes/pilot_01_cern_typical.yaml",
+            1,
+            True,
+        ),
+        (
+            "tests/examples/jobs/job_03_mcfastsimulation.yaml",
+            "tests/examples/nodes/pilot_01_cern_typical.yaml",
+            1,
+            True,
+        ),
         # MCFastSimulation (v1) on Older Tier-2 node (v2)
         ("tests/examples/jobs/job_03_mcfastsimulation.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, True),
+        ("tests/examples/jobs/job_03_mcfastsimulation.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
+        (
+            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
+            "tests/examples/nodes/pilot_01_cern_typical.yaml",
+            1,
+            True,
+        ),
+        (
+            "tests/examples/jobs/job_05_user_with_banned_site.yaml",
+            "tests/examples/nodes/pilot_01_cern_typical.yaml",
+            1,
+            True,
+        ),
+        ("tests/examples/jobs/job_05_user_with_banned_site.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
         # GPU job on GPU node
         ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
+        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, True),
+        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
         # FAILURE CASES
-        # OS Mismatch (Darwin vs Linux)
-        ("tests/examples/jobs/job_08_darwin.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-        # GLIBC too old on node (Job 2.35 vs Node 2.28)
-        ("tests/examples/jobs/job_09_high_glibc.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
         # Microarchitecture level too low (Job v4 vs Node v2)
         (
             "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
             "tests/examples/nodes/pilot_02_tier2_older.yaml",
             2,
+            False,
+        ),
+        (
+            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+            "tests/examples/nodes/pilot_03_gpu.yaml",
+            3,
             False,
         ),
         # RAM too small (Job 1.5GB vs Node 1GB)
@@ -70,10 +100,45 @@ def load_job_specs(job_path: str) -> list[Job]:
             4,
             False,
         ),
+        (
+            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
+            "tests/examples/nodes/pilot_02_tier2_older.yaml",
+            2,
+            False,
+        ),
+        (
+            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
+            "tests/examples/nodes/pilot_03_gpu.yaml",
+            3,
+            False,
+        ),
+        (
+            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
+            "tests/examples/nodes/pilot_02_tier2_older.yaml",
+            2,
+            False,
+        ),
+        (
+            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
+            "tests/examples/nodes/pilot_03_gpu.yaml",
+            3,
+            False,
+        ),
+        (
+            "tests/examples/jobs/job_05_user_with_banned_site.yaml",
+            "tests/examples/nodes/pilot_02_tier2_older.yaml",
+            2,
+            False,
+        ),
         # Missing GPU on node
         ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
         # Tag mismatch (missing gpu:nvidia tag)
-        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, False),
+        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, False),
+        # OS Mismatch (Darwin vs Linux)
+        ("tests/examples/jobs/job_08_darwin.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
+        # GLIBC too old on node (Job 2.35 vs Node 2.28)
+        ("tests/examples/jobs/job_09_high_glibc.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
     ],
 )
 def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):

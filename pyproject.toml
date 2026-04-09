@@ -11,14 +11,17 @@ requires = ["hatchling"]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
 poc_dirac_job_matchmaking = { path = ".", editable = true }
 
 [tool.pixi.tasks]
 lint = "ruff check . && ruff format --check ."
-test = "pytest tests/"
+test = "pytest --cov=src --cov-report=xml tests/"
+pre-commit = "pre-commit"
+pc = "pre-commit run --all-files"
+valid = "src/core/valid_pilot.py"
 
 [tool.ruff]
 line-length = 120

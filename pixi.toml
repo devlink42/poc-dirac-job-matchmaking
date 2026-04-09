@@ -12,6 +12,7 @@ lint = "ruff check . && ruff format --check ."
 test = "pytest --cov=src --cov-report=xml tests/"
 pre-commit = "pre-commit"
 pc = "pre-commit run --all-files"
+valid = "src/core/valid_pilot.py"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
