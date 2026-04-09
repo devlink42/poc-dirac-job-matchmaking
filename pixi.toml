@@ -10,6 +10,8 @@ env = { PYTHONPATH = "." }
 [tasks]
 lint = "ruff check . && ruff format --check ."
 test = "pytest --cov=src --cov-report=xml tests/"
+pre-commit = "pre-commit"
+pc = "pre-commit run --all-files"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
@@ -21,6 +23,7 @@ pytest = ">=8.1.1"
 ruff = ">=0.15.9,<0.16"
 pytest-cov = ">=7.1.0,<8"
 packaging = ">=26.0,<27"
+pre-commit = ">=4.1.0,<5"
 
 [feature.analysis.dependencies]
 matplotlib = ">=3.9"
