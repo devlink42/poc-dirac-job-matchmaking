@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import logging
 import re
 import sys
 
@@ -12,6 +13,9 @@ from pydantic import ValidationError
 
 from src.models.job import Job
 from src.models.node import Node
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 
 def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
@@ -32,49 +36,64 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
         return "True" if token in node_tags else "False"
 
     expr_norm = expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
+    logger.debug(f"Evaluating tag expression: {expr_norm}")
     expr_bool = re.sub(r"[A-Za-z0-9:_+-]+", repl_token, expr_norm)
+    logger.debug(f"Normalized expression: {expr_bool}")
 
     def evaluate_node(node):
         if isinstance(node, ast.Constant):  # True or False
+            logger.debug(f"Evaluating constant: {node.value}")
             return bool(node.value)
         elif isinstance(node, ast.BoolOp):  # 'and' / 'or'
             if isinstance(node.op, ast.And):
+                logger.debug(f"Evaluating AND: {node.values}")
                 return all(evaluate_node(val) for val in node.values)
             elif isinstance(node.op, ast.Or):
+                logger.debug(f"Evaluating OR: {node.values}")
                 return any(evaluate_node(val) for val in node.values)
         elif isinstance(node, ast.UnaryOp):  # 'not'
             if isinstance(node.op, ast.Not):
+                logger.debug(f"Evaluating NOT: {node.operand}")
                 return not evaluate_node(node.operand)
+
         raise ValueError(f"Operation not supported: {expr_norm} =>")
 
     try:
         tree = ast.parse(expr_bool, mode="eval")
+        logger.debug(f"Parsed expression: {tree.body}")
         return evaluate_node(tree.body)
     except Exception:
+        logger.debug(f"Error evaluating expression: {expr_norm}")
         return False
 
 
 def valid_job_with_node(job: Job, node: Node) -> bool:
     # Site check
     if job.site and job.site != node.site:
+        logger.debug(f"Job {job.job_id} is not on site {job.site}, skipping...")
         return False
 
     # System check
     if job.system.name != node.system.name:
+        logger.debug(f"Job {job.job_id} is not on system {job.system.name}, skipping...")
         return False
 
     if job.system.glibc and node.system.glibc < job.system.glibc:
+        logger.debug(f"Job {job.job_id} requires glibc >= {job.system.glibc}, skipping...")
         return False
 
     if job.system.user_namespaces and job.system.user_namespaces != node.system.user_namespaces:
+        logger.debug(f"Job {job.job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
         return False
 
     # CPU work
     if node.cpu_work < job.cpu_work:
+        logger.debug(f"Job {job.job_id} requires {job.cpu_work} CPU work, skipping...")
         return False
 
     # CPU Cores check
     if node.cpu.num_cores < job.cpu.num_cores.min:
+        logger.debug(f"Job {job.job_id} requires at least {job.cpu.num_cores.min} CPU cores, skipping...")
         return False
 
     # RAM check
@@ -83,6 +102,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
             required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
 
         if node.cpu.ram_mb < required_ram_request:
+            logger.debug(f"Job {job.job_id} requires at least {required_ram_request} MB RAM, skipping...")
             return False
 
         if ram_limit := job.cpu.ram_mb.limit.overhead:
@@ -90,34 +110,48 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
 
             if node.cpu.ram_mb > ram_limit:
+                logger.debug(f"Job {job.job_id} requires at most {ram_limit} MB RAM, skipping...")
                 return False
 
     # Architecture check
     if job.cpu.architecture.name != node.cpu.architecture.name:
+        logger.debug(f"Job {job.job_id} requires architecture {job.cpu.architecture.name}, skipping...")
         return False
 
     if node.cpu.architecture.microarchitecture_level < job.cpu.architecture.microarchitecture_level.min:
+        logger.debug(
+            f"Job {job.job_id} requires at least microarchitecture level "
+            f"{job.cpu.architecture.microarchitecture_level.min}, skipping..."
+        )
         return False
 
     if (
         job.cpu.architecture.microarchitecture_level.max
         and node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
     ):
+        logger.debug(
+            f"Job {job.job_id} requires at most microarchitecture level "
+            f"{job.cpu.architecture.microarchitecture_level.max}, skipping..."
+        )
         return False
 
     # GPU check (if required)
     if job.gpu:
         if node.gpu.count < job.gpu.count.min:
+            logger.debug(f"Job {job.job_id} requires at least {job.gpu.count.min} GPUs, skipping...")
             return False
 
         if job.gpu.count.max and node.gpu.count > job.gpu.count.max:
+            logger.debug(f"Job {job.job_id} requires at most {job.gpu.count.max} GPUs, skipping...")
             return False
 
         if node.gpu.count > 0:
             if job.gpu.ram_mb and node.gpu.ram_mb and node.gpu.ram_mb < job.gpu.ram_mb:
+                logger.debug(f"Job {job.job_id} requires at least {job.gpu.ram_mb} MB GPU RAM, skipping...")
                 return False
 
             if job.gpu.vendor != node.gpu.vendor:
+                logger.debug(f"Job {job.job_id} requires GPU vendor {job.gpu.vendor}, skipping...")
                 return False
 
             if (
@@ -125,6 +159,10 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability < job.gpu.compute_capability.min
             ):
+                logger.debug(
+                    f"Job {job.job_id} requires at least compute capability "
+                    f"{job.gpu.compute_capability.min}, skipping..."
+                )
                 return False
 
             if (
@@ -132,31 +170,45 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability > job.gpu.compute_capability.max
             ):
+                logger.debug(
+                    f"Job {job.job_id} requires at most compute capability "
+                    f"{job.gpu.compute_capability.max}, skipping..."
+                )
                 return False
 
             if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
+                logger.debug(f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
                 return False
 
             if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
+                logger.debug(f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
                 return False
 
     # IO check
     if job.io and node.io:
         if node.io.scratch_mb < job.io.scratch_mb:
+            logger.debug(f"Job {job.job_id} requires at least {job.io.scratch_mb} MB scratch space, skipping...")
             return False
 
         if node.io.lan_mbitps and job.io.lan_mbitps and node.io.lan_mbitps < job.io.lan_mbitps:
+            logger.debug(f"Job {job.job_id} requires at least {job.io.lan_mbitps} Mbit/s LAN bandwidth, skipping...")
             return False
 
     # Tags check (all job tags must be present in node tags)
     if job.tags:
         node_tags = set(node.tags)
-        # Support boolean expressions like "a & (b | ~c)"; if not present, do simple subset
-        if any(op in job.tags for op in ("&", "|", "~", "(", ")")) and not _eval_tag_expression(job.tags, node_tags):
-            return False
+        logger.debug(f"Node {node.node_id} has tags: {node_tags}")
+        logger.debug(f"Job {job.job_id} has tags: {job.tags}")
+
+        if any(op in job.tags for op in ("&", "|", "~", "(", ")")):
+            if not _eval_tag_expression(job.tags, node_tags):
+                logger.debug(f"Job {job.job_id} has invalid tag expression, skipping...")
+                return False
         else:
-            job_tags = set(tag.strip() for tag in job.tags.replace(",", " ").split())
-            if not job_tags.issubset(node_tags):
+            job_tags = set(tag.strip() for tag in job.tags.split())
+            logger.debug(f"Job {job.job_id} has tags: {job_tags}")
+            if not (job_tags <= node_tags):
+                logger.debug(f"Job {job.job_id} has missing tags, skipping...")
                 return False
 
     return True
@@ -183,7 +235,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
     try:
         node_obj = Node.model_validate(yaml_node)
     except ValidationError as e:
-        print(f"Invalid node specification: {e}")
+        logger.error(f"Invalid node specification: {e}")
         return []
 
     jobs = yaml_job.get("matching_specs", [])
@@ -200,7 +252,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
             if valid_job_with_node(job_obj, node_obj):
                 jobs_match.append(job_obj)
         except ValidationError as e:
-            print(f"Invalid job specification: {e}")
+            logger.error(f"Invalid job specification: {e}")
             continue
 
     return jobs_match
@@ -224,7 +276,7 @@ def main():
 
     if args.validate_job:
         if not args.job:
-            print("Error: --validate-job requires a job file path.")
+            logger.error("Error: --validate-job requires a job file path.")
             sys.exit(1)
         try:
             with open(args.job, "r") as f:
@@ -245,14 +297,14 @@ def main():
 
             print("Validation successful.")
         except Exception as e:
-            print(f"Error validating job: {e}")
+            logger.error(f"Error validating job: {e}")
             sys.exit(1)
 
     elif args.validate_node:
         # If node_path is not provided, check if job_path was used instead
         node_path = args.node_pilot or args.job
         if not node_path:
-            print("Error: --validate-node/--validate-pilot requires a node file path.")
+            logger.error("Error: --validate-node/--validate-pilot requires a node file path.")
             sys.exit(1)
 
         try:
@@ -265,7 +317,7 @@ def main():
             Node.model_validate(content)
             print(f"Node file {node_path} is VALID.")
         except Exception as e:
-            print(f"Error validating node: {e}")
+            logger.error(f"Error validating node: {e}")
             sys.exit(1)
 
     elif args.job and args.node_pilot:
@@ -280,7 +332,7 @@ def main():
             else:
                 print("No jobs from the job file can run on this node.")
         except Exception as e:
-            print(f"Error during matchmaking: {e}")
+            logger.error(f"Error during matchmaking: {e}")
             sys.exit(1)
     else:
         parser.print_help()
