@@ -63,11 +63,34 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if job.system.name != node.system.name:
         return False
 
-    if job.system.glibc is not None and node.system.glibc < job.system.glibc:
+    if job.system.glibc and node.system.glibc < job.system.glibc:
         return False
 
-    if job.system.user_namespaces is not None and job.system.user_namespaces != node.system.user_namespaces:
+    if job.system.user_namespaces and job.system.user_namespaces != node.system.user_namespaces:
         return False
+
+    # CPU work
+    if node.cpu_work < job.cpu_work:
+        return False
+
+    # CPU Cores check
+    if node.cpu.num_cores < job.cpu.num_cores.min:
+        return False
+
+    # RAM check
+    if job.cpu.ram_mb and (required_ram_request := job.cpu.ram_mb.request.overhead):
+        if job.cpu.ram_mb.request.per_core:
+            required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
+
+        if node.cpu.ram_mb < required_ram_request:
+            return False
+
+        if ram_limit := job.cpu.ram_mb.limit.overhead:
+            if job.cpu.ram_mb.limit.per_core:
+                ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
+
+            if node.cpu.ram_mb > ram_limit:
+                return False
 
     # Architecture check
     if job.cpu.architecture.name != node.cpu.architecture.name:
@@ -77,55 +100,60 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         return False
 
     if (
-        job.cpu.architecture.microarchitecture_level.max is not None
+        job.cpu.architecture.microarchitecture_level.max
         and node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
     ):
-        return False
-
-    # CPU Cores check
-    if node.cpu.num_cores < job.cpu.num_cores.min:
-        return False
-
-    # RAM check
-    if job.cpu.ram_mb:
-        if required_ram_request := job.cpu.ram_mb.request.overhead:
-            if job.cpu.ram_mb.request.per_core:
-                required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
-
-            if node.cpu.ram_mb < required_ram_request:
-                return False
-
-    # CPU work
-    if node.cpu_work < job.cpu_work:
         return False
 
     # GPU check (if required)
     if job.gpu:
         if node.gpu.count < job.gpu.count.min:
             return False
-        if job.gpu.count.max is not None and node.gpu.count > job.gpu.count.max:
+
+        if job.gpu.count.max and node.gpu.count > job.gpu.count.max:
             return False
 
         if node.gpu.count > 0:
-            if job.gpu.compute_capability.min and node.gpu.compute_capability:
-                if node.gpu.compute_capability < job.gpu.compute_capability.min:
-                    return False
+            if job.gpu.ram_mb and node.gpu.ram_mb and node.gpu.ram_mb < job.gpu.ram_mb:
+                return False
 
-            if job.gpu.compute_capability.max and node.gpu.compute_capability:
-                if node.gpu.compute_capability > job.gpu.compute_capability.max:
-                    return False
+            if job.gpu.vendor != node.gpu.vendor:
+                return False
 
-            if job.gpu.driver_version and node.gpu.driver_version:
-                if node.gpu.driver_version < job.gpu.driver_version:
-                    return False
+            if (
+                job.gpu.compute_capability.min
+                and node.gpu.compute_capability
+                and node.gpu.compute_capability < job.gpu.compute_capability.min
+            ):
+                return False
+
+            if (
+                job.gpu.compute_capability.max
+                and node.gpu.compute_capability
+                and node.gpu.compute_capability > job.gpu.compute_capability.max
+            ):
+                return False
+
+            if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
+                return False
+
+            if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
+                return False
+
+    # IO check
+    if job.io and node.io:
+        if node.io.scratch_mb < job.io.scratch_mb:
+            return False
+
+        if node.io.lan_mbitps and job.io.lan_mbitps and node.io.lan_mbitps < job.io.lan_mbitps:
+            return False
 
     # Tags check (all job tags must be present in node tags)
     if job.tags:
         node_tags = set(node.tags)
         # Support boolean expressions like "a & (b | ~c)"; if not present, do simple subset
-        if any(op in job.tags for op in ("&", "|", "~", "(", ")")):
-            if not _eval_tag_expression(job.tags, node_tags):
-                return False
+        if any(op in job.tags for op in ("&", "|", "~", "(", ")")) and not _eval_tag_expression(job.tags, node_tags):
+            return False
         else:
             job_tags = set(tag.strip() for tag in job.tags.replace(",", " ").split())
             if not job_tags.issubset(node_tags):

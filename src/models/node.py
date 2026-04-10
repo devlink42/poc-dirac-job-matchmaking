@@ -27,7 +27,7 @@ class Cpu(BaseModel):
 
 class Gpu(BaseModel):
     count: NonNegativeInt
-    ram_mb: PositiveInt = Field(default=None, validation_alias="ram-mb")
+    ram_mb: PositiveInt | None = Field(default=None, validation_alias="ram-mb")
     vendor: str | None = None
     compute_capability: CustomVersion | None = Field(default=None, validation_alias="compute-capability")
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
