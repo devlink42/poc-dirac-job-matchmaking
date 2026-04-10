@@ -15,7 +15,7 @@ from src.models.job import Job
 from src.models.node import Node
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.WARNING)
 
 
 def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
@@ -63,37 +63,37 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
         logger.debug(f"Parsed expression: {tree.body}")
         return evaluate_node(tree.body)
     except Exception:
-        logger.debug(f"Error evaluating expression: {expr_norm}")
+        logger.warning(f"Error evaluating expression: {expr_norm}")
         return False
 
 
 def valid_job_with_node(job: Job, node: Node) -> bool:
     # Site check
     if job.site and job.site != node.site:
-        logger.debug(f"Job {job.job_id} is not on site {job.site}, skipping...")
+        logger.warning(f"Job {job.job_id} is not on site {job.site}, skipping...")
         return False
 
     # System check
     if job.system.name != node.system.name:
-        logger.debug(f"Job {job.job_id} is not on system {job.system.name}, skipping...")
+        logger.warning(f"Job {job.job_id} is not on system {job.system.name}, skipping...")
         return False
 
     if job.system.glibc and node.system.glibc < job.system.glibc:
-        logger.debug(f"Job {job.job_id} requires glibc >= {job.system.glibc}, skipping...")
+        logger.warning(f"Job {job.job_id} requires glibc >= {job.system.glibc}, skipping...")
         return False
 
     if job.system.user_namespaces and job.system.user_namespaces != node.system.user_namespaces:
-        logger.debug(f"Job {job.job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
+        logger.warning(f"Job {job.job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
         return False
 
     # CPU work
     if node.cpu_work < job.cpu_work:
-        logger.debug(f"Job {job.job_id} requires {job.cpu_work} CPU work, skipping...")
+        logger.warning(f"Job {job.job_id} requires {job.cpu_work} CPU work, skipping...")
         return False
 
     # CPU Cores check
     if node.cpu.num_cores < job.cpu.num_cores.min:
-        logger.debug(f"Job {job.job_id} requires at least {job.cpu.num_cores.min} CPU cores, skipping...")
+        logger.warning(f"Job {job.job_id} requires at least {job.cpu.num_cores.min} CPU cores, skipping...")
         return False
 
     # RAM check
@@ -102,7 +102,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
             required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
 
         if node.cpu.ram_mb < required_ram_request:
-            logger.debug(f"Job {job.job_id} requires at least {required_ram_request} MB RAM, skipping...")
+            logger.warning(f"Job {job.job_id} requires at least {required_ram_request} MB RAM, skipping...")
             return False
 
         if ram_limit := job.cpu.ram_mb.limit.overhead:
@@ -110,16 +110,16 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
 
             if node.cpu.ram_mb > ram_limit:
-                logger.debug(f"Job {job.job_id} requires at most {ram_limit} MB RAM, skipping...")
+                logger.warning(f"Job {job.job_id} requires at most {ram_limit} MB RAM, skipping...")
                 return False
 
     # Architecture check
     if job.cpu.architecture.name != node.cpu.architecture.name:
-        logger.debug(f"Job {job.job_id} requires architecture {job.cpu.architecture.name}, skipping...")
+        logger.warning(f"Job {job.job_id} requires architecture {job.cpu.architecture.name}, skipping...")
         return False
 
     if node.cpu.architecture.microarchitecture_level < job.cpu.architecture.microarchitecture_level.min:
-        logger.debug(
+        logger.warning(
             f"Job {job.job_id} requires at least microarchitecture level "
             f"{job.cpu.architecture.microarchitecture_level.min}, skipping..."
         )
@@ -129,7 +129,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         job.cpu.architecture.microarchitecture_level.max
         and node.cpu.architecture.microarchitecture_level > job.cpu.architecture.microarchitecture_level.max
     ):
-        logger.debug(
+        logger.warning(
             f"Job {job.job_id} requires at most microarchitecture level "
             f"{job.cpu.architecture.microarchitecture_level.max}, skipping..."
         )
@@ -138,20 +138,20 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     # GPU check (if required)
     if job.gpu:
         if node.gpu.count < job.gpu.count.min:
-            logger.debug(f"Job {job.job_id} requires at least {job.gpu.count.min} GPUs, skipping...")
+            logger.warning(f"Job {job.job_id} requires at least {job.gpu.count.min} GPUs, skipping...")
             return False
 
         if job.gpu.count.max and node.gpu.count > job.gpu.count.max:
-            logger.debug(f"Job {job.job_id} requires at most {job.gpu.count.max} GPUs, skipping...")
+            logger.warning(f"Job {job.job_id} requires at most {job.gpu.count.max} GPUs, skipping...")
             return False
 
         if node.gpu.count > 0:
             if job.gpu.ram_mb and node.gpu.ram_mb and node.gpu.ram_mb < job.gpu.ram_mb:
-                logger.debug(f"Job {job.job_id} requires at least {job.gpu.ram_mb} MB GPU RAM, skipping...")
+                logger.warning(f"Job {job.job_id} requires at least {job.gpu.ram_mb} MB GPU RAM, skipping...")
                 return False
 
             if job.gpu.vendor != node.gpu.vendor:
-                logger.debug(f"Job {job.job_id} requires GPU vendor {job.gpu.vendor}, skipping...")
+                logger.warning(f"Job {job.job_id} requires GPU vendor {job.gpu.vendor}, skipping...")
                 return False
 
             if (
@@ -159,7 +159,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability < job.gpu.compute_capability.min
             ):
-                logger.debug(
+                logger.warning(
                     f"Job {job.job_id} requires at least compute capability "
                     f"{job.gpu.compute_capability.min}, skipping..."
                 )
@@ -170,28 +170,32 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability > job.gpu.compute_capability.max
             ):
-                logger.debug(
+                logger.warning(
                     f"Job {job.job_id} requires at most compute capability "
                     f"{job.gpu.compute_capability.max}, skipping..."
                 )
                 return False
 
             if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
-                logger.debug(f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
+                logger.warning(
+                    f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping..."
+                )
                 return False
 
             if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
-                logger.debug(f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
+                logger.warning(
+                    f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping..."
+                )
                 return False
 
     # IO check
     if job.io and node.io:
         if node.io.scratch_mb < job.io.scratch_mb:
-            logger.debug(f"Job {job.job_id} requires at least {job.io.scratch_mb} MB scratch space, skipping...")
+            logger.warning(f"Job {job.job_id} requires at least {job.io.scratch_mb} MB scratch space, skipping...")
             return False
 
         if node.io.lan_mbitps and job.io.lan_mbitps and node.io.lan_mbitps < job.io.lan_mbitps:
-            logger.debug(f"Job {job.job_id} requires at least {job.io.lan_mbitps} Mbit/s LAN bandwidth, skipping...")
+            logger.warning(f"Job {job.job_id} requires at least {job.io.lan_mbitps} Mbit/s LAN bandwidth, skipping...")
             return False
 
     # Tags check (all job tags must be present in node tags)
@@ -202,13 +206,13 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
 
         if any(op in job.tags for op in ("&", "|", "~", "(", ")")):
             if not _eval_tag_expression(job.tags, node_tags):
-                logger.debug(f"Job {job.job_id} has invalid tag expression, skipping...")
+                logger.warning(f"Job {job.job_id} has invalid tag expression, skipping...")
                 return False
         else:
             job_tags = set(tag.strip() for tag in job.tags.split())
             logger.debug(f"Job {job.job_id} has tags: {job_tags}")
             if not (job_tags <= node_tags):
-                logger.debug(f"Job {job.job_id} has missing tags, skipping...")
+                logger.warning(f"Job {job.job_id} has missing tags, skipping...")
                 return False
 
     return True
