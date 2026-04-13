@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+def configure_logger(log_level: str = "WARNING") -> None:
+    """Configure CLI logging output and level."""
+    level = getattr(logging, log_level.upper(), logging.WARNING)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s [%(filename)s in %(funcName)s on line %(lineno)d] %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
+    logger.setLevel(level)
+
+
 def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
     """Evaluate a simple boolean expression of tags against a set of node tags.
 
@@ -275,8 +287,15 @@ def main():
         action="store_true",
         help="Only validate the node/pilot file",
     )
+    parser.add_argument(
+        "--log-level",
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity level (default: WARNING)",
+    )
 
     args = parser.parse_args()
+    configure_logger(args.log_level)
 
     if args.validate_job:
         if not args.job:
