@@ -72,6 +72,28 @@ def test_cli_invalid_job_file():
     assert "max must be greater than or equal to min" in result.stdout
 
 
+def test_cli_validate_job_requires_file_path():
+    result = run_cli("--validate-job")
+
+    assert result.returncode == 1
+    assert "--validate-job requires a job file path" in result.stdout
+
+
+def test_cli_validate_node_requires_file_path():
+    result = run_cli("--validate-node")
+
+    assert result.returncode == 1
+    assert "--validate-node/--validate-pilot requires a node file path" in result.stdout
+
+
+def test_cli_validate_job_missing_file_path():
+    result = run_cli("tests/examples/jobs/does_not_exist.yaml", "--validate-job")
+
+    assert result.returncode == 1
+    assert "Error validating job" in result.stdout
+    assert "No such file or directory" in result.stdout
+
+
 def test_cli_help():
     result = run_cli("--help")
 
