@@ -109,7 +109,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
             if job.cpu.ram_mb.limit.per_core:
                 ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
 
-            if node.cpu.ram_mb > ram_limit:
+            if node.cpu.ram_mb < ram_limit:
                 logger.warning(f"Job {job.job_id} requires at most {ram_limit} MB RAM, skipping...")
                 return False
 
