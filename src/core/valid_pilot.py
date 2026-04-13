@@ -48,7 +48,7 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
 
     expr_norm = expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
     logger.debug(f"Evaluating tag expression: {expr_norm}")
-    expr_bool = re.sub(r"[A-Za-z0-9:_+-]+", repl_token, expr_norm)
+    expr_bool = re.sub(r"[A-Za-z0-9:_+-.]+", repl_token, expr_norm)
     logger.debug(f"Normalized expression: {expr_bool}")
 
     def evaluate_node(node):

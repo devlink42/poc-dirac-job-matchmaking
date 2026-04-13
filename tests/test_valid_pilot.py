@@ -66,7 +66,7 @@ EXPECTED_BY_JOB = {
     "job_02": (True, False, False, False, False, False),
     "job_03": (True, True, True, False, True, False),
     "job_04": (False, False, False, False, False, False),
-    "job_05": (True, False, True, False, False, False),
+    "job_05": (True, False, True, False, True, False),
     "job_06": (False, False, True, False, True, False),
     "job_07": (True, False, True, False, True, False),
     "job_08": (False, False, False, False, False, True),
