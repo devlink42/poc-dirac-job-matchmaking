@@ -41,19 +41,19 @@
 
 This matrix shows which (job, node) pairs should match. Use this to validate your implementation.
 
-|                              | pilot_01 (CERN v4, 3d) |        pilot_02 (NCBJ v2, 1d)        |  pilot_03 (CERN GPU, 2d)  |              pilot_04 (GRIDKA)              |             pilot_05 (CERN GPU)             | pilot_06 (CERN Darwin, ) |
-|------------------------------|:----------------------:|:------------------------------------:|:-------------------------:|:-------------------------------------------:|:-------------------------------------------:|:------------------------:|
-| **job_01** (MCSim, any site) |        **YES**         | NO (wall-time 1d < 3d, arch v2 < v4) |  NO (wall-time 2d < 3d)   |           NO (wall-time 1d < 3d)            |           NO (wall-time 1d < 3d)            |       NO (Darwin)        |
-| **job_02** (MCSim, 5 sites)  |        **YES**         |        NO (site not in list)         |  NO (wall-time 2d < 3d)   |  NO (site not in list, wall-time 1d < 3d)   |  NO (site not in list, wall-time 1d < 3d)   |       NO (Darwin)        |
-| **job_03** (MCFast, 3 sites) |        **YES**         |               **YES**                |          **YES**          |            NO (site not in list)            |                   **YES**                   |       NO (Darwin)        |
-| **job_04** (WGProd, RAM)     |        **YES**         |        NO (site not in list)         | NO (wall-time 2d < 12.5d) | NO (site not in list, wall-time 1d < 12.5d) | NO (site not in list, wall-time 1d < 12.5d) |       NO (Darwin)        |
-| **job_05** (User, banned)    |        **YES**         |        NO (site not in list)         |          **YES**          |            NO (site not in list)            |            NO (site not in list)            |       NO (Darwin)        |
-| **job_06** (GPU)             |      NO (no GPU)       |    NO (site not in list, no GPU)     |          **YES**          |        NO (site not in list, no GPU)        |                   **YES**                   |       NO (Darwin)        |
-| **job_07** (Sprucing)        |        **YES**         |        NO (site not in list)         |          **YES**          |            NO (site not in list)            |                    NO ()                    |       NO (Darwin)        |
-| **job_08** (MCSim, any site) |      NO (Darwin)       |             NO (Darwin)              |        NO (Darwin)        |                 NO (Darwin)                 |                 NO (Darwin)                 |         **YES**          |
-| **job_09** (MCSim, any site) |   NO (GLIBC version)   |        NO (site not in list)         |    NO (GLIBC version)     |             NO (GLIBC version)              |                   **YES**                   |       NO (Darwin)        |
+|                              | pilot_01 (CERN v4, 3d) |        pilot_02 (NCBJ v2, 1d)        |  pilot_03 (CERN GPU, 2d)  |           pilot_04 (GRIDKA)           |             pilot_05 (CERN GPU)             | pilot_06 (CERN Darwin, ) |
+|------------------------------|:----------------------:|:------------------------------------:|:-------------------------:|:-------------------------------------:|:-------------------------------------------:|:------------------------:|
+| **job_01** (MCSim, any site) |        **YES**         | NO (wall-time 1d < 3d, arch v2 < v4) |  NO (wall-time 2d < 3d)   |          NO (Not enough RAM)          |           NO (wall-time 1d < 3d)            |       NO (Darwin)        |
+| **job_02** (MCSim, 5 sites)  |        **YES**         |        NO (site not in list)         |  NO (wall-time 2d < 3d)   | NO (site not in list, not enough RAM) |  NO (site not in list, wall-time 1d < 3d)   |       NO (Darwin)        |
+| **job_03** (MCFast, 3 sites) |        **YES**         |               **YES**                |          **YES**          |         NO (site not in list)         |                   **YES**                   |       NO (Darwin)        |
+| **job_04** (WGProd, RAM)     |        **YES**         |        NO (site not in list)         | NO (wall-time 2d < 12.5d) | NO (site not in list, not enough RAM) | NO (site not in list, wall-time 1d < 12.5d) |       NO (Darwin)        |
+| **job_05** (User, banned)    |        **YES**         |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |            NO (site not in list)            |       NO (Darwin)        |
+| **job_06** (GPU)             |      NO (no GPU)       |    NO (site not in list, no GPU)     |          **YES**          |     NO (site not in list, no GPU)     |                   **YES**                   |       NO (Darwin)        |
+| **job_07** (Sprucing)        |        **YES**         |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |                   **YES**                   |       NO (Darwin)        |
+| **job_08** (MCSim, any site) |      NO (Darwin)       |             NO (Darwin)              |        NO (Darwin)        |              NO (Darwin)              |                 NO (Darwin)                 |         **YES**          |
+| **job_09** (MCSim, any site) |   NO (GLIBC version)   |        NO (site not in list)         |    NO (GLIBC version)     |          NO (GLIBC version)           |                   **YES**                   |       NO (Darwin)        |
 
-**Summary:** pilot_01 matches 6/9 jobs, pilot_02 matches 1/9, pilot_03 matches 5/7.
+**Summary:** pilot_01 matches 6/9 jobs, pilot_02 matches 1/9, pilot_03 matches 4/9, pilot_04 matches 0/9, pilot_05 matches 4/9, pilot_06 matches 1/9.
 
 ### Key things to verify
 
