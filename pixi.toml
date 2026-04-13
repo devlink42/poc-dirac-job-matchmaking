@@ -8,8 +8,8 @@ version = "0.1.0"
 env = { PYTHONPATH = "." }
 
 [tasks]
-lint = "ruff check . && ruff format --check ."
-format = "ruff format ."
+check-lint-format = "ruff check . && ruff format --check ."
+fix-lint-format = "ruff check --fix . && ruff format ."
 test = "pytest --cov=src --cov-report=xml tests/ --cache-clear"
 pre-commit = "pre-commit"
 pc = "pre-commit run --all-files"

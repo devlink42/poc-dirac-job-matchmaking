@@ -53,7 +53,7 @@ This matrix shows which (job, node) pairs should match. Use this to validate you
 | **job_08** (MCSim, any site) |      NO (Darwin)       |             NO (Darwin)              |        NO (Darwin)        |                 NO (Darwin)                 |                 NO (Darwin)                 |         **YES**          |
 | **job_09** (MCSim, any site) |   NO (GLIBC version)   |        NO (site not in list)         |    NO (GLIBC version)     |             NO (GLIBC version)              |                   **YES**                   |       NO (Darwin)        |
 
-**Summary:** pilot_01 matches 6/9 jobs, pilot_02 matches 1/7, pilot_03 matches 5/7.
+**Summary:** pilot_01 matches 6/9 jobs, pilot_02 matches 1/9, pilot_03 matches 5/7.
 
 ### Key things to verify
 

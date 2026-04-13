@@ -15,7 +15,6 @@ from src.models.job import Job
 from src.models.node import Node
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 def configure_logger(log_level: str = "WARNING") -> None:
@@ -75,7 +74,7 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
         logger.debug(f"Parsed expression: {tree.body}")
         return evaluate_node(tree.body)
     except Exception:
-        logger.warning(f"Error evaluating expression: {expr_norm}")
+        logger.error(f"Error evaluating expression: {expr_norm}")
         return False
 
 
