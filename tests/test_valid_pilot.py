@@ -79,6 +79,12 @@ MATCHMAKING_CASES = [
     for node_id in (1, 2, 3, 4, 5, 6)
 ]
 
+MATCHMAKING_CASES_FROM_FILES = [
+    (JOB_FILES[job_id], NODE_FILES[node_id], EXPECTED_BY_JOB[job_id][node_id - 1])
+    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
+    for node_id in (1, 2, 3, 4, 5, 6)
+]
+
 
 @pytest.mark.parametrize(
     "job_file, node_file, node_id, expected_match",
@@ -89,7 +95,6 @@ def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
     node = load_node(node_file, node_id)
     jobs = load_job_specs(job_file)
 
-    # Check if any spec matches (for the tested files, usually only one spec exists or result is same for all)
     matches = [valid_job_with_node(job, node) for job in jobs]
 
     if expected_match:
@@ -98,14 +103,18 @@ def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
         assert not any(matches), f"Expected no match for {job_file} and {node_file}"
 
 
-def test_valid_pilot_from_files():
+@pytest.mark.parametrize(
+    "job_file, node_file, expected_match",
+    MATCHMAKING_CASES_FROM_FILES,
+)
+def test_valid_pilot_from_files(job_file, node_file, expected_match):
     """Test the higher-level valid_pilot function using real YAML paths."""
-    matches = valid_pilot(
-        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml"
-    )
+    matches = valid_pilot(job_file, node_file)
 
-    assert len(matches) == 1
-    assert matches[0].job_id == "unknown-job-id"
+    if expected_match:
+        assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
+    else:
+        assert not any(matches), f"Expected no match for {job_file} and {node_file}"
 
 
 @pytest.mark.parametrize(
