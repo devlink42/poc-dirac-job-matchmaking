@@ -20,7 +20,7 @@ jobs:
           cache: true
 
       - name: Linting (Ruff)
-        run: pixi run lint
+        run: pixi run check-lint-format
 
       - name: Run Tests (Pytest)
         run: pixi run test
