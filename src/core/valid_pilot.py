@@ -81,12 +81,12 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
 def valid_job_with_node(job: Job, node: Node) -> bool:
     # Site check
     if job.site and job.site != node.site:
-        logger.warning(f"Job {job.job_id} is not on site {job.site}, skipping...")
+        logger.warning(f"Job {job.job_id} requires to be on site {job.site}, skipping...")
         return False
 
     # System check
     if job.system.name != node.system.name:
-        logger.warning(f"Job {job.job_id} is not on system {job.system.name}, skipping...")
+        logger.warning(f"Job {job.job_id} requires to be on system {job.system.name}, skipping...")
         return False
 
     if job.system.glibc and node.system.glibc < job.system.glibc:
@@ -121,7 +121,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
 
             if node.cpu.ram_mb < ram_limit:
-                logger.warning(f"Job {job.job_id} requires at most {ram_limit} MB RAM, skipping...")
+                logger.warning(f"Job {job.job_id} requires at least {ram_limit} MB RAM, skipping...")
                 return False
 
     # Architecture check

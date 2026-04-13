@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from glob import glob
+from itertools import product
+
 import pytest
 import yaml
 
@@ -163,3 +166,13 @@ def test_valid_pilot_from_files():
 
     assert len(matches) == 1
     assert matches[0].job_id == "unknown-job-id"
+
+
+@pytest.mark.parametrize(
+    "job_file, node_file",
+    list(product(sorted(glob("tests/examples/jobs/job_0*.yaml")), sorted(glob("tests/examples/nodes/pilot_0*.yaml")))),
+)
+def test_all_job_node_combinations(job_file, node_file):
+    """Not a test, but useful for debugging invalid combinations."""
+    res = valid_pilot(job_file, node_file)
+    print(f"Validating {job_file} against {node_file}:\n{res}")
