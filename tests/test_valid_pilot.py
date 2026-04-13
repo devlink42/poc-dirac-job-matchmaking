@@ -39,110 +39,50 @@ def load_job_specs(job_path: str) -> list[Job]:
     return specs
 
 
+JOB_FILES = {
+    "job_01": "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+    "job_02": "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
+    "job_03": "tests/examples/jobs/job_03_mcfastsimulation.yaml",
+    "job_04": "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
+    "job_05": "tests/examples/jobs/job_05_user_with_banned_site.yaml",
+    "job_06": "tests/examples/jobs/job_06_gpu.yaml",
+    "job_07": "tests/examples/jobs/job_07_sprucing_niche.yaml",
+    "job_08": "tests/examples/jobs/job_08_darwin.yaml",
+    "job_09": "tests/examples/jobs/job_09_high_glibc.yaml",
+}
+
+NODE_FILES = {
+    1: "tests/examples/nodes/pilot_01_cern_typical.yaml",
+    2: "tests/examples/nodes/pilot_02_tier2_older.yaml",
+    3: "tests/examples/nodes/pilot_03_gpu.yaml",
+    4: "tests/examples/nodes/pilot_04_low_ram.yaml",
+    5: "tests/examples/nodes/pilot_05_high_glibc.yaml",
+    6: "tests/examples/nodes/pilot_06_darwin.yaml",
+}
+
+# Matrix from the expected behavior table shared in the test request (job x pilot_01..pilot_06).
+EXPECTED_BY_JOB = {
+    "job_01": (True, False, False, False, False, False),
+    "job_02": (True, False, False, False, False, False),
+    "job_03": (True, True, True, False, True, False),
+    "job_04": (False, False, False, False, False, False),
+    "job_05": (True, False, True, False, False, False),
+    "job_06": (False, False, True, False, True, False),
+    "job_07": (True, False, True, False, True, False),
+    "job_08": (False, False, False, False, False, True),
+    "job_09": (False, False, False, False, True, False),
+}
+
+MATCHMAKING_CASES = [
+    (JOB_FILES[job_id], NODE_FILES[node_id], node_id, EXPECTED_BY_JOB[job_id][node_id - 1])
+    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
+    for node_id in (1, 2, 3, 4, 5, 6)
+]
+
+
 @pytest.mark.parametrize(
     "job_file, node_file, node_id, expected_match",
-    [
-        # SUCCESS CASES
-        # Typical MCSimulation on CERN node
-        (
-            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-            "tests/examples/nodes/pilot_01_cern_typical.yaml",
-            1,
-            True,
-        ),
-        (
-            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
-            "tests/examples/nodes/pilot_01_cern_typical.yaml",
-            1,
-            True,
-        ),
-        (
-            "tests/examples/jobs/job_03_mcfastsimulation.yaml",
-            "tests/examples/nodes/pilot_01_cern_typical.yaml",
-            1,
-            True,
-        ),
-        # MCFastSimulation (v1) on Older Tier-2 node (v2)
-        ("tests/examples/jobs/job_03_mcfastsimulation.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, True),
-        ("tests/examples/jobs/job_03_mcfastsimulation.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
-        (
-            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
-            "tests/examples/nodes/pilot_01_cern_typical.yaml",
-            1,
-            True,
-        ),
-        (
-            "tests/examples/jobs/job_05_user_with_banned_site.yaml",
-            "tests/examples/nodes/pilot_01_cern_typical.yaml",
-            1,
-            True,
-        ),
-        ("tests/examples/jobs/job_05_user_with_banned_site.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
-        # GPU job on GPU node
-        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
-        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, True),
-        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_03_gpu.yaml", 3, True),
-        # FAILURE CASES
-        # Microarchitecture level too low (Job v4 vs Node v2)
-        (
-            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-            "tests/examples/nodes/pilot_02_tier2_older.yaml",
-            2,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-            "tests/examples/nodes/pilot_03_gpu.yaml",
-            3,
-            False,
-        ),
-        # RAM too small (Job 1.5GB vs Node 1GB)
-        (
-            "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
-            "tests/examples/nodes/pilot_04_low_ram.yaml",
-            4,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
-            "tests/examples/nodes/pilot_02_tier2_older.yaml",
-            2,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_02_mcsimulation_multi_site.yaml",
-            "tests/examples/nodes/pilot_03_gpu.yaml",
-            3,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
-            "tests/examples/nodes/pilot_02_tier2_older.yaml",
-            2,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_04_wgproduction_with_ram.yaml",
-            "tests/examples/nodes/pilot_03_gpu.yaml",
-            3,
-            False,
-        ),
-        (
-            "tests/examples/jobs/job_05_user_with_banned_site.yaml",
-            "tests/examples/nodes/pilot_02_tier2_older.yaml",
-            2,
-            False,
-        ),
-        # Missing GPU on node
-        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-        # Tag mismatch (missing gpu:nvidia tag)
-        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, False),
-        ("tests/examples/jobs/job_07_sprucing_niche.yaml", "tests/examples/nodes/pilot_02_tier2_older.yaml", 2, False),
-        # OS Mismatch (Darwin vs Linux)
-        ("tests/examples/jobs/job_08_darwin.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-        # GLIBC too old on node (Job 2.35 vs Node 2.28)
-        ("tests/examples/jobs/job_09_high_glibc.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-    ],
+    MATCHMAKING_CASES,
 )
 def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
     """Test the core matchmaking logic between jobs and nodes from YAML examples."""
