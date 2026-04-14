@@ -28,5 +28,5 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v6
         with:
-          files: ./coverage.xml
+          files: ./htmlcov/,coverage.md,coverage.xml
           fail_ci_if_error: false

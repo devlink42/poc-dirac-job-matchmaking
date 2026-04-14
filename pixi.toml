@@ -10,7 +10,7 @@ env = { PYTHONPATH = "." }
 [tasks]
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
-test = "pytest --cov=src --cov-report=xml tests/ --cache-clear"
+test = "pytest --cov=src --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
 pre-commit = "pre-commit"
 pc = "pre-commit run --all-files"
 valid = "python src/core/valid_pilot.py"
