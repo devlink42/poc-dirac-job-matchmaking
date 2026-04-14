@@ -18,6 +18,41 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
+class JobType(Enum):
+    MCSIMULATION = "MCSimulation"
+    MCFASTSIMULATION = "MCFastSimulation"
+    WGPRODUCTION = "WGProduction"
+    USER = "User"
+    SPRUCING = "Sprucing"
+    MERGE = "Merge"
+    MCRECONSTRUCTION = "MCRConstruction"
+    APMERGE = "APMerge"
+    APPOSTPROC = "APPostProc"
+    MCMERGE = "MCMerge"
+    LBAPI = "LbAPI"
+
+
+class JobOwner(Enum):
+    LBPRODS = "lbprods"
+
+
+class JobGroup(Enum):
+    LHCB_MC = "lhcb_mc"
+    LHCB_DATA = "lhcb_data"
+    LHCB_MCPROC = "lhcb_mproc"
+    LHCB_USER = "lhcb_user"
+
+
+class SystemName(Enum):
+    LINUX = "Linux"
+    GNU = "GNU"
+    FREEBSD = "FreeBSD"
+    OPENBSD = "OpenBSD"
+    WINDOWS_NT = "Windows_NT"
+    MSDOS = "MS-DOS"
+    DARWIN = "Darwin"
+
+
 class VersionPydanticAnnotation:
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
@@ -56,11 +91,6 @@ class ResourceSpec(BaseModel):
     per_core: NonNegativeInt | None = Field(default=None, validation_alias="per-core")
 
 
-class Io(BaseModel):
-    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
-    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")
-
-
 class ArchitectureName(Enum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
@@ -73,3 +103,8 @@ class ArchitectureName(Enum):
     # PowerPC 64-bit
     ppc64 = "ppc64"
     ppc64le = "ppc64le"
+
+
+class Io(BaseModel):
+    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
+    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")

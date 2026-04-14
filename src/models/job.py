@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
-from src.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
+from src.models.utils import (
+    ArchitectureName,
+    CustomVersion,
+    Io,
+    JobGroup,
+    JobOwner,
+    JobType,
+    Range,
+    ResourceSpec,
+    StrictRange,
+    SystemName,
+)
+
+
+class JobInfo(BaseModel):
+    job_id: str | None = None
+    owner: JobOwner | str
+    group: JobGroup
+    job_type: JobType
+    submission_time: datetime
 
 
 class System(BaseModel):
-    name: str
+    name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 

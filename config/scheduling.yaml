@@ -5,6 +5,17 @@ job_type_priorities:
   - mc_fast_simulation
   - mc_simulation
   - user_analysis
+#  - WGProduction
+#  - Sprucing
+#  - MCFastSimulation
+#  - MCSimulation
+#  - User
+#  - Merge
+#  - MCRConstruction
+#  - APMerge
+#  - APPostProc
+#  - MCMerge
+#  - LbAPI
 
 running_limits:
   # Global limit by default
