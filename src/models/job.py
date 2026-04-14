@@ -20,13 +20,6 @@ from src.models.utils import (
 )
 
 
-class JobInfo(BaseModel):
-    owner: JobOwner | str
-    group: JobGroup
-    job_type: JobType
-    submission_time: datetime
-
-
 class System(BaseModel):
     name: SystemName
     glibc: CustomVersion | None = None
@@ -57,8 +50,7 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
-class Job(BaseModel):
-    job_id: str | None = None
+class MatchingSpecs(BaseModel):
     site: str | None = None
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
@@ -67,3 +59,16 @@ class Job(BaseModel):
     gpu: Gpu | None = None
     io: Io | None = None
     tags: str
+
+
+class Job(BaseModel):
+    job_id: str | None = None
+
+    # Job information
+    owner: JobOwner | str
+    group: JobGroup
+    job_type: JobType
+    submission_time: datetime
+
+    # Matching specs
+    matching_specs: list[MatchingSpecs]
