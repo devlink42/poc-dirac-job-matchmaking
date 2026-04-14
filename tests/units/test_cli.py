@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import os
 import subprocess
-from pathlib import Path
 from sys import executable
 
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+from tests.conftest import PROJECT_ROOT
 
 
 def run_cli(*args):

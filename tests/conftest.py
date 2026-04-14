@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from src.core.valid_pilot import configure_logger
+from pathlib import Path
+
+from config import configure_logger
+
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
 
 def pytest_configure() -> None:
