@@ -14,6 +14,70 @@ from config import configure_logger, logger
 from src.models.job import Job
 from src.models.node import Node
 
+configure_logger("WARNING")
+logger.debug("/!\\ Logging initialized with DEBUG level. /!\\")
+
+
+def valid_job(job: str) -> bool:
+    """Validate a job against a set of requirements."""
+    try:
+        with open(job, "r") as f:
+            content = yaml.safe_load(f)
+
+        jobs = content.get("matching_specs", [])
+        if not jobs:
+            logger.error(f"No matching_specs found in {job}")
+            return False
+
+        logger.info(f"Validating {len(jobs)} job(s) from {job}...")
+        for i, job_spec in enumerate(jobs):
+            if "job_id" not in job_spec:
+                job_spec["job_id"] = f"job-{i}"
+
+            Job.model_validate(job_spec)
+            logger.info(f"  - Job {job_spec.get('job_id')} is VALID.")
+
+        return True
+    except Exception as e:
+        logger.error(f"Error validating job: {e}")
+        return False
+
+
+def valid_node(node: str) -> bool:
+    """Validate a node against a set of requirements."""
+    try:
+        with open(node, "r") as f:
+            content = yaml.safe_load(f)
+
+        if "node_id" not in content:
+            content["node_id"] = "unknown-node-id"
+
+        Node.model_validate(content)
+        logger.info(f"Node file {node} is VALID.")
+        return True
+    except Exception as e:
+        logger.error(f"Error validating node: {e}")
+        return False
+
+
+def _evaluate_node(node, expr_norm):
+    if isinstance(node, ast.Constant):  # True or False
+        logger.debug(f"Evaluating constant: {node.value}")
+        return bool(node.value)
+    elif isinstance(node, ast.BoolOp):  # 'and' / 'or'
+        if isinstance(node.op, ast.And):
+            logger.debug(f"Evaluating AND: {node.values}")
+            return all(_evaluate_node(val, expr_norm) for val in node.values)
+        elif isinstance(node.op, ast.Or):
+            logger.debug(f"Evaluating OR: {node.values}")
+            return any(_evaluate_node(val, expr_norm) for val in node.values)
+    elif isinstance(node, ast.UnaryOp):  # 'not'
+        if isinstance(node.op, ast.Not):
+            logger.debug(f"Evaluating NOT: {node.operand}")
+            return not _evaluate_node(node.operand, expr_norm)
+
+    raise ValueError(f"Operation not supported: {expr_norm} =>")
+
 
 def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
     """Evaluate a simple boolean expression of tags against a set of node tags.
@@ -37,34 +101,30 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
     expr_bool = re.sub(r"[A-Za-z0-9:_+-.]+", repl_token, expr_norm)
     logger.debug(f"Normalized expression: {expr_bool}")
 
-    def evaluate_node(node):
-        if isinstance(node, ast.Constant):  # True or False
-            logger.debug(f"Evaluating constant: {node.value}")
-            return bool(node.value)
-        elif isinstance(node, ast.BoolOp):  # 'and' / 'or'
-            if isinstance(node.op, ast.And):
-                logger.debug(f"Evaluating AND: {node.values}")
-                return all(evaluate_node(val) for val in node.values)
-            elif isinstance(node.op, ast.Or):
-                logger.debug(f"Evaluating OR: {node.values}")
-                return any(evaluate_node(val) for val in node.values)
-        elif isinstance(node, ast.UnaryOp):  # 'not'
-            if isinstance(node.op, ast.Not):
-                logger.debug(f"Evaluating NOT: {node.operand}")
-                return not evaluate_node(node.operand)
-
-        raise ValueError(f"Operation not supported: {expr_norm} =>")
-
     try:
         tree = ast.parse(expr_bool, mode="eval")
         logger.debug(f"Parsed expression: {tree.body}")
-        return evaluate_node(tree.body)
+        return _evaluate_node(tree.body, expr_norm)
     except Exception:
         logger.error(f"Error evaluating expression: {expr_norm}")
         return False
 
 
 def valid_job_with_node(job: Job, node: Node) -> bool:
+    """Determine whether a given job is compatible with a specific node based on
+    various requirements and constraints.
+
+    Evaluate the compatibility of a job with a node by verifying criteria such
+    as site, system requirements, CPU capabilities, memory requirements, GPU
+    attributes, IO bandwidth, and specific tags.
+
+    Args:
+        job (Job): The job object containing the requirements for execution.
+        node (Node): The node object representing the computational resource.
+
+    Returns:
+        bool: True if the job is compatible with the node, otherwise False.
+    """
     # Site check
     if job.site and job.site != node.site:
         logger.warning(f"Job {job.job_id} requires to be on site {job.site}, skipping...")
@@ -223,18 +283,19 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
         pilot (str): Path to the node/pilot YAML file.
 
     Returns:
-        list[Job]: List of matching jobs if validation is successful, otherwise an empty list.
+        list[Job]: List of matching jobs if validation is successful, otherwise
+            an empty list.
     """
     with open(job, "r") as job_file, open(pilot, "r") as pilot_file:
         yaml_job = yaml.safe_load(job_file)
         yaml_node = yaml.safe_load(pilot_file)
 
-    # Ensure node has a node_id for validation if missing
     if "node_id" not in yaml_node:
         yaml_node["node_id"] = "unknown-node-id"
 
     try:
         node_obj = Node.model_validate(yaml_node)
+        logger.info(f"Node file {pilot} is VALID.")
     except ValidationError as e:
         logger.error(f"Invalid node specification: {e}")
         return []
@@ -242,18 +303,19 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
     jobs = yaml_job.get("matching_specs", [])
     jobs_match = []
 
-    for job_spec in jobs:
+    for i, job_spec in enumerate(jobs):
         try:
-            # Add a dummy job_id if not present for validation
             if "job_id" not in job_spec:
-                job_spec["job_id"] = "unknown-job-id"
+                job_spec["job_id"] = f"job-{i}"
 
             job_obj = Job.model_validate(job_spec)
+            logger.info(f"Job {job_obj.job_id} is VALID.")
 
             if valid_job_with_node(job_obj, node_obj):
                 jobs_match.append(job_obj)
+                logger.info(f"Job {job_obj.job_id} matches node {node_obj.node_id}.")
         except ValidationError as e:
-            logger.error(f"Invalid job specification: {e}")
+            logger.warning(f"Invalid job specification: {e}")
             continue
 
     return jobs_match
@@ -272,42 +334,17 @@ def main():
         action="store_true",
         help="Only validate the node/pilot file",
     )
-    parser.add_argument(
-        "--log-level",
-        default="WARNING",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Logging verbosity level (default: WARNING)",
-    )
 
     args = parser.parse_args()
-    configure_logger(args.log_level)
+    # Force INFO logging level to show job/node validation details
+    configure_logger("INFO")
 
     if args.validate_job:
         if not args.job:
             logger.error("Error: --validate-job requires a job file path.")
             sys.exit(1)
-        try:
-            with open(args.job, "r") as f:
-                content = yaml.safe_load(f)
 
-            jobs = content.get("matching_specs", [])
-            if not jobs:
-                print(f"No matching_specs found in {args.job}")
-                sys.exit(1)
-
-            print(f"Validating {len(jobs)} job(s) from {args.job}...")
-            for i, job_spec in enumerate(jobs):
-                if "job_id" not in job_spec:
-                    job_spec["job_id"] = f"job-{i}"
-
-                Job.model_validate(job_spec)
-                print(f"  - Job {job_spec.get('job_id')} is VALID.")
-
-            print("Validation successful.")
-        except Exception as e:
-            logger.error(f"Error validating job: {e}")
-            sys.exit(1)
-
+        valid_job(args.job)
     elif args.validate_node:
         # If node_path is not provided, check if job_path was used instead
         node_path = args.node_pilot or args.job
@@ -315,30 +352,18 @@ def main():
             logger.error("Error: --validate-node/--validate-pilot requires a node file path.")
             sys.exit(1)
 
-        try:
-            with open(node_path, "r") as f:
-                content = yaml.safe_load(f)
-
-            if "node_id" not in content:
-                content["node_id"] = "unknown-node"
-
-            Node.model_validate(content)
-            print(f"Node file {node_path} is VALID.")
-        except Exception as e:
-            logger.error(f"Error validating node: {e}")
-            sys.exit(1)
-
+        valid_node(node_path)
     elif args.job and args.node_pilot:
         try:
             matched_jobs = valid_pilot(args.job, args.node_pilot)
 
             if matched_jobs:
-                print(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
+                logger.info(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
 
                 for job in matched_jobs:
-                    print(f"  - Job ID: {job.job_id}")
+                    logger.info(f"  - Job ID: {job.job_id}")
             else:
-                print("No jobs from the job file can run on this node.")
+                logger.info("No jobs from the job file can run on this node.")
         except Exception as e:
             logger.error(f"Error during matchmaking: {e}")
             sys.exit(1)

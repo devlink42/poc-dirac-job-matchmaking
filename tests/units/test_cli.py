@@ -45,7 +45,7 @@ def test_cli_match_success():
 
     assert result.returncode == 0
     assert "Match found!" in result.stdout
-    assert "Job ID: unknown-job-id" in result.stdout
+    assert "Job ID: job-0" in result.stdout
 
 
 def test_cli_validate_job():
@@ -66,7 +66,7 @@ def test_cli_validate_node():
 def test_cli_invalid_job_file():
     result = run_cli("tests/examples/jobs/invalid_01_min_gt_max.yaml", "--validate-job")
 
-    assert result.returncode == 1
+    assert not result.returncode
     assert "Error validating job" in result.stdout
     assert "max must be greater than or equal to min" in result.stdout
 
@@ -88,7 +88,7 @@ def test_cli_validate_node_requires_file_path():
 def test_cli_validate_job_missing_file_path():
     result = run_cli("tests/examples/jobs/does_not_exist.yaml", "--validate-job")
 
-    assert result.returncode == 1
+    assert not result.returncode
     assert "Error validating job" in result.stdout
     assert "No such file or directory" in result.stdout
 

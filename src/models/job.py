@@ -21,7 +21,6 @@ from src.models.utils import (
 
 
 class JobInfo(BaseModel):
-    job_id: str | None = None
     owner: JobOwner | str
     group: JobGroup
     job_type: JobType
