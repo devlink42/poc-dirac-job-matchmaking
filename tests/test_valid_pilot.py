@@ -72,8 +72,6 @@ def load_job_specs(job_path: str) -> list[Job]:
         ),
         # Missing GPU on node
         ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
-        # Tag mismatch (missing gpu:nvidia tag)
-        ("tests/examples/jobs/job_06_gpu.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml", 1, False),
     ],
 )
 def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):

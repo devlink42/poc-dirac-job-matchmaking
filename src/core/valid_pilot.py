@@ -24,7 +24,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if job.system.glibc is not None and node.system.glibc < job.system.glibc:
         return False
 
-    if job.system.user_namespaces is not None and job.system.user_namespaces != node.system.user_namespaces:
+    if job.system.user_namespaces is not None and job.system.user_namespaces and not node.system.user_namespaces:
         return False
 
     # Architecture check
