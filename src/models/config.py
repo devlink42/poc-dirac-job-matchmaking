@@ -26,5 +26,4 @@ class SchedulingConfig(BaseModel):
         with open(file_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        # Pydantic va instancier la classe et vérifier que `data` respecte les types
         return cls(**(data or {}))

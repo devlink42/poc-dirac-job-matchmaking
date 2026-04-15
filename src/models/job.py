@@ -71,4 +71,4 @@ class Job(BaseModel):
     submission_time: datetime
 
     # Matching specs
-    matching_specs: list[MatchingSpecs]
+    matching_specs: list[MatchingSpecs] = Field(min_length=1)

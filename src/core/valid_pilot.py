@@ -25,22 +25,16 @@ def valid_job(job: str) -> bool:
         with open(job, "r") as f:
             content = yaml.safe_load(f)
 
-        jobs = content.get("matching_specs", [])
-        if not jobs:
-            logger.error(f"No matching_specs found in {job}")
-            return False
+        if "job_id" not in content:
+            content["job_id"] = job.split("/")[-1].rstrip(".yaml")
+            logger.warning(f"Job ID not specified in {job}, using filename as default: {content['job_id']}")
 
-        logger.info(f"Validating {len(jobs)} job(s) from {job}...")
-        for i, job_spec in enumerate(jobs):
-            if "job_id" not in job_spec:
-                job_spec["job_id"] = f"job-{i}"
-
-            Job.model_validate(job_spec)
-            logger.info(f"  - Job {job_spec.get('job_id')} is VALID.")
+        job_obj = Job.model_validate(content)
+        logger.info(f"Job {job_obj.job_id} is VALID.")
 
         return True
-    except Exception as e:
-        logger.error(f"Error validating job: {e}")
+    except ValidationError as e:
+        logger.error(f"Error validating job specification: {e}")
         return False
 
 
@@ -287,8 +281,8 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
         yaml_node = yaml.safe_load(pilot_file)
 
     if "node_id" not in yaml_node:
-        yaml_node.node_id = pilot.split("/")[-1].rstrip(".yaml")
-        logger.warning(f"Node ID not specified in {pilot}, using filename as default: {yaml_node.node_id}")
+        yaml_node["node_id"] = pilot.split("/")[-1].rstrip(".yaml")
+        logger.warning(f"Node ID not specified in {pilot}, using filename as default: {yaml_node['node_id']}")
 
     try:
         node_obj = Node.model_validate(yaml_node)
@@ -300,11 +294,11 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
     jobs_match = []
 
     if "job_id" not in yaml_job:
-        yaml_job.job_id = job.split("/")[-1].rstrip(".yaml")
-        logger.warning(f"Job ID not specified in {job}, using filename as default: {yaml_job.job_id}")
+        yaml_job["job_id"] = job.split("/")[-1].rstrip(".yaml")
+        logger.warning(f"Job ID not specified in {job}, using filename as default: {yaml_job['job_id']}")
 
     try:
-        job_obj = Job.model_validate(job)
+        job_obj = Job.model_validate(yaml_job)
         logger.info(f"Job {job_obj.job_id} is VALID.")
 
         for i, job_spec in enumerate(job_obj.matching_specs):
@@ -312,7 +306,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
                 jobs_match.append(job_obj)
                 logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
     except ValidationError as e:
-        logger.warning(f"Invalid job specification: {e}")
+        logger.error(f"Invalid job specification: {e}")
 
     return jobs_match
 
