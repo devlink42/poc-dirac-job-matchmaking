@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from src.core.valid_pilot import _eval_tag_expression, valid_job_with_node, valid_pilot
-from src.models.job import Job
+from src.models.job import MatchingSpecs
 from src.models.node import Node
 
 
@@ -78,9 +78,9 @@ def test_eval_tag_expression_invalid_syntax_returns_false():
 
 
 def test_valid_job_with_node_accepts_boundary_equal_values():
-    job = Job.model_validate(_base_job_spec())
+    job = MatchingSpecs.model_validate(_base_job_spec())
     node = Node.model_validate(_base_node_spec())
-    assert valid_job_with_node(job, node)
+    assert valid_job_with_node("edge-job-0", job, node)
 
 
 def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
@@ -98,24 +98,20 @@ def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
     assert valid_pilot(str(job_file), str(node_file)) == []
 
 
-def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
+def test_valid_pilot_returns_empty_even_with_mixed_specs(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"
 
-    valid_job = _base_job_spec()
-    valid_job["job_id"] = "valid-job"
-    invalid_job = deepcopy(_base_job_spec())
-    invalid_job["job_id"] = "invalid-job"
-    invalid_job["cpu"]["num-cores"] = {"min": 2, "max": 1}
+    valid_job_spec = _base_job_spec()
+    invalid_job_spec = deepcopy(_base_job_spec())
+    invalid_job_spec["cpu"]["num-cores"] = {"min": 2, "max": 1}
 
     with open(job_file, "w") as f:
-        yaml.safe_dump({"matching_specs": [invalid_job, valid_job]}, f)
+        yaml.safe_dump({"job_id": "mixed-job", "matching_specs": [invalid_job_spec, valid_job_spec]}, f)
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    matches = valid_pilot(str(job_file), str(node_file))
-    assert len(matches) == 1
-    assert matches[0].job_id == "valid-job"
+    assert valid_pilot(str(job_file), str(node_file)) == []
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
@@ -124,7 +120,7 @@ def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_conte
     node_file = tmp_path / "node.yaml"
 
     with open(job_file, "w") as f:
-        yaml.safe_dump(job_content, f)
+        yaml.safe_dump({"job_id": "edge-empty-job", **job_content}, f)
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 

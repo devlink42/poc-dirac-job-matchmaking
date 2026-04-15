@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 from src.core import valid_pilot as vp
-from src.models.job import Job
+from src.models.job import MatchingSpecs
 from src.models.node import Node
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
@@ -39,14 +39,14 @@ def _load_node_spec(path: str) -> dict:
     return spec
 
 
-def _build_models(job_path: str, node_path: str, mutator=None) -> tuple[Job, Node]:
+def _build_models(job_path: str, node_path: str, mutator=None) -> tuple[MatchingSpecs, Node]:
     job_spec = _load_job_spec(job_path)
     node_spec = _load_node_spec(node_path)
 
     if mutator:
         mutator(job_spec, node_spec)
 
-    return Job.model_validate(job_spec), Node.model_validate(node_spec)
+    return MatchingSpecs.model_validate(job_spec), Node.model_validate(node_spec)
 
 
 def _mutate_user_namespaces(job_spec: dict, node_spec: dict) -> None:
@@ -137,8 +137,9 @@ def _mutate_missing_plain_tags(job_spec: dict, node_spec: dict) -> None:
 )
 def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
     job, node = _build_models(job_path, node_path, mutator=mutator)
+    job_id = job_path.split("/")[-1].rstrip(".yaml")
 
-    assert not vp.valid_job_with_node(job, node)
+    assert not vp.valid_job_with_node(job_id, job, node)
 
 
 def test_valid_job_success_with_example_file():

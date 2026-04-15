@@ -33,7 +33,7 @@ def valid_job(job: str) -> bool:
         logger.info(f"Job {job_obj.job_id} is VALID.")
 
         return True
-    except ValidationError as e:
+    except Exception as e:
         logger.error(f"Error validating job specification: {e}")
         return False
 

@@ -44,8 +44,7 @@ def test_main_validate_job_success_output(monkeypatch: pytest.MonkeyPatch, capsy
     _run_main(monkeypatch, [JOB_01, "--validate-job"])
     captured = capsys.readouterr()
 
-    assert "Validating 1 job(s)" in captured.out
-    assert "Job job-0 is VALID." in captured.out
+    assert "Job job_01_mcsimulation_any_site is VALID." in captured.out
 
 
 def test_main_validate_job_invalid_file_content_logs_error(

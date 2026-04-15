@@ -8,6 +8,7 @@ from itertools import product
 import pytest
 import yaml
 
+from config import logger
 from src.core.valid_pilot import valid_job_with_node, valid_pilot
 from src.models.job import Job
 from src.models.node import Node
@@ -24,19 +25,12 @@ def load_node(node_path: str, node_id: int) -> Node:
     return Node.model_validate(data)
 
 
-def load_job_specs(job_path: str) -> list[Job]:
-    """Load Job objects from a YAML file containing matching_specs."""
+def load_job(job_path: str) -> Job:
+    """Load Job objects from a YAML job file."""
     with open(job_path, "r") as f:
         data = yaml.safe_load(f)
 
-    specs = []
-    for i, spec in enumerate(data.get("matching_specs", [])):
-        if "job_id" not in spec:
-            spec["job_id"] = f"test-job-{i}"
-
-        specs.append(Job.model_validate(spec))
-
-    return specs
+    return Job.model_validate(data)
 
 
 JOB_FILES = {
@@ -60,7 +54,6 @@ NODE_FILES = {
     6: "tests/examples/nodes/pilot_06_darwin.yaml",
 }
 
-# Matrix from the expected behavior table shared in the test request (job x pilot_01..pilot_06).
 EXPECTED_BY_JOB = {
     "job_01": (True, False, False, False, False, False),
     "job_02": (True, False, False, False, False, False),
@@ -93,9 +86,10 @@ MATCHMAKING_CASES_FROM_FILES = [
 def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
     """Test the core matchmaking logic between jobs and nodes from YAML examples."""
     node = load_node(node_file, node_id)
-    jobs = load_job_specs(job_file)
+    job = load_job(job_file)
+    job_id = job_file.split("/")[-1].rstrip(".yaml")
 
-    matches = [valid_job_with_node(job, node) for job in jobs]
+    matches = [valid_job_with_node(f"{job_id}-{i}", spec, node) for i, spec in enumerate(job.matching_specs)]
 
     if expected_match:
         assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
@@ -124,4 +118,4 @@ def test_valid_pilot_from_files(job_file, node_file, expected_match):
 def test_all_job_node_combinations(job_file, node_file):
     """Not a test, but useful for debugging invalid combinations."""
     res = valid_pilot(job_file, node_file)
-    print(f"Validating {job_file} against {node_file}:\n{res}")
+    logger.info(f"Validating {job_file} against {node_file}:\n{res}")
