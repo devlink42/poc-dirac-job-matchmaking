@@ -19,8 +19,8 @@ jobs:
           frozen: true
           cache: true
 
-      - name: Linting (Ruff)
-        run: pixi run lint
+      - name: Run pre-commit
+        run: pixi run pc-run-all --show-diff-on-failure
 
       - name: Run Tests (Pytest)
         run: pixi run test
