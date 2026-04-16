@@ -7,12 +7,14 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, NonNegativeInt
 
+from src.models.utils import JobType
+
 
 class SchedulingConfig(BaseModel):
-    job_type_priorities: list[str] = Field(
+    job_type_priorities: list[JobType] = Field(
         default_factory=list, description="A sorted list of job types, from highest to lowest priority."
     )
-    running_limits: dict[str, dict[str, NonNegativeInt]] = Field(
+    running_limits: dict[str, dict[JobType, NonNegativeInt]] = Field(
         default_factory=dict, description="Limits on the number of concurrent jobs per site and per job type."
     )
 
