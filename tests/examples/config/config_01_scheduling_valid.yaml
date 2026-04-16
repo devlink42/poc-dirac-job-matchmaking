@@ -1,12 +1,12 @@
 job_type_priorities:
-  - wg_production
-  - mc_simulation
-  - user_analysis
+  - WGProduction
+  - MCSimulation
+  - User
 
 running_limits:
   default:
-    mc_simulation: 1000
-    user_analysis: 200
+    MCSimulation: 1000
+    User: 200
   LCG.CERN.ch:
-    wg_production: 500
-    mc_simulation: 2500
+    WGProduction: 500
+    MCSimulation: 2500

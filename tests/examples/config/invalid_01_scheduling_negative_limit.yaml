@@ -1,6 +1,6 @@
 job_type_priorities:
-  - mc_simulation
+  - MCSimulation
 
 running_limits:
   default:
-    mc_simulation: -1
+    MCSimulation: -1

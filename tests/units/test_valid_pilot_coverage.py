@@ -7,10 +7,12 @@ from copy import deepcopy
 
 import pytest
 import yaml
+from pydantic import TypeAdapter, ValidationError
 
 from src.core import valid_pilot as vp
 from src.models.job import MatchingSpecs
 from src.models.node import Node
+from src.models.utils import CustomVersion
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 JOB_06 = "tests/examples/jobs/job_06_gpu.yaml"
@@ -174,3 +176,10 @@ def test_valid_pilot_returns_empty_when_job_specs_are_invalid():
 
 def test_valid_pilot_returns_empty_when_node_is_invalid():
     assert vp.valid_pilot(JOB_01, "tests/examples/nodes/invalid_07_pilot_negative_cores.yaml") == []
+
+
+def test_invalid_version_with_adapter():
+    adapter = TypeAdapter(CustomVersion)
+
+    with pytest.raises(ValidationError, match="Invalid version format"):
+        adapter.validate_python("version_invalide")

@@ -1,33 +1,27 @@
 job_type_priorities:
-  - data_processing
-  - wg_production
-  - sprucing
-  - mc_fast_simulation
-  - mc_simulation
-  - user_analysis
-#  - WGProduction
-#  - Sprucing
-#  - MCFastSimulation
-#  - MCSimulation
-#  - User
-#  - Merge
-#  - MCRConstruction
-#  - APMerge
-#  - APPostProc
-#  - MCMerge
-#  - LbAPI
+  - WGProduction
+  - Sprucing
+  - MCFastSimulation
+  - MCSimulation
+  - User
+  - Merge
+  - MCRConstruction
+  - APMerge
+  - APPostProc
+  - MCMerge
+  - LbAPI
 
 running_limits:
   # Global limit by default
   default:
-    mc_simulation: 1000
-    user_analysis: 200
+    MCSimulation: 1000
+    User: 200
 
   # Local limits by site
   LCG.CERN.ch:
-    wg_production: 1000
-    mc_simulation: 5000
+    WGProduction: 1000
+    MCSimulation: 5000
 
   LCG.IN2P3.fr:
-    mc_simulation: 800
-    user_analysis: 50
+    MCSimulation: 800
+    User: 50

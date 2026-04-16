@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Any, Generic, Self, TypeVar
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
     Field,
@@ -57,10 +57,10 @@ class VersionPydanticAnnotation:
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
         def validate(value: Any) -> Version:
-            if isinstance(value, Version):
-                return value
-
-            return Version(str(value))
+            try:
+                return Version(str(value))
+            except InvalidVersion as e:
+                raise ValueError(f"Invalid version format: {value} (type: {type(value)})") from e
 
         return core_schema.no_info_plain_validator_function(validate)
 

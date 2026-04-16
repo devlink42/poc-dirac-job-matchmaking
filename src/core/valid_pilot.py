@@ -231,10 +231,6 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
                 logger.warning(f"Job {job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
                 return False
 
-            if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
-                logger.warning(f"Job {job_id} requires at least driver version {job.gpu.driver_version}, skipping...")
-                return False
-
     # IO check
     if job.io and node.io:
         if node.io.scratch_mb < job.io.scratch_mb:
@@ -361,5 +357,5 @@ def main():
         parser.print_help()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.models.config import SchedulingConfig
+from src.models.utils import JobType
 from tests.conftest import PROJECT_ROOT
 
 CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
@@ -16,9 +17,9 @@ CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
 def test_load_scheduling_config_from_valid_yaml():
     config = SchedulingConfig.load_from_yaml(CONFIG_DIR / "config_01_scheduling_valid.yaml")
 
-    assert config.job_type_priorities == ["wg_production", "mc_simulation", "user_analysis"]
-    assert config.running_limits["default"]["mc_simulation"] == 1000
-    assert config.running_limits["LCG.CERN.ch"]["wg_production"] == 500
+    assert config.job_type_priorities == [JobType.WGPRODUCTION, JobType.MCSIMULATION, JobType.USER]
+    assert config.running_limits["default"][JobType.MCSIMULATION] == 1000
+    assert config.running_limits["LCG.CERN.ch"][JobType.WGPRODUCTION] == 500
 
 
 def test_load_scheduling_config_from_empty_yaml():
