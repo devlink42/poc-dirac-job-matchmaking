@@ -64,12 +64,7 @@ class Io(BaseModel):
 class ArchitectureName(Enum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
-    amd64 = "amd64"
     # ARM/AArch64 64-bit
     aarch64 = "aarch64"
-    arm64 = "arm64"
-    # ARM/AArch32 32-bit
-    arm = "arm"
     # PowerPC 64-bit
     ppc64 = "ppc64"
-    ppc64le = "ppc64le"
