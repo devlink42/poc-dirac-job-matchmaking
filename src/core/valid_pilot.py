@@ -135,7 +135,7 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
         logger.warning(f"Job {job_id} requires glibc >= {job.system.glibc}, skipping...")
         return False
 
-    if job.system.user_namespaces and job.system.user_namespaces != node.system.user_namespaces:
+    if job.system.user_namespaces and not node.system.user_namespaces:
         logger.warning(f"Job {job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
         return False
 
