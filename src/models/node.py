@@ -46,7 +46,7 @@ class Gpu(BaseModel):
                 missing.append("driver_version")
 
             if missing:
-                raise ValueError(f"Les champs suivants sont requis car count > 0: {', '.join(missing)}")
+                raise ValueError(f"The following fields are required because count > 0: {', '.join(missing)}")
 
         return self
 
