@@ -8,9 +8,11 @@ version = "0.1.0"
 env = { PYTHONPATH = "." }
 
 [tasks]
-lint = "ruff check . && ruff format --check ."
-test = "pytest --cov=src --cov-report=xml tests/"
+check-lint-format = "ruff check . && ruff format --check ."
+fix-lint-format = "ruff check --fix . && ruff format ."
+test = "pytest --cov=src --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
 pc-run-all = "pre-commit run --all-files"
+valid = "python src/core/valid_pilot.py"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
