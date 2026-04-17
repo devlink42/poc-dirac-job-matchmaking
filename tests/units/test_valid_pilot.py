@@ -103,7 +103,7 @@ def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
 )
 def test_valid_pilot_from_files(job_file, node_file, expected_match):
     """Test the higher-level valid_pilot function using real YAML paths."""
-    matches = valid_pilot(job_file, node_file)
+    matches = valid_pilot(job_file, node_file)[0]
 
     if expected_match:
         assert any(matches), f"Expected at least one match for {job_file} and {node_file}"

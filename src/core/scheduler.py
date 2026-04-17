@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
+import sys
+
+from config import configure_logger, logger
+from src.core.valid_pilot import valid_pilot
 from src.models.config import SchedulingConfig
 from src.models.job import Job
 from src.models.utils import JobGroup, JobOwner, JobType
@@ -82,3 +87,52 @@ def select_job(
     allowed_jobs.sort(key=sorting_key)
 
     return allowed_jobs[0]
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
+    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
+    parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
+    parser.add_argument("config", nargs="?", help="Path to the configuration file")
+
+    args = parser.parse_args()
+    # Force INFO logging level to show job/node validation details
+    configure_logger("INFO")
+
+    if args.job and args.node_pilot and args.config:
+        try:
+            valid_jobs_node = valid_pilot(args.job, args.node_pilot)
+            jobs = valid_jobs_node[0]
+            node = valid_jobs_node[1]
+
+            if jobs:
+                running_by_site_and_type = {}
+                running_by_owner = {}
+                running_by_group = {}
+
+                for job in jobs:
+                    running_by_site_and_type[node.site] = running_by_site_and_type.get(node.site, {})
+                    running_by_site_and_type[node.site][job.job_type] = (
+                        running_by_site_and_type[node.site].get(job.job_type, 0) + 1
+                    )
+                    running_by_owner[job.owner] = running_by_owner.get(job.owner, 0) + 1
+                    running_by_group[job.group] = running_by_group.get(job.group, 0) + 1
+
+                allowed_job = select_job(
+                    jobs,
+                    node.site,
+                    running_by_site_and_type,
+                    running_by_owner,
+                    running_by_group,
+                    SchedulingConfig.load_from_yaml(args.config),
+                )
+
+                if allowed_job:
+                    logger.info(f"Job {allowed_job.job_id} selected for execution on {node.site}.")
+            else:
+                logger.info("No jobs from the job file can run on this node.")
+        except Exception as e:
+            logger.error(f"Error during matchmaking: {e}")
+            sys.exit(1)
+    else:
+        parser.print_help()

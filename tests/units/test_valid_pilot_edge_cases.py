@@ -111,7 +111,7 @@ def test_valid_pilot_returns_empty_even_with_mixed_specs(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    assert valid_pilot(str(job_file), str(node_file)) == []
+    assert valid_pilot(str(job_file), str(node_file))[0] == []
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
@@ -124,4 +124,4 @@ def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_conte
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    assert valid_pilot(str(job_file), str(node_file)) == []
+    assert valid_pilot(str(job_file), str(node_file))[0] == []

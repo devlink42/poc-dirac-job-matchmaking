@@ -261,7 +261,7 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
     return True
 
 
-def valid_pilot(job: str, pilot: str) -> list[Job]:
+def valid_pilot(job: str, pilot: str) -> tuple[list[Job], Node]:
     """Validate a job against a node/pilot configuration.
 
     Args:
@@ -304,7 +304,7 @@ def valid_pilot(job: str, pilot: str) -> list[Job]:
     except ValidationError as e:
         logger.error(f"Invalid job specification: {e}")
 
-    return jobs_match
+    return jobs_match, node_obj
 
 
 def main():
@@ -341,12 +341,13 @@ def main():
         valid_node(node_path)
     elif args.job and args.node_pilot:
         try:
-            matched_jobs = valid_pilot(args.job, args.node_pilot)
+            valid_jobs_node = valid_pilot(args.job, args.node_pilot)
+            jobs = valid_jobs_node[0]
 
-            if matched_jobs:
-                logger.info(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
+            if jobs:
+                logger.info(f"Match found! {len(jobs)} job(s) can run on this node:")
 
-                for job in matched_jobs:
+                for job in jobs:
                     logger.info(f"  - Job ID: {job.job_id}")
             else:
                 logger.info("No jobs from the job file can run on this node.")

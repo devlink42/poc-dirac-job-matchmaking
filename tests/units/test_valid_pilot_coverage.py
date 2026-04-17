@@ -171,7 +171,7 @@ def test_evaluate_node_raises_for_unsupported_expression_node():
 
 
 def test_valid_pilot_returns_empty_when_job_specs_are_invalid():
-    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", PILOT_01) == []
+    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", PILOT_01)[0] == []
 
 
 def test_valid_pilot_returns_empty_when_node_is_invalid():
