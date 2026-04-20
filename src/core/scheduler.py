@@ -44,11 +44,7 @@ def select_job(
     for job in matching_jobs:
         site_running_dict = running_by_site_and_type.get(target_site, {})
         current_running = site_running_dict.get(job.job_type, 0)
-
-        limit = site_limits.get(
-            job.job_type,
-            site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf"))),
-        )
+        limit = site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf")))
 
         if current_running < limit:
             allowed_jobs.append(job)
