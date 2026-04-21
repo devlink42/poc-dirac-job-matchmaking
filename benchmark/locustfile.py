@@ -14,11 +14,14 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from benchmark.data_generator import generate_mock_job, generate_mock_node
+from config import configure_logger, logger
 from src.core.valid_pilot import valid_job_with_node
 
 # Global state to hold generated workloads
 JOBS_POOL = []
 NODES_POOL = []
+
+secure_random = random.SystemRandom()
 
 
 @events.test_start.add_listener
@@ -34,11 +37,16 @@ def on_test_start(environment, **kwargs):
     num_jobs = environment.parsed_options.num_jobs
     num_nodes = environment.parsed_options.num_nodes
 
-    print(f"Generating {num_jobs} jobs and {num_nodes} nodes for the benchmark...")
+    # Force INFO level logging for benchmarking
+    configure_logger("INFO")
+    logger.info(f"Generating {num_jobs} jobs and {num_nodes} nodes for the benchmark...")
+
     global JOBS_POOL, NODES_POOL
     JOBS_POOL = [generate_mock_job(f"job-{i}") for i in range(num_jobs)]
     NODES_POOL = [generate_mock_node(f"node-{i}") for i in range(num_nodes)]
-    print("Data generation complete.")
+
+    logger.info("Data generation complete.")
+    configure_logger()
 
 
 @events.init_command_line_parser.add_listener
@@ -63,8 +71,8 @@ class MatchmakingUser(User):
         if not JOBS_POOL or not NODES_POOL:
             return
 
-        job = random.choice(JOBS_POOL)
-        node = random.choice(NODES_POOL)
+        job = secure_random.choice(JOBS_POOL)
+        node = secure_random.choice(NODES_POOL)
         spec = job.matching_specs[0]  # Simplifying to first spec for benchmark
 
         start_time = time.perf_counter()

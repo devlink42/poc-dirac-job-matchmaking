@@ -23,6 +23,8 @@ from src.models.utils import (
     SystemName,
 )
 
+secure_random = random.SystemRandom()
+
 
 def generate_mock_job(job_id: str) -> Job:
     """Generate a mock Job object based on hypothetical LHCb distributions.
@@ -44,10 +46,10 @@ def generate_mock_job(job_id: str) -> Job:
         matching_specs=[
             MatchingSpecs(
                 **{
-                    "site": random.choice(sites),
+                    "site": secure_random.choice(sites),
                     "system": System(name=SystemName.LINUX),
-                    "wall-time": random.randint(3600, 86400),
-                    "cpu-work": random.randint(100, 1000),
+                    "wall-time": secure_random.randint(3600, 86400),
+                    "cpu-work": secure_random.randint(100, 1000),
                     "cpu": Cpu(
                         **{
                             "num-cores": StrictRange(min=1, max=8),
@@ -78,7 +80,7 @@ def generate_mock_node(node_id: str) -> Node:
     return Node(
         **{
             "node_id": node_id,
-            "site": random.choice(["LCG.CERN.ch", "LCG.IN2P3.fr", "LCG.RAL.uk"]),
+            "site": secure_random.choice(["LCG.CERN.ch", "LCG.IN2P3.fr", "LCG.RAL.uk"]),
             "system": NodeSystem(
                 **{"name": SystemName.LINUX, "glibc": CustomVersion(version="2.17"), "user-namespaces": True}
             ),
