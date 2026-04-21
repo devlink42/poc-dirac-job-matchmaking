@@ -95,7 +95,7 @@ def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(invalid_node, f)
 
-    assert valid_pilot(str(job_file), str(node_file)) == []
+    assert valid_pilot(str(job_file), str(node_file)) is None
 
 
 def test_valid_pilot_returns_empty_even_with_mixed_specs(tmp_path):

@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 from src.core.scheduler import select_job
-from src.models.job import Job
 from src.models.utils import JobGroup, JobOwner, JobType
+from tests.conftest import create_valid_job
 
 
 def test_integration_fair_distribution_round_robin_across_owners(config, base_time):
@@ -15,8 +15,8 @@ def test_integration_fair_distribution_round_robin_across_owners(config, base_ti
 
     for i in range(20):
         queue.append(
-            Job.model_construct(
-                job_id=f"lbprods_{i}",
+            create_valid_job(
+                job_id=f"lbprods-{i}",
                 owner=JobOwner.LBPRODS,
                 group=JobGroup.LHCB_MC,
                 job_type=JobType.MCSIMULATION,
@@ -26,8 +26,8 @@ def test_integration_fair_distribution_round_robin_across_owners(config, base_ti
 
     for i in range(5):
         queue.append(
-            Job.model_construct(
-                job_id=f"jdoe_{i}",
+            create_valid_job(
+                job_id=f"jdoe-{i}",
                 owner="jdoe",
                 group=JobGroup.LHCB_USER,
                 job_type=JobType.MCSIMULATION,
@@ -61,15 +61,15 @@ def test_integration_type_priority_overrides_fair_share(config, base_time):
     should be scheduled before a standard user submitting a MCSIMULATION job.
     """
     queue = [
-        Job.model_construct(
-            job_id="high_prio_lbprods",
+        create_valid_job(
+            job_id="high-prio-lbprods",
             owner=JobOwner.LBPRODS,
             group=JobGroup.LHCB_MC,
             job_type=JobType.WGPRODUCTION,  # Highest priority in config
             submission_time=base_time,
         ),
-        Job.model_construct(
-            job_id="low_prio_jdoe",
+        create_valid_job(
+            job_id="low-prio-jdoe",
             owner="jdoe",
             group=JobGroup.LHCB_USER,
             job_type=JobType.MCSIMULATION,
@@ -85,7 +85,7 @@ def test_integration_type_priority_overrides_fair_share(config, base_time):
 
     # WGPRODUCTION wins, despite lbprods monopolizing the cluster
     assert job1 is not None
-    assert job1.job_id == "high_prio_lbprods"
+    assert job1.job_id == "high-prio-lbprods"
 
 
 def test_integration_dynamic_limits_stop_scheduling(config, base_time):
@@ -95,8 +95,8 @@ def test_integration_dynamic_limits_stop_scheduling(config, base_time):
     queue = []
     for i in range(5):
         queue.append(
-            Job.model_construct(
-                job_id=f"wg_job_{i}",
+            create_valid_job(
+                job_id=f"wg-job-{i}",
                 owner=JobOwner.LBPRODS,
                 group=JobGroup.LHCB_MC,
                 job_type=JobType.WGPRODUCTION,
@@ -134,15 +134,15 @@ def test_integration_fifo_tiebreaker_same_counts(config, base_time):
     the oldest job (FIFO) must win.
     """
     queue = [
-        Job.model_construct(
-            job_id="new_job",
+        create_valid_job(
+            job_id="new-job",
             owner="alice",
             group=JobGroup.LHCB_USER,
             job_type=JobType.USER,
             submission_time=base_time,  # Newer job
         ),
-        Job.model_construct(
-            job_id="old_job",
+        create_valid_job(
+            job_id="old-job",
             owner="bob",
             group=JobGroup.LHCB_USER,
             job_type=JobType.USER,
@@ -158,4 +158,4 @@ def test_integration_fifo_tiebreaker_same_counts(config, base_time):
     job = select_job(queue, "LCG.CERN.ch", running_by_site_and_type, running_by_owner, running_by_group, config)
 
     assert job is not None
-    assert job.job_id == "old_job"
+    assert job.job_id == "old-job"

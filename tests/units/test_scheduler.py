@@ -6,12 +6,12 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 from src.core.scheduler import select_job
-from src.models.job import Job
 from src.models.utils import JobGroup, JobType
+from tests.conftest import create_valid_job
 
 
 def test_select_job_respects_site_limits(config, base_time):
-    job = Job.model_construct(
+    job = create_valid_job(
         job_id="job1", owner="user1", group=JobGroup.LHCB_MC, job_type=JobType.WGPRODUCTION, submission_time=base_time
     )
 
@@ -25,7 +25,7 @@ def test_select_job_respects_site_limits(config, base_time):
 
 
 def test_select_job_respects_default_limits_fallback(config, base_time):
-    job = Job.model_construct(
+    job = create_valid_job(
         job_id="job1", owner="user1", group=JobGroup.LHCB_USER, job_type=JobType.USER, submission_time=base_time
     )
 
@@ -35,10 +35,10 @@ def test_select_job_respects_default_limits_fallback(config, base_time):
 
 
 def test_select_job_prioritizes_by_job_type(config, base_time):
-    job_mc = Job.model_construct(
+    job_mc = create_valid_job(
         job_id="mc", owner="user1", group=JobGroup.LHCB_MC, job_type=JobType.MCSIMULATION, submission_time=base_time
     )
-    job_wg = Job.model_construct(
+    job_wg = create_valid_job(
         job_id="wg", owner="user1", group=JobGroup.LHCB_MCPROC, job_type=JobType.WGPRODUCTION, submission_time=base_time
     )
 
@@ -47,10 +47,10 @@ def test_select_job_prioritizes_by_job_type(config, base_time):
 
 
 def test_select_job_tiebreaker_is_fifo(config, base_time):
-    job_new = Job.model_construct(
+    job_new = create_valid_job(
         job_id="new", owner="user1", group=JobGroup.LHCB_USER, job_type=JobType.USER, submission_time=base_time
     )
-    job_old = Job.model_construct(
+    job_old = create_valid_job(
         job_id="old",
         owner="user1",
         group=JobGroup.LHCB_USER,
