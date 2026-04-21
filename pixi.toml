@@ -13,8 +13,10 @@ fix-lint-format = "ruff check --fix . && ruff format ."
 test = "pytest --cov=src --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
 pc-run-all = "pre-commit run --all-files"
 valid = "python src/core/valid_pilot.py"
-benchmark = "locust -f benchmark/locustfile.py --headless -u 10 -r 2 -t 30s"
+benchmark = "locust -f benchmark/locustfile.py --headless -u 1000 -r 100 -t 1m"
 benchmark-ui = "locust -f benchmark/locustfile.py"
+benchmark-dist = "./benchmark/run_distributed.sh --headless"
+benchmark-dist-ui = "./benchmark/run_distributed.sh"
 
 [dependencies]
 python = ">=3.11.3,<3.12"

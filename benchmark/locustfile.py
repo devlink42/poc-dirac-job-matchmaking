@@ -8,14 +8,19 @@ by directly firing events to Locust's metric system.
 from __future__ import annotations
 
 import random
+import sys
 import time
 
+import gevent
 from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from benchmark.data_generator import generate_mock_job, generate_mock_node
 from config import configure_logger, logger
 from src.core.valid_pilot import valid_job_with_node
+
+# Force INFO level logging for benchmarking
+configure_logger("INFO")
 
 # Global state to hold generated workloads
 JOBS_POOL = []
@@ -37,16 +42,25 @@ def on_test_start(environment, **kwargs):
     num_jobs = environment.parsed_options.num_jobs
     num_nodes = environment.parsed_options.num_nodes
 
-    # Force INFO level logging for benchmarking
-    configure_logger("INFO")
     logger.info(f"Generating {num_jobs} jobs and {num_nodes} nodes for the benchmark...")
 
     global JOBS_POOL, NODES_POOL
-    JOBS_POOL = [generate_mock_job(f"job-{i}") for i in range(num_jobs)]
-    NODES_POOL = [generate_mock_node(f"node-{i}") for i in range(num_nodes)]
+
+    JOBS_POOL = []
+    for i in range(num_jobs):
+        JOBS_POOL.append(generate_mock_job(f"job-{i}"))
+        if i % 1000 == 0:
+            gevent.sleep(0)  # Yield to event loop so worker doesn't miss heartbeats
+    logger.debug("Job complete")
+
+    NODES_POOL = []
+    for i in range(num_nodes):
+        NODES_POOL.append(generate_mock_node(f"node-{i}"))
+        if i % 1000 == 0:
+            gevent.sleep(0)  # Yield to event loop so worker doesn't miss heartbeats
+    logger.debug("Node complete")
 
     logger.info("Data generation complete.")
-    configure_logger()
 
 
 @events.init_command_line_parser.add_listener
@@ -73,26 +87,28 @@ class MatchmakingUser(User):
 
         job = secure_random.choice(JOBS_POOL)
         node = secure_random.choice(NODES_POOL)
-        spec = job.matching_specs[0]  # Simplifying to first spec for benchmark
+        spec = job.matching_specs[0]
 
         start_time = time.perf_counter()
         is_match = False
+        response_size = 0
         error = None
 
         try:
             # Baseline benchmark of the Python prototype
             is_match = valid_job_with_node(job.job_id, spec, node)
+            response_size = sys.getsizeof(is_match)
         except Exception as e:
             error = e
 
-        total_time_ms = int((time.perf_counter() - start_time) * 1000)
+        total_time_ms = (time.perf_counter() - start_time) * 1000
 
         # Fire the event to Locust to record throughput and latency
         events.request.fire(
             request_type="Python",
             name="valid_job_with_node",
             response_time=total_time_ms,
-            response_length=0,
+            response_length=response_size,
             exception=error,
             context={"is_match": is_match},
         )
