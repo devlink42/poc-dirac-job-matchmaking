@@ -54,12 +54,15 @@ Locust core parameters:
 
 ### Baseline Benchmark Results (Python Prototype)
 
-**Test Context:** 10,000 Jobs, 1,000 Nodes, 50 candidates per cycle, 100 concurrent user, 50 users to spawn per second.
+**Test Context:** 10,000,000 Jobs, 20,000 Nodes, 50 candidates per cycle, 100 concurrent users, 50 users to spawn per second.
 
-  - **Throughput:** \~XXX matches/sec
-  - **Average Latency:** \~XX ms
-  - **95th Percentile Latency:** \~XX ms
-  - **99th Percentile Latency:** \~XX ms
+  - **Throughput:** ~711 matches/sec
+  - **Average Latency:** ~1.27 ms
+  - **Median Latency (50%):** ~1 ms
+  - **95th Percentile Latency:** ~2 ms
+  - **99th Percentile Latency:** ~2 ms
+  - **Min Latency:** ~0.70 ms
+  - **Max Latency:** ~230.88 ms
 
 ### Explications supplémentaires :
 1. **Pourquoi ne pas utiliser le décorateur `@task` classique avec HTTP ?** Le projet actuel est un algorithme purement Python (pas d'API REST). L'astuce est de faire un `time.perf_counter()` manuel et d'utiliser `events.request.fire()` pour nourrir Locust. Locust tracera alors les graphiques avec ces données exactes.
