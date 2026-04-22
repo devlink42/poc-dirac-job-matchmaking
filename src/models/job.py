@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
-from src.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
+from src.models.utils import (
+    ArchitectureName,
+    CustomVersion,
+    Io,
+    JobGroup,
+    JobOwner,
+    JobType,
+    Range,
+    ResourceSpec,
+    StrictRange,
+    SystemName,
+)
 
 
 class System(BaseModel):
-    name: str
+    name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 
@@ -37,8 +50,7 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
-class Job(BaseModel):
-    job_id: str | None = None
+class MatchingSpecs(BaseModel):
     site: str | None = None
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
@@ -47,3 +59,16 @@ class Job(BaseModel):
     gpu: Gpu | None = None
     io: Io | None = None
     tags: str
+
+
+class Job(BaseModel):
+    job_id: str | None = None
+
+    # Job information
+    owner: JobOwner | str
+    group: JobGroup
+    job_type: JobType
+    submission_time: datetime
+
+    # Matching specs
+    matching_specs: list[MatchingSpecs] = Field(min_length=1)

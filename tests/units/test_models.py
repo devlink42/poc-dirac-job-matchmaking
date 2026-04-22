@@ -22,23 +22,23 @@ def test_all_job_examples(job_file):
     filename = os.path.basename(job_file)
     is_invalid = filename.startswith("invalid_")
 
-    # invalid_05 has no specs to validate.
+    if "job_id" not in data:
+        data["job_id"] = "test-job-id"
+
+    # invalid_05 has no specs but remains valid for the Job schema.
     if filename == "invalid_05_empty_specs.yaml":
-        assert data.get("matching_specs") == []
+        assert not data.get("matching_specs")
+
+        with pytest.raises(ValidationError):
+            Job.model_validate(data)
+
         return
 
-    specs = data.get("matching_specs", [])
-    assert len(specs) > 0, f"File {job_file} should have matching_specs"
-
-    for i, spec in enumerate(specs):
-        if "job_id" not in spec:
-            spec["job_id"] = f"test-job-{i}"
-
-        if is_invalid:
-            with pytest.raises(ValidationError):
-                Job.model_validate(spec)
-        else:
-            Job.model_validate(spec)
+    if is_invalid:
+        with pytest.raises(ValidationError):
+            Job.model_validate(data)
+    else:
+        Job.model_validate(data)
 
 
 @pytest.mark.parametrize("node_file", sorted(glob("tests/examples/nodes/*.yaml")))
