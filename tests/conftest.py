@@ -7,11 +7,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from config import configure_logger
 from src.models.config import SchedulingConfig
 from src.models.job import Job
-from src.models.utils import ArchitectureName, JobGroup, JobOwner, JobType, SystemName
+from src.models.node import Node
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
@@ -21,58 +22,38 @@ def pytest_configure() -> None:
     configure_logger("DEBUG")
 
 
-def create_valid_job(**kwargs):
-
-    sub_time = kwargs.get("submission_time")
-    if sub_time is None:
-        sub_time = datetime.now(timezone.utc)
-
-    owner = kwargs.get("owner", JobOwner.LBPRODS)
-    group = kwargs.get("group", JobGroup.LHCB_USER)
-    job_type = kwargs.get("job_type", JobType.USER)
-    job_id = kwargs.get("job_id", "test-id")
-
-    job_data = {
-        "job_id": job_id,
-        "owner": owner,
-        "group": group,
-        "job_type": job_type,
-        "submission_time": sub_time.isoformat() if hasattr(sub_time, "isoformat") else sub_time,
-        "matching_specs": [
-            {
-                "site": "LCG.CERN.ch",
-                "system": {"name": SystemName.LINUX},
-                "wall-time": 3600,
-                "cpu-work": 100,
-                "cpu": {
-                    "num-cores": {"min": 1, "max": 1},
-                    "architecture": {
-                        "name": ArchitectureName.x86_64,
-                        "microarchitecture-level": {"min": 1, "max": None},
-                    },
-                },
-                "tags": "test",
-            }
-        ],
-    }
-
-    return Job.model_validate(job_data)
+@pytest.fixture
+def example_config():
+    return SchedulingConfig.load_from_yaml(PROJECT_ROOT / "tests/examples/config/config_01_scheduling_valid.yaml")
 
 
 @pytest.fixture
-def config():
-    return SchedulingConfig(
-        job_type_priorities=[JobType.WGPRODUCTION, JobType.MCSIMULATION, JobType.USER],
-        running_limits={
-            "default": {JobType.MCSIMULATION: 1000, JobType.USER: 200},
-            "LCG.CERN.ch": {JobType.WGPRODUCTION: 500, JobType.MCSIMULATION: 2000},
-        },
-    )
+def load_job():
+    def _load(name):
+        path = PROJECT_ROOT / f"tests/examples/jobs/{name}.yaml"
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+
+        return Job.model_validate(data)
+
+    return _load
+
+
+@pytest.fixture
+def load_node():
+    def _load(name):
+        path = PROJECT_ROOT / f"tests/examples/nodes/{name}.yaml"
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+
+        return Node.model_validate(data)
+
+    return _load
 
 
 @pytest.fixture
 def base_time():
-    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.now().astimezone().tzinfo)
+    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture
