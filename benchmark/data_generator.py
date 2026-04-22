@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.models.job import Architecture, ComputeMemory, Cpu, Job, MatchingSpecs, System
 from src.models.node import Architecture as NodeArchitecture
@@ -42,7 +42,7 @@ def generate_mock_job(job_id: str) -> Job:
         owner="lhcb-user",
         group=JobGroup.LHCB_MC,
         job_type=JobType.MCSIMULATION,
-        submission_time=datetime.now(tz=datetime.now().astimezone().tzinfo),
+        submission_time=datetime.now(tz=timezone.utc),
         matching_specs=[
             MatchingSpecs(
                 **{
