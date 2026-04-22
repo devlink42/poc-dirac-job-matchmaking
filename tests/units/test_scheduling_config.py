@@ -17,9 +17,21 @@ CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
 def test_load_scheduling_config_from_valid_yaml():
     config = SchedulingConfig.load_from_yaml(CONFIG_DIR / "config_01_scheduling_valid.yaml")
 
-    assert config.job_type_priorities == [JobType.WGPRODUCTION, JobType.MCSIMULATION, JobType.USER]
+    assert config.job_type_priorities == [
+        JobType.WGPRODUCTION,
+        JobType.SPRUCING,
+        JobType.MCFASTSIMULATION,
+        JobType.MCSIMULATION,
+        JobType.USER,
+        JobType.MERGE,
+        JobType.MCRECONSTRUCTION,
+        JobType.APMERGE,
+        JobType.APPOSTPROC,
+        JobType.MCMERGE,
+        JobType.LBAPI,
+    ]
     assert config.running_limits["default"][JobType.MCSIMULATION] == 1000
-    assert config.running_limits["LCG.CERN.ch"][JobType.WGPRODUCTION] == 500
+    assert config.running_limits["LCG.CERN.cern"][JobType.WGPRODUCTION] == 1000
 
 
 def test_load_scheduling_config_from_empty_yaml():

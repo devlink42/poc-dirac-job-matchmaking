@@ -27,14 +27,14 @@ def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 
 def test_main_missing_config_arg_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_01, PILOT_01])
+    _run_main(monkeypatch, [PILOT_01, JOB_01])
     captured = capsys.readouterr()
 
     assert "usage:" in captured.out.lower() or "usage:" in captured.err.lower()
 
 
 def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_01, PILOT_01, CONFIG_01])
+    _run_main(monkeypatch, [PILOT_01, JOB_01, CONFIG_01])
     captured = capsys.readouterr()
 
     output = captured.out + captured.err
@@ -42,7 +42,7 @@ def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 
 def test_main_scheduler_no_match_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_04, PILOT_01, CONFIG_01])
+    _run_main(monkeypatch, [PILOT_01, JOB_04, CONFIG_01])
     captured = capsys.readouterr()
 
     output = captured.out + captured.err
@@ -56,7 +56,7 @@ def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys
     monkeypatch.setattr(sched, "valid_pilot", _raise_error)
 
     with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, [JOB_01, PILOT_01, CONFIG_01])
+        _run_main(monkeypatch, [PILOT_01, JOB_01, CONFIG_01])
 
     assert exc.value.code == 1
     captured = capsys.readouterr()

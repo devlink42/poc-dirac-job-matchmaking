@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from config import configure_logger
 from src.models.config import SchedulingConfig
-from src.models.utils import JobType
+from src.models.job import Job
+from src.models.node import Node
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
@@ -21,19 +23,37 @@ def pytest_configure() -> None:
 
 
 @pytest.fixture
-def config():
-    return SchedulingConfig(
-        job_type_priorities=[JobType.WGPRODUCTION, JobType.MCSIMULATION, JobType.USER],
-        running_limits={
-            "default": {JobType.MCSIMULATION: 1000, JobType.USER: 200},
-            "LCG.CERN.ch": {JobType.WGPRODUCTION: 500, JobType.MCSIMULATION: 2000},
-        },
-    )
+def example_config():
+    return SchedulingConfig.load_from_yaml(PROJECT_ROOT / "tests/examples/config/config_01_scheduling_valid.yaml")
+
+
+@pytest.fixture
+def load_job():
+    def _load(name):
+        path = PROJECT_ROOT / f"tests/examples/jobs/{name}.yaml"
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+
+        return Job.model_validate(data)
+
+    return _load
+
+
+@pytest.fixture
+def load_node():
+    def _load(name):
+        path = PROJECT_ROOT / f"tests/examples/nodes/{name}.yaml"
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+
+        return Node.model_validate(data)
+
+    return _load
 
 
 @pytest.fixture
 def base_time():
-    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.now().astimezone().tzinfo)
+    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture

@@ -2,96 +2,90 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import Mock
 
 from src.core.scheduler import select_job
-from src.models.job import Job
-from src.models.utils import JobGroup, JobType
+from src.models.utils import JobType
 
 
-def test_select_job_respects_site_limits(config, base_time):
-    job = Job.model_construct(
-        job_id="job1", owner="user1", group=JobGroup.LHCB_MC, job_type=JobType.WGPRODUCTION, submission_time=base_time
-    )
+def test_select_job_respects_site_limits(example_config, load_job, load_node):
+    job = load_job("job_04_wgproduction_with_ram")
+    node = load_node("pilot_01_cern_typical")
 
-    running = {"LCG.CERN.ch": {JobType.WGPRODUCTION: 500}}
-    selected = select_job([job], "LCG.CERN.ch", running, {}, {}, config)
+    # Limit for WGProduction at CERN is 1000
+    candidate_jobs = [job] * 1001
+    selected = select_job(node, candidate_jobs, example_config)
     assert selected is None
 
-    running = {"LCG.CERN.ch": {JobType.WGPRODUCTION: 499}}
-    selected = select_job([job], "LCG.CERN.ch", running, {}, {}, config)
+    candidate_jobs = [job] * 999
+    selected = select_job(node, candidate_jobs, example_config)
     assert selected == job
 
 
-def test_select_job_respects_default_limits_fallback(config, base_time):
-    job = Job.model_construct(
-        job_id="job1", owner="user1", group=JobGroup.LHCB_USER, job_type=JobType.USER, submission_time=base_time
-    )
+def test_select_job_respects_default_limits_fallback(example_config, load_job, load_node):
+    job = load_job("job_05_user_with_banned_site")  # Type User
+    node = load_node("pilot_02_tier2_older")
 
-    running = {"LCG.IN2P3.fr": {JobType.USER: 200}}
-    selected = select_job([job], "LCG.IN2P3.fr", running, {}, {}, config)
+    # Default limit for User is 200
+    candidate_jobs = [job] * 201
+    selected = select_job(node, candidate_jobs, example_config)
     assert selected is None
 
-
-def test_select_job_prioritizes_by_job_type(config, base_time):
-    job_mc = Job.model_construct(
-        job_id="mc", owner="user1", group=JobGroup.LHCB_MC, job_type=JobType.MCSIMULATION, submission_time=base_time
-    )
-    job_wg = Job.model_construct(
-        job_id="wg", owner="user1", group=JobGroup.LHCB_MCPROC, job_type=JobType.WGPRODUCTION, submission_time=base_time
-    )
-
-    selected = select_job([job_mc, job_wg], "LCG.CERN.ch", {}, {}, {}, config)
-    assert selected == job_wg
+    candidate_jobs = [job] * 199
+    selected = select_job(node, candidate_jobs, example_config)
+    assert selected == job
 
 
-def test_select_job_tiebreaker_is_fifo(config, base_time):
-    job_new = Job.model_construct(
-        job_id="new", owner="user1", group=JobGroup.LHCB_USER, job_type=JobType.USER, submission_time=base_time
-    )
-    job_old = Job.model_construct(
-        job_id="old",
-        owner="user1",
-        group=JobGroup.LHCB_USER,
-        job_type=JobType.USER,
-        submission_time=base_time - timedelta(hours=1),
-    )
+def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node):
+    # WGProduction (priority 0) vs MCSimulation (priority 1)
+    job_mc = load_job("job_01_mcsimulation_any_site")
+    job_mc.job_id = "mc"
 
-    selected = select_job([job_new, job_old], "LCG.CERN.ch", {}, {}, {}, config)
-    assert selected == job_old
+    job_wg = load_job("job_04_wgproduction_with_ram")
+    job_wg.job_id = "wg"
 
+    node = load_node("pilot_01_cern_typical")
 
-def test_select_job_no_matching_jobs_returns_none():
-    assert select_job([], "LCG.CERN.ch", {}, {}, {}, None) is None
+    # WGProduction should be selected before MCSimulation
+    selected = select_job(node, [job_mc, job_wg], example_config)
+    assert selected.job_id == "wg"
 
 
-def test_select_job_unknown_type_exceptions():
+def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
+    job_old = load_job("job_01_mcsimulation_any_site")
+    job_old.job_id = "old"
+    job_old.submission_time = job_old.submission_time - timedelta(hours=1)
+
+    job_new = load_job("job_01_mcsimulation_any_site")
+    job_new.job_id = "new"
+
+    node = load_node("pilot_01_cern_typical")
+
+    selected = select_job(node, [job_new, job_old], example_config)
+    assert selected.job_id == "old"
+
+
+def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
+    node = load_node("pilot_01_cern_typical")
+    assert select_job(node, [], example_config) is None
+
+
+def test_select_job_unknown_type_fallback(load_job, load_node):
     config = Mock()
     config.running_limits = {"default": {}}
-    config.job_type_priorities = ["TYPE_A", "TYPE_B"]
+    config.job_type_priorities = [JobType.WGPRODUCTION]
 
-    job_unknown = Mock()
-    job_unknown.job_type = "TYPE_UNKNOWN"
-    job_unknown.group = JobGroup.LHCB_USER
-    job_unknown.owner = "owner1"
-    job_unknown.submission_time = datetime(2023, 1, 1, tzinfo=datetime.now().astimezone().tzinfo)
+    job_unknown = load_job("job_01_mcsimulation_any_site")
+    job_unknown.job_type = "UNKNOWN"
+    job_unknown.job_id = "unknown"
 
-    job_older = Mock()
-    job_older.job_type = "ANOTHER_UNKNOWN"
-    job_older.group = JobGroup.LHCB_USER
-    job_older.owner = "owner1"
-    job_older.submission_time = datetime(2022, 1, 1, tzinfo=datetime.now().astimezone().tzinfo)
+    job_older = load_job("job_01_mcsimulation_any_site")
+    job_older.job_type = "OTHER"
+    job_older.job_id = "older"
+    job_older.submission_time = job_unknown.submission_time - timedelta(days=1)
 
-    matching_jobs = [job_unknown, job_older]
+    node = load_node("pilot_01_cern_typical")
 
-    selected = select_job(
-        matching_jobs=matching_jobs,
-        target_site="site1",
-        running_by_site_and_type={},
-        running_by_owner={},
-        running_by_group={},
-        config=config,
-    )
-
-    assert selected == job_older
+    selected = select_job(node, [job_unknown, job_older], config)
+    assert selected.job_id == "older"

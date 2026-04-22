@@ -9,41 +9,42 @@ from config import configure_logger, logger
 from src.core.valid_pilot import valid_pilot
 from src.models.config import SchedulingConfig
 from src.models.job import Job
-from src.models.utils import JobGroup, JobOwner, JobType
+from src.models.node import Node
 
 
 def select_job(
-    matching_jobs: list[Job],
-    target_site: str,
-    running_by_site_and_type: dict[str, dict[JobType, int]],
-    running_by_owner: dict[JobOwner | str, int],
-    running_by_group: dict[JobGroup, int],
+    node: Node,
+    candidate_jobs: list[Job],
     config: SchedulingConfig,
 ) -> Job | None:
     """Select a job from the matching jobs based on scheduling criteria.
 
     Args:
-        matching_jobs (list[Job]): List of jobs that match the scheduling criteria.
-        target_site (str): The site for which the job selection is being made.
-        running_by_site_and_type (dict[str, dict[JobType, int]]): Dictionary tracking running jobs by site and type.
-        running_by_owner (dict[JobOwner | str, int]): Dictionary tracking running jobs by owner.
-        running_by_group (dict[JobGroup, int]): Dictionary tracking running jobs by group.
+        node (Node): The node on which the job will be executed.
+        candidate_jobs (list[Job]): List of jobs that match the scheduling criteria.
         config (SchedulingConfig): Scheduling configuration parameters.
 
     Returns:
         Job | None: The selected job or None if no suitable job is found.
     """
-    if not matching_jobs:
+    if not candidate_jobs or not node:
         return None
 
     allowed_jobs = []
 
+    running_by_owner = {}
+    running_by_group = {}
+    running_type_by_site = {}
     default_limits = config.running_limits.get("default", {})
-    site_limits = config.running_limits.get(target_site, {})
+    site_limits = config.running_limits.get(node.site, {})
 
-    for job in matching_jobs:
-        site_running_dict = running_by_site_and_type.get(target_site, {})
-        current_running = site_running_dict.get(job.job_type, 0)
+    for job in candidate_jobs:
+        running_by_owner[job.owner] = running_by_owner.get(job.owner, 0) + 1
+        running_by_group[job.group] = running_by_group.get(job.group, 0) + 1
+        running_type_by_site[(node.site, job.job_type)] = running_type_by_site.get((node.site, job.job_type), 0) + 1
+
+    for job in candidate_jobs:
+        current_running = running_type_by_site.get((node.site, job.job_type), 0)
         limit = site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf")))
 
         if current_running < limit:
@@ -87,46 +88,32 @@ def select_job(
 
 def main():
     parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
-    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
+    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("config", nargs="?", help="Path to the configuration file")
 
     args = parser.parse_args()
     # Force INFO logging level to show job/node validation details
     configure_logger("INFO")
 
-    if args.job and args.node_pilot and args.config:
+    if args.node_pilot and args.job and args.config:
         try:
             valid_jobs_node = valid_pilot(args.job, args.node_pilot)
-            jobs = valid_jobs_node[0]
-            node = valid_jobs_node[1]
+            if valid_jobs_node:
+                jobs = valid_jobs_node[0]
+                node = valid_jobs_node[1]
 
-            if jobs:
-                running_by_site_and_type = {}
-                running_by_owner = {}
-                running_by_group = {}
-
-                for job in jobs:
-                    running_by_site_and_type[node.site] = running_by_site_and_type.get(node.site, {})
-                    running_by_site_and_type[node.site][job.job_type] = (
-                        running_by_site_and_type[node.site].get(job.job_type, 0) + 1
+                if jobs:
+                    allowed_job = select_job(
+                        node,
+                        jobs,
+                        SchedulingConfig.load_from_yaml(args.config),
                     )
-                    running_by_owner[job.owner] = running_by_owner.get(job.owner, 0) + 1
-                    running_by_group[job.group] = running_by_group.get(job.group, 0) + 1
 
-                allowed_job = select_job(
-                    jobs,
-                    node.site,
-                    running_by_site_and_type,
-                    running_by_owner,
-                    running_by_group,
-                    SchedulingConfig.load_from_yaml(args.config),
-                )
-
-                if allowed_job:
-                    logger.info(f"Job {allowed_job.job_id} selected for execution on {node.site}.")
-            else:
-                logger.info("No jobs from the job file can run on this node.")
+                    if allowed_job:
+                        logger.info(f"Job {allowed_job.job_id} selected for execution on {node.site}.")
+                else:
+                    logger.info("No jobs from the job file can run on this node.")
         except Exception as e:
             logger.error(f"Error during matchmaking: {e}")
             sys.exit(1)
