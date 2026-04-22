@@ -2,7 +2,7 @@
 # Script to run Locust in distributed mode
 
 # Default value
-WORKERS=4
+WORKERS=6
 MODE=""
 LOCUST_ARGS=""
 
@@ -29,16 +29,16 @@ done
 
 if [[ "$MODE" == "--headless" ]]; then
   if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
-    echo "No load parameters detected. Using default values: -u 1000 -r 100 -t 1m"
-    LOCUST_ARGS="-u 1000 -r 100 -t 1m"
+    echo "No load parameters detected. Using default values: -u 100 -r 10 -t 1m"
+    LOCUST_ARGS="-u 100 -r 10 -t 1m"
   fi
 
   echo "Starting Locust Master in HEADLESS mode with args: $LOCUST_ARGS"
-  locust -f benchmark/locustfile.py --master --headless $LOCUST_ARGS &
+  locust -f benchmark/locustfile.py --master --headless --num-jobs 10000000 --num-nodes 20000 $LOCUST_ARGS &
 else
   echo "Starting Locust Master with UI..."
-  LOCUST_ARGS="-u 1000 -r 100 -t 1m"
-  locust -f benchmark/locustfile.py --master $LOCUST_ARGS &
+  LOCUST_ARGS="-u 100 -r 10 -t 5m"
+  locust -f benchmark/locustfile.py --master --num-jobs 10000000 --num-nodes 20000 $LOCUST_ARGS &
 fi
 MASTER_PID=$!
 
