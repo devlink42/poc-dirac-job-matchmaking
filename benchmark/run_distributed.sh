@@ -29,15 +29,15 @@ done
 
 if [[ "$MODE" == "--headless" ]]; then
   if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
-    echo "No load parameters detected. Using default values: -u 100 -r 10 -t 1m"
-    LOCUST_ARGS="-u 100 -r 10 -t 1m"
+    echo "No load parameters detected. Using default values: -u 100 -r 50 -t 10m"
+    LOCUST_ARGS="-u 100 -r 50 -t 10m"
   fi
 
   echo "Starting Locust Master in HEADLESS mode with args: $LOCUST_ARGS"
   locust -f benchmark/locustfile.py --master --headless --num-jobs 10000000 --num-nodes 20000 $LOCUST_ARGS &
 else
   echo "Starting Locust Master with UI..."
-  LOCUST_ARGS="-u 100 -r 10 -t 5m"
+  LOCUST_ARGS="-u 100 -r 50 -t 10m"
   locust -f benchmark/locustfile.py --master --num-jobs 10000000 --num-nodes 20000 $LOCUST_ARGS &
 fi
 MASTER_PID=$!

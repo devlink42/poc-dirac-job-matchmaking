@@ -23,14 +23,14 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 To run a quick 30-second benchmark directly in your terminal with 10 concurrent users generating load:
 
 ```bash
-pixi run benchmark --num-jobs 5000 --num-nodes 500
+pixi run benchmark --num-jobs 10000000 --num-nodes 20000
 ```
 
 #### 2. Web UI Mode (Interactive Exploration)
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui --num-jobs 10000 --num-nodes 1000
+pixi run benchmark-ui --num-jobs 10000000 --num-nodes 20000
 ```
 
 Then, open your browser at http://localhost:8089.
@@ -41,6 +41,8 @@ You can pass custom arguments to adjust the scale of the pre-loaded data:
 
   - `--num-jobs`: Defines the size of the job pool to generate (Default: 1000).
   - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 100).
+  - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 50).
+  - `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
 
 Locust core parameters:
 
@@ -52,9 +54,7 @@ Locust core parameters:
 
 ### Baseline Benchmark Results (Python Prototype)
 
-*(Fill this section after running your first benchmarks)*
-
-**Test Context:** 10,000 Jobs, 1,000 Nodes, 50 concurrent users.
+**Test Context:** 10,000 Jobs, 1,000 Nodes, 50 candidates per cycle, 100 concurrent user, 50 users to spawn per second.
 
   - **Throughput:** \~XXX matches/sec
   - **Average Latency:** \~XX ms

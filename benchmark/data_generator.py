@@ -68,6 +68,16 @@ def generate_mock_job(job_id: str) -> Job:
         "LCG.Beijing.cn",
     ]
 
+    # Generate more realistic tags
+    tag_pool = [f"tag:{i:03d}" for i in range(200)]
+    job_tags_list = ["cvmfs:lhcb", "os:el9"]
+    if secure_random.random() < 0.3:
+        job_tags_list.extend(secure_random.sample(tag_pool, secure_random.randint(1, 3)))
+
+    tag_expr = " & ".join(job_tags_list)
+    if secure_random.random() < 0.1:
+        tag_expr += " & (feature:A | feature:B)"
+
     cpu_work_options = [259200, 345600, 1080000, 21600]
     cpu_work = secure_random.choice(cpu_work_options)
 
@@ -98,7 +108,7 @@ def generate_mock_job(job_id: str) -> Job:
                             ),
                         }
                     ),
-                    "tags": secure_random.choice(["cvmfs:lhcb", "cvmfs:lhcb & os:el9", "os:el9", ""]),
+                    "tags": tag_expr,
                 }
             )
         ],
@@ -120,6 +130,13 @@ def generate_mock_node(node_id: str) -> Node:
     Returns:
         Node: A populated Node model.
     """
+    node_tags = ["cvmfs:lhcb", "os:el9", "production", "tier1"]
+    if secure_random.random() < 0.5:
+        tag_pool = [f"tag:{i:03d}" for i in range(200)]
+        node_tags.extend(secure_random.sample(tag_pool, secure_random.randint(10, 20)))
+    if secure_random.random() < 0.2:
+        node_tags.append("feature:A")
+
     return Node(
         **{
             "node_id": node_id,
@@ -151,6 +168,6 @@ def generate_mock_node(node_id: str) -> Node:
                 }
             ),
             "gpu": NodeGpu(count=0),
-            "tags": ["cvmfs:lhcb", "os:el9", "production", "tier1"],
+            "tags": node_tags,
         }
     )
