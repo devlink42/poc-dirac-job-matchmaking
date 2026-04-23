@@ -1,0 +1,21 @@
+# Pilot: Darwin
+
+site: "LCG.CERN.cern"
+system:
+  name: Darwin
+  glibc: "2.32"
+  user-namespaces: true
+wall-time: 86400
+cpu-work: 150000
+cpu:
+  num-nodes: 1
+  num-cores: 32
+  ram-mb: 65536  # 64 GB
+  architecture:
+    name: x86_64
+    microarchitecture-level: 4
+gpu:
+  count: 0
+tags:
+  - cvmfs:lhcb
+  - cvmfs:lhcbdev

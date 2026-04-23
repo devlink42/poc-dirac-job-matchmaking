@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
-from src.models.utils import ArchitectureName, CustomVersion, Io
+from src.models.utils import ArchitectureName, CustomVersion, Io, SystemName
 
 
 class System(BaseModel):
-    name: str
+    name: SystemName
     glibc: CustomVersion
     user_namespaces: bool = Field(validation_alias="user-namespaces")
 
