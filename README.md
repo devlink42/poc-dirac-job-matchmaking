@@ -24,14 +24,14 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 To run a quick 30-second benchmark directly in your terminal with 10 concurrent users generating load:
 
 ```bash
-pixi run benchmark --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark -u 100 -r 50 -t 10m --num-jobs 10000000 --num-nodes 20000
 ```
 
 #### 2. Web UI Mode (Interactive Exploration)
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-ui -u 100 -r 50 -t 10m --num-jobs 10000000 --num-nodes 20000
 ```
 
 Then, open your browser at http://localhost:8089.
