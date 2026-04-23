@@ -23,4 +23,5 @@ matching_specs:
         microarchitecture-level: {"min": 4, "max": null}  # Needs AVX-512 (skylake+)
     io:
       scratch-mb: 5120   # 5 GB scratch space
+      scratch-iops: 1000
     tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"

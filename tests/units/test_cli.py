@@ -18,7 +18,7 @@ def run_cli(*args):
     else:
         env["PYTHONPATH"] = str(PROJECT_ROOT)
 
-    script_path = str(PROJECT_ROOT / "src" / "core" / "valid_pilot.py")
+    script_path = str(PROJECT_ROOT / "src" / "core" / "match_making.py")
 
     processed_args = []
     for arg in args:

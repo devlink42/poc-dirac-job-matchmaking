@@ -21,8 +21,8 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
     Supported syntax examples:
       - "a & b"
       - "a | (b & c)"
-      - "not a"
-      - Operators: '&' for AND, '|' for OR, 'not' for NOT, parentheses for grouping
+      - "~a"
+      - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
     """
 
     def repl_token(m: re.Match[str]) -> str:
@@ -83,8 +83,13 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         logger.warning(f"Job {job.job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
         return False
 
-    # CPU work
-    if node.cpu_work < job.cpu_work:
+    # Wall time check
+    if job.wall_time and node.wall_time < job.wall_time:
+        logger.warning(f"Job {job.job_id} requires {job.wall_time} wall time, skipping...")
+        return False
+
+    # CPU work check
+    if job.cpu_work and node.cpu_work < job.cpu_work:
         logger.warning(f"Job {job.job_id} requires {job.cpu_work} CPU work, skipping...")
         return False
 
@@ -179,20 +184,10 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
                 )
                 return False
 
-            if job.gpu.driver_version and node.gpu.driver_version and node.gpu.driver_version < job.gpu.driver_version:
-                logger.warning(
-                    f"Job {job.job_id} requires at least driver version {job.gpu.driver_version}, skipping..."
-                )
-                return False
-
     # IO check
     if job.io and node.io:
         if node.io.scratch_mb < job.io.scratch_mb:
             logger.warning(f"Job {job.job_id} requires at least {job.io.scratch_mb} MB scratch space, skipping...")
-            return False
-
-        if node.io.lan_mbitps and job.io.lan_mbitps and node.io.lan_mbitps < job.io.lan_mbitps:
-            logger.warning(f"Job {job.job_id} requires at least {job.io.lan_mbitps} Mbit/s LAN bandwidth, skipping...")
             return False
 
     # Tags check (all job tags must be present in node tags)
@@ -215,7 +210,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     return True
 
 
-def valid_pilot(job: str, pilot: str) -> list[Job]:
+def match_jobs_with_node(job: str, pilot: str) -> list[Job]:
     """Validate a job against a node/pilot configuration.
 
     Args:
@@ -292,18 +287,18 @@ def main():
 
             jobs = content.get("matching_specs", [])
             if not jobs:
-                print(f"No matching_specs found in {args.job}")
+                logger.error(f"No matching_specs found in {args.job}")
                 sys.exit(1)
 
-            print(f"Validating {len(jobs)} job(s) from {args.job}...")
+            logger.info(f"Validating {len(jobs)} job(s) from {args.job}...")
             for i, job_spec in enumerate(jobs):
                 if "job_id" not in job_spec:
                     job_spec["job_id"] = f"job-{i}"
 
                 Job.model_validate(job_spec)
-                print(f"  - Job {job_spec.get('job_id')} is VALID.")
+                logger.info(f"  - Job {job_spec.get('job_id')} is VALID.")
 
-            print("Validation successful.")
+            logger.info("Validation successful.")
         except Exception as e:
             logger.error(f"Error validating job: {e}")
             sys.exit(1)
@@ -323,22 +318,22 @@ def main():
                 content["node_id"] = "unknown-node"
 
             Node.model_validate(content)
-            print(f"Node file {node_path} is VALID.")
+            logger.info(f"Node file {node_path} is VALID.")
         except Exception as e:
             logger.error(f"Error validating node: {e}")
             sys.exit(1)
 
     elif args.job and args.node_pilot:
         try:
-            matched_jobs = valid_pilot(args.job, args.node_pilot)
+            matched_jobs = match_jobs_with_node(args.job, args.node_pilot)
 
             if matched_jobs:
-                print(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
+                logger.info(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
 
                 for job in matched_jobs:
-                    print(f"  - Job ID: {job.job_id}")
+                    logger.info(f"  - Job ID: {job.job_id}")
             else:
-                print("No jobs from the job file can run on this node.")
+                logger.warning("No jobs from the job file can run on this node.")
         except Exception as e:
             logger.error(f"Error during matchmaking: {e}")
             sys.exit(1)

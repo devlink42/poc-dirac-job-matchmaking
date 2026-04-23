@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from glob import glob
-from itertools import product
-
 import pytest
 import yaml
 
-from src.core.valid_pilot import valid_job_with_node, valid_pilot
+from src.core.match_making import match_jobs_with_node, valid_job_with_node
 from src.models.job import Job
 from src.models.node import Node
 
@@ -74,54 +71,36 @@ EXPECTED_BY_JOB = {
 }
 
 MATCHMAKING_CASES = [
-    (JOB_FILES[job_id], NODE_FILES[node_id], node_id, EXPECTED_BY_JOB[job_id][node_id - 1])
-    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
-    for node_id in (1, 2, 3, 4, 5, 6)
-]
-
-MATCHMAKING_CASES_FROM_FILES = [
-    (JOB_FILES[job_id], NODE_FILES[node_id], EXPECTED_BY_JOB[job_id][node_id - 1])
-    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
-    for node_id in (1, 2, 3, 4, 5, 6)
+    (job_id, node_id, EXPECTED_BY_JOB[job_id][node_id - 1])
+    for job_id in sorted(JOB_FILES.keys())
+    for node_id in sorted(NODE_FILES.keys())
 ]
 
 
 @pytest.mark.parametrize(
-    "job_file, node_file, node_id, expected_match",
+    "job_id, node_id, expected_match",
     MATCHMAKING_CASES,
 )
-def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
-    """Test the core matchmaking logic between jobs and nodes from YAML examples."""
-    node = load_node(node_file, node_id)
-    jobs = load_job_specs(job_file)
+def test_matchmaking_logic(job_id, node_id, expected_match):
+    """Test matchmaking at both levels.
 
-    matches = [valid_job_with_node(job, node) for job in jobs]
+    1. Core logic (valid_job_with_node)
+    2. Higher-level API (match_jobs_with_node)
+    """
+    job_file = JOB_FILES[job_id]
+    node_file = NODE_FILES[node_id]
 
-    if expected_match:
-        assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
-    else:
-        assert not any(matches), f"Expected no match for {job_file} and {node_file}"
+    # Level 1: Core logic verification
+    node_obj = load_node(node_file, node_id)
+    job_objs = load_job_specs(job_file)
+    core_matches = [valid_job_with_node(job, node_obj) for job in job_objs]
 
-
-@pytest.mark.parametrize(
-    "job_file, node_file, expected_match",
-    MATCHMAKING_CASES_FROM_FILES,
-)
-def test_valid_pilot_from_files(job_file, node_file, expected_match):
-    """Test the higher-level valid_pilot function using real YAML paths."""
-    matches = valid_pilot(job_file, node_file)
+    # Level 2: Higher-level API verification
+    api_matches = match_jobs_with_node(job_file, node_file)
 
     if expected_match:
-        assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
+        assert any(core_matches), f"Core: Expected {job_id} to match {node_id} ({job_file})"
+        assert any(api_matches), f"API: Expected {job_id} to match {node_id} ({job_file})"
     else:
-        assert not any(matches), f"Expected no match for {job_file} and {node_file}"
-
-
-@pytest.mark.parametrize(
-    "job_file, node_file",
-    list(product(sorted(glob("tests/examples/jobs/job_0*.yaml")), sorted(glob("tests/examples/nodes/pilot_0*.yaml")))),
-)
-def test_all_job_node_combinations(job_file, node_file):
-    """Not a test, but useful for debugging invalid combinations."""
-    res = valid_pilot(job_file, node_file)
-    print(f"Validating {job_file} against {node_file}:\n{res}")
+        assert not any(core_matches), f"Core: Expected {job_id} NOT to match {node_id} ({job_file})"
+        assert not any(api_matches), f"API: Expected {job_id} NOT to match {node_id} ({job_file})"

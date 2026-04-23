@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import pytest
 import yaml
 
-from src.core.valid_pilot import _eval_tag_expression, valid_job_with_node, valid_pilot
+from src.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
 from src.models.job import Job
 from src.models.node import Node
 
@@ -95,7 +93,7 @@ def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(invalid_node, f)
 
-    assert valid_pilot(str(job_file), str(node_file)) == []
+    assert match_jobs_with_node(str(job_file), str(node_file)) == []
 
 
 def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
@@ -104,7 +102,7 @@ def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
 
     valid_job = _base_job_spec()
     valid_job["job_id"] = "valid-job"
-    invalid_job = deepcopy(_base_job_spec())
+    invalid_job = _base_job_spec()
     invalid_job["job_id"] = "invalid-job"
     invalid_job["cpu"]["num-cores"] = {"min": 2, "max": 1}
 
@@ -113,7 +111,7 @@ def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    matches = valid_pilot(str(job_file), str(node_file))
+    matches = match_jobs_with_node(str(job_file), str(node_file))
     assert len(matches) == 1
     assert matches[0].job_id == "valid-job"
 
@@ -128,4 +126,4 @@ def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_conte
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    assert valid_pilot(str(job_file), str(node_file)) == []
+    assert match_jobs_with_node(str(job_file), str(node_file)) == []

@@ -46,3 +46,9 @@ ignore = [
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(asctime)s %(levelname)s [%(filename)s in %(funcName)s on line %(lineno)d] %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
