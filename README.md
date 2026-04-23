@@ -6,7 +6,8 @@
 
 ## Matchmaking Performance Benchmark
 
-This directory contains the performance test suite using Locust to benchmark the matchmaking system. This framework establishes the baseline for the Python prototype and will be reused for subsequent phases (e.g., Redis, Lua).
+This directory contains the performance test suite using Locust to benchmark the matchmaking system.
+This framework establishes the baseline for the Python prototype and will be reused for subsequent phases (e.g., Redis, Lua).
 
 ### Features
 - Evaluates the core `valid_job_with_node` algorithm.
@@ -54,17 +55,16 @@ Locust core parameters:
 
 ### Baseline Benchmark Results (Python Prototype)
 
-**Test Context:** 10,000,000 Jobs, 20,000 Nodes, 50 candidates per cycle, 100 concurrent users, 50 users to spawn per second.
+**Test Context:** 10,000,000 Jobs, 20,000 Nodes, 50 candidates per cycle, 100 concurrent users,
+with 1, 10, 25, 50, 75, 100 users to spawn per second.
 
-  - **Throughput:** ~711 matches/sec
-  - **Average Latency:** ~1.27 ms
-  - **Median Latency (50%):** ~1 ms
-  - **95th Percentile Latency:** ~2 ms
-  - **99th Percentile Latency:** ~2 ms
-  - **Min Latency:** ~0.70 ms
-  - **Max Latency:** ~230.88 ms
+*10 minutes of load.*
 
-### Explications supplémentaires :
-1. **Pourquoi ne pas utiliser le décorateur `@task` classique avec HTTP ?** Le projet actuel est un algorithme purement Python (pas d'API REST). L'astuce est de faire un `time.perf_counter()` manuel et d'utiliser `events.request.fire()` pour nourrir Locust. Locust tracera alors les graphiques avec ces données exactes.
-2. **Génération de charge** : L'argument `--num-jobs` et `--num-nodes` permet de générer la base de données en mémoire au tout début du test (`@events.test_start`). Ensuite, les utilisateurs Locust piochent aléatoirement dans ces listes pour tester la vitesse de l'algorithme sous concurrence.
-3. Le code gère les "LHCb production distributions" de façon simulée pour l'instant dans `data_generator.py`. Quand l'équipe te fournira les CSV/JSON, tu auras juste à modifier `generate_mock_job` pour piocher dans leurs vraies data.
+| Spawn Rate (users/sec) | Throughput (req/s) | Min     | 50% (Median) | 95%  | 99%  | 100% (Max) | Average |
+|:-----------------------|:-------------------|:--------|:-------------|:-----|:-----|:-----------|:--------|
+| **1**                  | ~698 matches/sec   | 0.66 ms | 1 ms         | 2 ms | 2 ms | 371.00 ms  | 1.26 ms |
+| **10**                 | ~674 matches/sec   | 0.64 ms | 1 ms         | 2 ms | 2 ms | 230.20 ms  | 1.34 ms |
+| **25**                 | ~682 matches/sec   | 0.65 ms | 1 ms         | 2 ms | 2 ms | 242.44 ms  | 1.33 ms |
+| **50**                 | ~668 matches/sec   | 0.66 ms | 1 ms         | 2 ms | 2 ms | 785.74 ms  | 1.36 ms |
+| **75**                 | ~655 matches/sec   | 0.67 ms | 1 ms         | 2 ms | 2 ms | 244.54 ms  | 1.39 ms |
+| **100**                | ~684 matches/sec   | 0.65 ms | 1 ms         | 2 ms | 2 ms | 226.91 ms  | 1.33 ms |
