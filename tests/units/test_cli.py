@@ -40,7 +40,7 @@ def run_cli(*args):
 
 def test_cli_match_success():
     result = run_cli(
-        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/pilot_01_cern_typical.yaml"
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/node_01_cern_typical.yaml"
     )
 
     assert result.returncode == 0
@@ -57,7 +57,7 @@ def test_cli_validate_job():
 
 
 def test_cli_validate_node():
-    result = run_cli("tests/examples/nodes/pilot_01_cern_typical.yaml", "--validate-node")
+    result = run_cli("tests/examples/nodes/node_01_cern_typical.yaml", "--validate-node")
 
     assert result.returncode == 0
     assert "is VALID" in result.stdout

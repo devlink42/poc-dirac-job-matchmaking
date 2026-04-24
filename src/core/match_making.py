@@ -34,7 +34,7 @@ def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
 
     expr_norm = expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
     logger.debug(f"Evaluating tag expression: {expr_norm}")
-    expr_bool = re.sub(r"[A-Za-z0-9:_+-.]+", repl_token, expr_norm)
+    expr_bool = re.sub(r"[A-Za-z0-9][A-Za-z0-9:_+.\-]*", repl_token, expr_norm)
     logger.debug(f"Normalized expression: {expr_bool}")
 
     def evaluate_node(node):
@@ -210,19 +210,19 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     return True
 
 
-def match_jobs_with_node(job: str, pilot: str) -> list[Job]:
-    """Validate a job against a node/pilot configuration.
+def match_jobs_with_node(job: str, node: str) -> list[Job]:
+    """Validate a job against a node configuration.
 
     Args:
         job (str): Path to the job YAML file.
-        pilot (str): Path to the node/pilot YAML file.
+        node (str): Path to the node YAML file.
 
     Returns:
         list[Job]: List of matching jobs if validation is successful, otherwise an empty list.
     """
-    with open(job, "r") as job_file, open(pilot, "r") as pilot_file:
+    with open(job, "r") as job_file, open(node, "r") as node_file:
         yaml_job = yaml.safe_load(job_file)
-        yaml_node = yaml.safe_load(pilot_file)
+        yaml_node = yaml.safe_load(node_file)
 
     # Ensure node has a node_id for validation if missing
     if "node_id" not in yaml_node:
@@ -267,15 +267,10 @@ def main():
         action="store_true",
         help="Only validate the node/pilot file",
     )
-    parser.add_argument(
-        "--log-level",
-        default="WARNING",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Logging verbosity level (default: WARNING)",
-    )
 
     args = parser.parse_args()
-    configure_logger(args.log_level)
+    # Force INFO logging level to show job/node validation details
+    configure_logger("INFO")
 
     if args.validate_job:
         if not args.job:

@@ -81,7 +81,7 @@ def test_valid_job_with_node_accepts_boundary_equal_values():
     assert valid_job_with_node(job, node)
 
 
-def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
+def test_valid_node_returns_empty_for_invalid_node(tmp_path):
     job_file = tmp_path / "job.yaml"
     node_file = tmp_path / "node_invalid.yaml"
 
@@ -96,7 +96,7 @@ def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
     assert match_jobs_with_node(str(job_file), str(node_file)) == []
 
 
-def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
+def test_valid_node_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"
 
@@ -117,7 +117,7 @@ def test_valid_pilot_skips_invalid_job_spec_and_keeps_valid_one(tmp_path):
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
-def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_content):
+def test_valid_node_handles_missing_or_empty_matching_specs(tmp_path, job_content):
     job_file = tmp_path / "job_empty.yaml"
     node_file = tmp_path / "node.yaml"
 

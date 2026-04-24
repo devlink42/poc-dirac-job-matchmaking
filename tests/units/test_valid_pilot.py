@@ -49,15 +49,15 @@ JOB_FILES = {
 }
 
 NODE_FILES = {
-    1: "tests/examples/nodes/pilot_01_cern_typical.yaml",
-    2: "tests/examples/nodes/pilot_02_tier2_older.yaml",
-    3: "tests/examples/nodes/pilot_03_gpu.yaml",
-    4: "tests/examples/nodes/pilot_04_low_ram.yaml",
-    5: "tests/examples/nodes/pilot_05_high_glibc.yaml",
-    6: "tests/examples/nodes/pilot_06_darwin.yaml",
+    1: "tests/examples/nodes/node_01_cern_typical.yaml",
+    2: "tests/examples/nodes/node_02_tier2_older.yaml",
+    3: "tests/examples/nodes/node_03_gpu.yaml",
+    4: "tests/examples/nodes/node_04_low_ram.yaml",
+    5: "tests/examples/nodes/node_05_high_glibc.yaml",
+    6: "tests/examples/nodes/node_06_darwin.yaml",
 }
 
-# Matrix from the expected behavior table shared in the test request (job x pilot_01..pilot_06).
+# Matrix from the expected behavior table shared in the test request (job x node_01..node_06).
 EXPECTED_BY_JOB = {
     "job_01": (True, False, False, False, False, False),
     "job_02": (True, False, False, False, False, False),
