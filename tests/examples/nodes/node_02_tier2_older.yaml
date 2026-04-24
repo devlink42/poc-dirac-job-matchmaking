@@ -1,4 +1,4 @@
-# Pilot: Older Tier-2 worker node (NCBJ Poland)
+# Node: Older Tier-2 worker node (NCBJ Poland)
 # x86_64 v2 (sandy bridge era), limited RAM, shorter wall time
 # Should match MCFastSimulation and User jobs but NOT jobs requiring v4+
 # Tests that microarchitecture filtering works correctly

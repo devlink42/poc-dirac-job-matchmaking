@@ -1,4 +1,4 @@
-# Pilot: GPU-equipped worker node at CERN
+# Node: GPU-equipped worker node at CERN
 # Has an NVIDIA A100 GPU (compute capability 8.0)
 # Should match GPU jobs AND regular CPU-only jobs
 # Tests that GPU pilots can still serve the non-GPU majority

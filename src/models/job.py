@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
 from src.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
 
@@ -41,9 +41,21 @@ class Job(BaseModel):
     job_id: str | None = None
     site: str | None = None
     system: System
-    wall_time: PositiveInt = Field(validation_alias="wall-time")
-    cpu_work: PositiveInt = Field(validation_alias="cpu-work")
+    wall_time: PositiveInt | None = Field(default=None, validation_alias="wall-time")
+    cpu_work: PositiveInt | None = Field(default=None, validation_alias="cpu-work")
     cpu: Cpu
     gpu: Gpu | None = None
     io: Io | None = None
     tags: str
+
+    @model_validator(mode="after")
+    def validate_job(self):
+        if self.wall_time is None and self.cpu_work is None:
+            raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
+
+        if self.wall_time and self.wall_time <= 0:
+            raise ValueError("wall_time must be positive")
+        if self.cpu_work and self.cpu_work <= 0:
+            raise ValueError("cpu_work must be positive")
+
+        return self
