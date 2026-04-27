@@ -10,7 +10,7 @@ from matchmaking import cli as vp
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 JOB_04 = "tests/examples/jobs/job_04_wgproduction_with_ram.yaml"
-JOB_INVALID = "tests/examples/jobs/invalid_01_min_gt_max.yaml"
+JOB_INVALID = "tests/examples/jobs/invalid_01_job_min_gt_max.yaml"
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
 

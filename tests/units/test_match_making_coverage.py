@@ -161,8 +161,8 @@ def test_valid_job_success_with_example_file():
 
 
 def test_valid_job_failure_paths():
-    assert not vp.valid_job("tests/examples/jobs/invalid_05_empty_specs.yaml")
-    assert not vp.valid_job("tests/examples/jobs/invalid_01_min_gt_max.yaml")
+    assert not vp.valid_job("tests/examples/jobs/invalid_05_job_empty_specs.yaml")
+    assert not vp.valid_job("tests/examples/jobs/invalid_01_job_min_gt_max.yaml")
     assert not vp.valid_job("tests/examples/jobs/does_not_exist.yaml")
 
 
@@ -181,8 +181,8 @@ def test_evaluate_node_returns_false_for_unsupported_expression_node():
 
 
 def test_valid_node_returns_empty_when_job_specs_are_invalid():
-    assert vp.match_jobs_with_node("tests/examples/jobs/invalid_01_min_gt_max.yaml", NODE_01)[0] is not None
-    assert vp.match_jobs_with_node("tests/examples/jobs/invalid_01_min_gt_max.yaml", NODE_01)[0] == []
+    assert vp.match_jobs_with_node("tests/examples/jobs/invalid_01_job_min_gt_max.yaml", NODE_01)[0] is not None
+    assert vp.match_jobs_with_node("tests/examples/jobs/invalid_01_job_min_gt_max.yaml", NODE_01)[0] == []
 
 
 def test_valid_node_returns_empty_when_node_is_invalid():

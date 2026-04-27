@@ -26,7 +26,7 @@ def test_all_job_examples(job_file):
         data["job_id"] = "test-job-id"
 
     # invalid_05 has no specs but remains valid for the Job schema.
-    if filename == "invalid_05_empty_specs.yaml":
+    if filename == "invalid_05_job_empty_specs.yaml":
         assert not data.get("matching_specs")
 
         with pytest.raises(ValidationError):

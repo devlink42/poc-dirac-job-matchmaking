@@ -49,4 +49,4 @@ def test_load_scheduling_config_missing_file_raises():
 
 def test_load_scheduling_config_invalid_yaml_raises_validation_error():
     with pytest.raises(ValidationError):
-        SchedulingConfig.load_from_yaml(CONFIG_DIR / "invalid_01_scheduling_negative_limit.yaml")
+        SchedulingConfig.load_from_yaml(CONFIG_DIR / "invalid_10_scheduling_negative_limit.yaml")
