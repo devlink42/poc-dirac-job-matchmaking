@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from src.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
 def _base_node_spec() -> dict:

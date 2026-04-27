@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
-from src.models.utils import ArchitectureName, CustomVersion, Io
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io
 
 
 class System(BaseModel):

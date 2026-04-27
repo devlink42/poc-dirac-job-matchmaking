@@ -23,7 +23,7 @@ jobs:
         run: pixi run pc-run-all --show-diff-on-failure
 
       - name: Run Tests (Pytest)
-        run: pixi run test
+        run: pixi run tests
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v6

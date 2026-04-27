@@ -4,26 +4,26 @@ from __future__ import annotations
 
 import os
 import subprocess
+from pathlib import Path
 from sys import executable
 
-from tests.conftest import PROJECT_ROOT
+import pytest
 
 
-def run_cli(*args):
+def run_cli(project_root: Path, *args):
     env = os.environ.copy()
-    # Use proper path separator for Windows/Linux
     current_pythonpath = env.get("PYTHONPATH", "")
     if current_pythonpath:
-        env["PYTHONPATH"] = f"{str(PROJECT_ROOT)}{os.pathsep}{current_pythonpath}"
+        env["PYTHONPATH"] = f"{str(project_root)}{os.pathsep}{current_pythonpath}"
     else:
-        env["PYTHONPATH"] = str(PROJECT_ROOT)
+        env["PYTHONPATH"] = str(project_root)
 
-    script_path = str(PROJECT_ROOT / "src" / "core" / "match_making.py")
+    script_path = str(project_root / "matchmaking" / "cli.py")
 
     processed_args = []
     for arg in args:
         if isinstance(arg, str) and not arg.startswith("-"):
-            potential_path = PROJECT_ROOT / arg
+            potential_path = project_root / arg
             if potential_path.exists():
                 processed_args.append(str(potential_path))
             else:
@@ -38,9 +38,11 @@ def run_cli(*args):
     return result
 
 
-def test_cli_match_success():
+def test_cli_match_success(pytestconfig: pytest.Config):
     result = run_cli(
-        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "tests/examples/nodes/node_01_cern_typical.yaml"
+        pytestconfig.rootpath,
+        "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
+        "tests/examples/nodes/node_01_cern_typical.yaml",
     )
 
     assert result.returncode == 0
@@ -48,53 +50,53 @@ def test_cli_match_success():
     assert "Job ID: unknown-job-id" in result.stdout
 
 
-def test_cli_validate_job():
-    result = run_cli("tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "--validate-job")
+def test_cli_validate_job(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "tests/examples/jobs/job_01_mcsimulation_any_site.yaml", "--validate-job")
 
     assert result.returncode == 0
     assert "Validating 1 job(s)" in result.stdout
     assert "Job job-0 is VALID" in result.stdout
 
 
-def test_cli_validate_node():
-    result = run_cli("tests/examples/nodes/node_01_cern_typical.yaml", "--validate-node")
+def test_cli_validate_node(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "tests/examples/nodes/node_01_cern_typical.yaml", "--validate-node")
 
     assert result.returncode == 0
     assert "is VALID" in result.stdout
 
 
-def test_cli_invalid_job_file():
-    result = run_cli("tests/examples/jobs/invalid_01_min_gt_max.yaml", "--validate-job")
+def test_cli_invalid_job_file(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "tests/examples/jobs/invalid_01_min_gt_max.yaml", "--validate-job")
 
     assert result.returncode == 1
     assert "Error validating job" in result.stdout
     assert "max must be greater than or equal to min" in result.stdout
 
 
-def test_cli_validate_job_requires_file_path():
-    result = run_cli("--validate-job")
+def test_cli_validate_job_requires_file_path(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "--validate-job")
 
     assert result.returncode == 1
     assert "--validate-job requires a job file path" in result.stdout
 
 
-def test_cli_validate_node_requires_file_path():
-    result = run_cli("--validate-node")
+def test_cli_validate_node_requires_file_path(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "--validate-node")
 
     assert result.returncode == 1
     assert "--validate-node/--validate-pilot requires a node file path" in result.stdout
 
 
-def test_cli_validate_job_missing_file_path():
-    result = run_cli("tests/examples/jobs/does_not_exist.yaml", "--validate-job")
+def test_cli_validate_job_missing_file_path(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "tests/examples/jobs/does_not_exist.yaml", "--validate-job")
 
     assert result.returncode == 1
     assert "Error validating job" in result.stdout
     assert "No such file or directory" in result.stdout
 
 
-def test_cli_help():
-    result = run_cli("--help")
+def test_cli_help(pytestconfig: pytest.Config):
+    result = run_cli(pytestconfig.rootpath, "--help")
 
     assert result.returncode == 0
     assert "Matchmaking and validation for DIRAC jobs and pilots" in result.stdout

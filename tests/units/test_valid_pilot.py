@@ -5,18 +5,18 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from src.core.match_making import match_jobs_with_node, valid_job_with_node
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.core.match_making import match_jobs_with_node, valid_job_with_node
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
-def load_node(node_path: str, node_id: int) -> Node:
+def load_node(node_path: str, node_id: str) -> Node:
     """Load a Node object from a YAML file."""
     with open(node_path, "r") as f:
         data = yaml.safe_load(f)
 
     if "node_id" not in data:
-        data["node_id"] = f"test-node-{node_id}"
+        data["node_id"] = f"test-{node_id}"
 
     return Node.model_validate(data)
 
@@ -49,31 +49,76 @@ JOB_FILES = {
 }
 
 NODE_FILES = {
-    1: "tests/examples/nodes/node_01_cern_typical.yaml",
-    2: "tests/examples/nodes/node_02_tier2_older.yaml",
-    3: "tests/examples/nodes/node_03_gpu.yaml",
-    4: "tests/examples/nodes/node_04_low_ram.yaml",
-    5: "tests/examples/nodes/node_05_high_glibc.yaml",
-    6: "tests/examples/nodes/node_06_darwin.yaml",
-}
-
-# Matrix from the expected behavior table shared in the test request (job x node_01..node_06).
-EXPECTED_BY_JOB = {
-    "job_01": (True, False, False, False, False, False),
-    "job_02": (True, False, False, False, False, False),
-    "job_03": (True, True, True, False, True, False),
-    "job_04": (False, False, False, False, False, False),
-    "job_05": (True, False, True, False, True, False),
-    "job_06": (False, False, True, False, True, False),
-    "job_07": (True, False, True, False, True, False),
-    "job_08": (False, False, False, False, False, True),
-    "job_09": (False, False, False, False, True, False),
+    "node_01": "tests/examples/nodes/node_01_cern_typical.yaml",
+    "node_02": "tests/examples/nodes/node_02_tier2_older.yaml",
+    "node_03": "tests/examples/nodes/node_03_gpu.yaml",
+    "node_04": "tests/examples/nodes/node_04_low_ram.yaml",
+    "node_05": "tests/examples/nodes/node_05_high_glibc.yaml",
+    "node_06": "tests/examples/nodes/node_06_darwin.yaml",
 }
 
 MATCHMAKING_CASES = [
-    (job_id, node_id, EXPECTED_BY_JOB[job_id][node_id - 1])
-    for job_id in sorted(JOB_FILES.keys())
-    for node_id in sorted(NODE_FILES.keys())
+    # Format: (job_id, node_id, expected_match)
+    # Node 01: typical CERN node
+    ("job_01", "node_01", True),
+    ("job_02", "node_01", True),
+    ("job_03", "node_01", True),
+    ("job_04", "node_01", False),
+    ("job_05", "node_01", True),
+    ("job_06", "node_01", False),
+    ("job_07", "node_01", True),
+    ("job_08", "node_01", False),
+    ("job_09", "node_01", False),
+    # Node 02: older Tier2
+    ("job_01", "node_02", False),
+    ("job_02", "node_02", False),
+    ("job_03", "node_02", True),
+    ("job_04", "node_02", False),
+    ("job_05", "node_02", False),
+    ("job_06", "node_02", False),
+    ("job_07", "node_02", False),
+    ("job_08", "node_02", False),
+    ("job_09", "node_02", False),
+    # Node 03: GPU node
+    ("job_01", "node_03", False),
+    ("job_02", "node_03", False),
+    ("job_03", "node_03", True),
+    ("job_04", "node_03", False),
+    ("job_05", "node_03", True),
+    ("job_06", "node_03", True),
+    ("job_07", "node_03", True),
+    ("job_08", "node_03", False),
+    ("job_09", "node_03", False),
+    # Node 04: Low RAM
+    ("job_01", "node_04", False),
+    ("job_02", "node_04", False),
+    ("job_03", "node_04", False),
+    ("job_04", "node_04", False),
+    ("job_05", "node_04", False),
+    ("job_06", "node_04", False),
+    ("job_07", "node_04", False),
+    ("job_08", "node_04", False),
+    ("job_09", "node_04", False),
+    # Node 05: High GLIBC
+    ("job_01", "node_05", False),
+    ("job_02", "node_05", False),
+    ("job_03", "node_05", True),
+    ("job_04", "node_05", False),
+    ("job_05", "node_05", True),
+    ("job_06", "node_05", True),
+    ("job_07", "node_05", True),
+    ("job_08", "node_05", False),
+    ("job_09", "node_05", True),
+    # Node 06: Darwin
+    ("job_01", "node_06", False),
+    ("job_02", "node_06", False),
+    ("job_03", "node_06", False),
+    ("job_04", "node_06", False),
+    ("job_05", "node_06", False),
+    ("job_06", "node_06", False),
+    ("job_07", "node_06", False),
+    ("job_08", "node_06", True),
+    ("job_09", "node_06", False),
 ]
 
 

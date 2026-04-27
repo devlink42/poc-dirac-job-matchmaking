@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 from yaml import safe_load
 
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
 @pytest.mark.parametrize("job_file", sorted(glob("tests/examples/jobs/*.yaml")))
