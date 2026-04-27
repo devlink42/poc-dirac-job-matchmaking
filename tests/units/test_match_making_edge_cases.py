@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
+from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_specs_with_node
 from matchmaking.models.job import MatchingSpecs
 from matchmaking.models.node import Node
 
@@ -78,7 +78,7 @@ def test_eval_tag_expression_invalid_syntax_returns_false():
 def test_valid_job_with_node_accepts_boundary_equal_values():
     job = MatchingSpecs.model_validate(_base_job_spec())
     node = Node.model_validate(_base_node_spec())
-    assert valid_job_with_node("edge-job-0", job, node)
+    assert valid_job_specs_with_node("edge-job-0", job, node)
 
 
 def test_valid_node_returns_empty_for_invalid_node(tmp_path):

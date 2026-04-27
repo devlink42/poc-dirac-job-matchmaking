@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import valid_job_with_node as valid_pilot
+from matchmaking.core.match_making import match_jobs_with_node as valid_pilot
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node

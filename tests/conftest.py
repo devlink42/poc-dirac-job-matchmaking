@@ -56,23 +56,23 @@ def mock_argv():
 
 @pytest.fixture
 def mock_valid_pilot():
-    with patch("src.core.scheduler.valid_pilot") as mock:
+    with patch("matchmaking.core.scheduler.valid_pilot") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_select_job():
-    with patch("src.core.scheduler.select_job") as mock:
+    with patch("matchmaking.core.scheduler.select_job") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_scheduling_config():
-    with patch("src.core.scheduler.SchedulingConfig") as mock:
+    with patch("matchmaking.core.scheduler.SchedulingConfig") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_logger():
-    with patch("src.core.scheduler.logger") as mock:
+    with patch("matchmaking.core.scheduler.logger") as mock:
         yield mock

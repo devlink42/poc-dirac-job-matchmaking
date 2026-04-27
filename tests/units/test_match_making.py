@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from matchmaking.core.match_making import match_jobs_with_node, valid_job_with_node
+from matchmaking.core.match_making import match_jobs_with_node, valid_job_specs_with_node
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
@@ -122,7 +122,7 @@ MATCHMAKING_CASES = [
 def test_matchmaking_logic(job_id, node_id, expected_match):
     """Test matchmaking at both levels.
 
-    1. Core logic (valid_job_with_node)
+    1. Core logic (valid_job_specs_with_node)
     2. Higher-level API (match_jobs_with_node)
     """
     job_file = JOB_FILES[job_id]
@@ -131,7 +131,7 @@ def test_matchmaking_logic(job_id, node_id, expected_match):
     # Level 1: Core logic verification
     node_obj = load_node(node_file, node_id)
     job_objs = load_job(job_file)
-    core_matches = [valid_job_with_node(job, node_obj) for job in job_objs]
+    core_matches = [valid_job_specs_with_node(job_id, job_specs, node_obj) for job_specs in job_objs.matching_specs]
 
     # Level 2: Higher-level API verification
     api_matches = match_jobs_with_node(job_file, node_file)[0]
