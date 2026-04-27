@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
-import sys
-
-from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import match_jobs_with_node as valid_pilot
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -66,11 +61,7 @@ def select_job(
         try:
             type_priority = config.job_type_priorities.index(job.job_type)
         except ValueError:
-            try:
-                priorities_str = [p for p in config.job_type_priorities]
-                type_priority = priorities_str.index(job.job_type)
-            except ValueError:
-                type_priority = float("inf")
+            type_priority = float("inf")
 
         # Group and owner round-robin / fair share
         group_running_count = running_by_group.get(job.group, 0)
@@ -84,38 +75,3 @@ def select_job(
     allowed_jobs.sort(key=sorting_key)
 
     return allowed_jobs[0]
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
-    parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
-    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
-    parser.add_argument("config", nargs="?", help="Path to the configuration file")
-
-    args = parser.parse_args()
-    # Force INFO logging level to show job/node validation details
-    configure_logger("INFO")
-
-    if args.node_pilot and args.job and args.config:
-        try:
-            valid_jobs_node = valid_pilot(args.job, args.node_pilot)
-            if valid_jobs_node:
-                jobs = valid_jobs_node[0]
-                node = valid_jobs_node[1]
-
-                if jobs:
-                    allowed_job = select_job(
-                        node,
-                        jobs,
-                        SchedulingConfig.load_from_yaml(args.config),
-                    )
-
-                    if allowed_job:
-                        logger.info(f"Job {allowed_job.job_id} selected for execution on {node.site}.")
-                else:
-                    logger.info("No jobs from the job file can run on this node.")
-        except Exception as e:
-            logger.error(f"Error during matchmaking: {e}")
-            sys.exit(1)
-    else:
-        parser.print_help()

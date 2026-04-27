@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from matchmaking import cli as vp
+from matchmaking.cli import match_making
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 JOB_04 = "tests/examples/jobs/job_04_wgproduction_with_ram.yaml"
@@ -15,8 +15,8 @@ NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
-    monkeypatch.setattr(sys, "argv", ["valid_pilot.py", *args])
-    vp.main()
+    monkeypatch.setattr(sys, "argv", ["match_making.py", *args])
+    match_making.main()
 
 
 def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
@@ -92,7 +92,7 @@ def test_main_matchmaking_exception_branch(monkeypatch: pytest.MonkeyPatch):
     def _raise_error(*_args, **_kwargs):
         raise RuntimeError("forced error")
 
-    monkeypatch.setattr(vp, "match_jobs_with_node", _raise_error)
+    monkeypatch.setattr(match_making, "match_jobs_with_node", _raise_error)
 
     with pytest.raises(SystemExit) as exc:
         _run_main(monkeypatch, [JOB_01, NODE_01])

@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from matchmaking.core import scheduler
+from matchmaking.cli import scheduler
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 JOB_04 = "tests/examples/jobs/job_04_wgproduction_with_ram.yaml"
