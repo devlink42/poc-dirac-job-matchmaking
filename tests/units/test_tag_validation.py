@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import ast
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
+from matchmaking.logic.tags import validate_tag_expression
 from matchmaking.models.job import Job
 from matchmaking.models.utils import JobGroup, JobType, SystemName
 
@@ -38,6 +41,15 @@ def test_invalid_tag_expression():
     assert "Invalid tag expression" in str(excinfo.value)
 
 
+def test_empty_tag_expression():
+    job_data = BASE_JOB_DATA.copy()
+    job_data["matching_specs"][0]["tags"] = ""
+    # Should not raise, empty tags are allowed
+    Job.model_validate(job_data)
+    # Also test the function directly
+    validate_tag_expression("")
+
+
 def test_unsupported_ast_node_in_tags():
     job_data = BASE_JOB_DATA.copy()
     job_data["matching_specs"][0]["tags"] = "a if b else c"  # Conditional expression not supported
@@ -64,3 +76,34 @@ def test_unsupported_operator_in_tags():
 
     assert "Invalid tag expression" in str(excinfo.value)
     assert "Unsupported operation" in str(excinfo.value)
+
+
+def test_unexpected_name_in_tags():
+
+    # Using mock to bypass the repl_token logic and reach lines 70-73
+    with patch("ast.parse") as mock_parse:
+        mock_node = ast.Expression(body=ast.Name(id="unexpected", ctx=ast.Load()))
+        mock_parse.return_value = mock_node
+        with pytest.raises(ValueError, match="Unexpected name: unexpected"):
+            validate_tag_expression("dummy")
+
+
+def test_unsupported_unary_operator_in_tags():
+
+    with patch("ast.parse") as mock_parse:
+        # Create a tree with an unsupported unary operator (e.g., UAdd '+')
+        mock_node = ast.Expression(body=ast.UnaryOp(op=ast.UAdd(), operand=ast.Constant(value=True)))
+        mock_parse.return_value = mock_node
+        with pytest.raises(ValueError, match="Unsupported unary operator: UAdd"):
+            validate_tag_expression("dummy")
+
+
+def test_unsupported_constant_type_in_tags():
+
+    # This is a bit hacky but it targets the specific lines in tags.py
+    with patch("ast.parse") as mock_parse:
+        # Create a tree with a constant string instead of bool
+        mock_node = ast.Expression(body=ast.Constant(value="not-a-bool"))
+        mock_parse.return_value = mock_node
+        with pytest.raises(ValueError, match="Unsupported constant type: str"):
+            validate_tag_expression("dummy")

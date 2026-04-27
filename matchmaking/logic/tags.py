@@ -30,6 +30,7 @@ def validate_tag_expression(expr: str) -> None:
         ValueError: If the expression is syntactically invalid or contains unsupported operations.
     """
     if not expr:
+        logger.debug("Empty tag expression provided")
         return
 
     logger.debug(f"Validating tag expression: {expr}")
