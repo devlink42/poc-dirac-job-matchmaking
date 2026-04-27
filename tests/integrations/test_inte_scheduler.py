@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from src.core.scheduler import select_job
-from src.models.utils import JobGroup, JobOwner, JobType
+from matchmaking.core.scheduler import select_job
+from matchmaking.models.utils import JobGroup, JobOwner, JobType
 
 
 def create_mock_job(load_job, job_id, owner, group, job_type, submission_time):
@@ -21,7 +21,7 @@ def create_mock_job(load_job, job_id, owner, group, job_type, submission_time):
 def test_integration_fair_distribution_round_robin_across_owners(example_config, base_time, load_job, load_node):
     """Simulates repeated calls to verify fair distribution."""
     queue = []
-    node = load_node("pilot_01_cern_typical")
+    node = load_node("node_01_cern_typical")
 
     for i in range(20):
         queue.append(
@@ -62,7 +62,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
 
 def test_integration_type_priority_overrides_fair_share(example_config, base_time, load_job, load_node):
     """Verifies that JobType priority overrides the fair-share running count."""
-    node = load_node("pilot_01_cern_typical")
+    node = load_node("node_01_cern_typical")
 
     queue = [
         create_mock_job(
@@ -91,7 +91,7 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
 
 def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, load_job, load_node):
     """Simulates a queue of jobs filling up until it dynamically hits a site limit."""
-    node = load_node("pilot_01_cern_typical")
+    node = load_node("node_01_cern_typical")
 
     queue = []
     for i in range(25):
@@ -115,7 +115,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
 
 def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load_job, load_node):
     """In case of a perfect tie, the oldest job (FIFO) must win."""
-    node = load_node("pilot_01_cern_typical")
+    node = load_node("node_01_cern_typical")
 
     queue = [
         create_mock_job(

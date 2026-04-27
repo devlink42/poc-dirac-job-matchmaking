@@ -4,15 +4,11 @@ name = "matchmaking"
 platforms = ["linux-64", "win-64"]
 version = "0.1.0"
 
-[activation]
-env = { PYTHONPATH = "." }
-
 [tasks]
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
-test = "pytest --cov=src --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
-pc-run-all = "pre-commit run --all-files"
-valid = "python src/core/valid_pilot.py"
+tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
+pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
@@ -25,6 +21,9 @@ ruff = ">=0.15.9,<0.16"
 pytest-cov = ">=7.1.0,<8"
 packaging = ">=26.0,<27"
 pre-commit = ">=4.1.0,<5"
+
+[pypi-dependencies]
+matchmaking = { path = ".", editable = true }
 
 [feature.analysis.dependencies]
 matplotlib = ">=3.9"

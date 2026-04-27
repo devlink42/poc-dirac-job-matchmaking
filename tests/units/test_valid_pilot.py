@@ -2,25 +2,21 @@
 
 from __future__ import annotations
 
-from glob import glob
-from itertools import product
-
 import pytest
 import yaml
 
-from config import logger
-from src.core.valid_pilot import valid_job_with_node, valid_pilot
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.core.match_making import match_jobs_with_node, valid_job_with_node
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
-def load_node(node_path: str, node_id: int) -> Node:
+def load_node(node_path: str, node_id: str) -> Node:
     """Load a Node object from a YAML file."""
     with open(node_path, "r") as f:
         data = yaml.safe_load(f)
 
     if "node_id" not in data:
-        data["node_id"] = f"test-node-{node_id}"
+        data["node_id"] = f"test-{node_id}"
 
     return Node.model_validate(data)
 
@@ -46,76 +42,103 @@ JOB_FILES = {
 }
 
 NODE_FILES = {
-    1: "tests/examples/nodes/pilot_01_cern_typical.yaml",
-    2: "tests/examples/nodes/pilot_02_tier2_older.yaml",
-    3: "tests/examples/nodes/pilot_03_gpu.yaml",
-    4: "tests/examples/nodes/pilot_04_low_ram.yaml",
-    5: "tests/examples/nodes/pilot_05_high_glibc.yaml",
-    6: "tests/examples/nodes/pilot_06_darwin.yaml",
-}
-
-EXPECTED_BY_JOB = {
-    "job_01": (True, False, False, False, False, False),
-    "job_02": (True, False, False, False, False, False),
-    "job_03": (True, True, True, False, True, False),
-    "job_04": (False, False, False, False, False, False),
-    "job_05": (True, False, True, False, True, False),
-    "job_06": (False, False, True, False, True, False),
-    "job_07": (True, False, True, False, True, False),
-    "job_08": (False, False, False, False, False, True),
-    "job_09": (False, False, False, False, True, False),
+    "node_01": "tests/examples/nodes/node_01_cern_typical.yaml",
+    "node_02": "tests/examples/nodes/node_02_tier2_older.yaml",
+    "node_03": "tests/examples/nodes/node_03_gpu.yaml",
+    "node_04": "tests/examples/nodes/node_04_low_ram.yaml",
+    "node_05": "tests/examples/nodes/node_05_high_glibc.yaml",
+    "node_06": "tests/examples/nodes/node_06_darwin.yaml",
 }
 
 MATCHMAKING_CASES = [
-    (JOB_FILES[job_id], NODE_FILES[node_id], node_id, EXPECTED_BY_JOB[job_id][node_id - 1])
-    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
-    for node_id in (1, 2, 3, 4, 5, 6)
-]
-
-MATCHMAKING_CASES_FROM_FILES = [
-    (JOB_FILES[job_id], NODE_FILES[node_id], EXPECTED_BY_JOB[job_id][node_id - 1])
-    for job_id in ("job_01", "job_02", "job_03", "job_04", "job_05", "job_06", "job_07", "job_08", "job_09")
-    for node_id in (1, 2, 3, 4, 5, 6)
+    # Format: (job_id, node_id, expected_match)
+    # Node 01: typical CERN node
+    ("job_01", "node_01", True),
+    ("job_02", "node_01", True),
+    ("job_03", "node_01", True),
+    ("job_04", "node_01", False),
+    ("job_05", "node_01", True),
+    ("job_06", "node_01", False),
+    ("job_07", "node_01", True),
+    ("job_08", "node_01", False),
+    ("job_09", "node_01", False),
+    # Node 02: older Tier2
+    ("job_01", "node_02", False),
+    ("job_02", "node_02", False),
+    ("job_03", "node_02", True),
+    ("job_04", "node_02", False),
+    ("job_05", "node_02", False),
+    ("job_06", "node_02", False),
+    ("job_07", "node_02", False),
+    ("job_08", "node_02", False),
+    ("job_09", "node_02", False),
+    # Node 03: GPU node
+    ("job_01", "node_03", False),
+    ("job_02", "node_03", False),
+    ("job_03", "node_03", True),
+    ("job_04", "node_03", False),
+    ("job_05", "node_03", True),
+    ("job_06", "node_03", True),
+    ("job_07", "node_03", True),
+    ("job_08", "node_03", False),
+    ("job_09", "node_03", False),
+    # Node 04: Low RAM
+    ("job_01", "node_04", False),
+    ("job_02", "node_04", False),
+    ("job_03", "node_04", False),
+    ("job_04", "node_04", False),
+    ("job_05", "node_04", False),
+    ("job_06", "node_04", False),
+    ("job_07", "node_04", False),
+    ("job_08", "node_04", False),
+    ("job_09", "node_04", False),
+    # Node 05: High GLIBC
+    ("job_01", "node_05", False),
+    ("job_02", "node_05", False),
+    ("job_03", "node_05", True),
+    ("job_04", "node_05", False),
+    ("job_05", "node_05", True),
+    ("job_06", "node_05", True),
+    ("job_07", "node_05", True),
+    ("job_08", "node_05", False),
+    ("job_09", "node_05", True),
+    # Node 06: Darwin
+    ("job_01", "node_06", False),
+    ("job_02", "node_06", False),
+    ("job_03", "node_06", False),
+    ("job_04", "node_06", False),
+    ("job_05", "node_06", False),
+    ("job_06", "node_06", False),
+    ("job_07", "node_06", False),
+    ("job_08", "node_06", True),
+    ("job_09", "node_06", False),
 ]
 
 
 @pytest.mark.parametrize(
-    "job_file, node_file, node_id, expected_match",
+    "job_id, node_id, expected_match",
     MATCHMAKING_CASES,
 )
-def test_matchmaking_combinations(job_file, node_file, node_id, expected_match):
-    """Test the core matchmaking logic between jobs and nodes from YAML examples."""
-    node = load_node(node_file, node_id)
-    job = load_job(job_file)
-    job_id = job_file.split("/")[-1].rstrip(".yaml")
+def test_matchmaking_logic(job_id, node_id, expected_match):
+    """Test matchmaking at both levels.
 
-    matches = [valid_job_with_node(f"{job_id}-{i}", spec, node) for i, spec in enumerate(job.matching_specs)]
+    1. Core logic (valid_job_with_node)
+    2. Higher-level API (match_jobs_with_node)
+    """
+    job_file = JOB_FILES[job_id]
+    node_file = NODE_FILES[node_id]
 
-    if expected_match:
-        assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
-    else:
-        assert not any(matches), f"Expected no match for {job_file} and {node_file}"
+    # Level 1: Core logic verification
+    node_obj = load_node(node_file, node_id)
+    job_objs = load_job(job_file)
+    core_matches = [valid_job_with_node(job, node_obj) for job in job_objs]
 
-
-@pytest.mark.parametrize(
-    "job_file, node_file, expected_match",
-    MATCHMAKING_CASES_FROM_FILES,
-)
-def test_valid_pilot_from_files(job_file, node_file, expected_match):
-    """Test the higher-level valid_pilot function using real YAML paths."""
-    matches = valid_pilot(job_file, node_file)[0]
+    # Level 2: Higher-level API verification
+    api_matches = match_jobs_with_node(job_file, node_file)[0]
 
     if expected_match:
-        assert any(matches), f"Expected at least one match for {job_file} and {node_file}"
+        assert any(core_matches), f"Core: Expected {job_id} to match {node_id} ({job_file})"
+        assert any(api_matches), f"API: Expected {job_id} to match {node_id} ({job_file})"
     else:
-        assert not any(matches), f"Expected no match for {job_file} and {node_file}"
-
-
-@pytest.mark.parametrize(
-    "job_file, node_file",
-    list(product(sorted(glob("tests/examples/jobs/job_0*.yaml")), sorted(glob("tests/examples/nodes/pilot_0*.yaml")))),
-)
-def test_all_job_node_combinations(job_file, node_file):
-    """Not a test, but useful for debugging invalid combinations."""
-    res = valid_pilot(job_file, node_file)
-    logger.info(f"Validating {job_file} against {node_file}:\n{res}")
+        assert not any(core_matches), f"Core: Expected {job_id} NOT to match {node_id} ({job_file})"
+        assert not any(api_matches), f"API: Expected {job_id} NOT to match {node_id} ({job_file})"

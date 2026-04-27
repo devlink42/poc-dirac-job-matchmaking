@@ -9,16 +9,16 @@ import pytest
 import yaml
 from pydantic import TypeAdapter, ValidationError
 
-from src.core import valid_pilot as vp
-from src.models.job import MatchingSpecs
-from src.models.node import Node
-from src.models.utils import CustomVersion
+from matchmaking.core import match_making as vp
+from matchmaking.models.job import MatchingSpecs
+from matchmaking.models.node import Node
+from matchmaking.models.utils import CustomVersion
 
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 JOB_06 = "tests/examples/jobs/job_06_gpu.yaml"
 JOB_07 = "tests/examples/jobs/job_07_sprucing_niche.yaml"
-PILOT_01 = "tests/examples/nodes/pilot_01_cern_typical.yaml"
-PILOT_03 = "tests/examples/nodes/pilot_03_gpu.yaml"
+NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
+NODE_03 = "tests/examples/nodes/node_03_gpu.yaml"
 
 
 def _load_job_spec(path: str, spec_index: int = 0) -> dict:
@@ -119,22 +119,22 @@ def _mutate_missing_plain_tags(job_spec: dict, node_spec: dict) -> None:
 @pytest.mark.parametrize(
     "job_path,node_path,mutator",
     [
-        (JOB_01, PILOT_01, _mutate_missing_plain_tags),
-        (JOB_01, PILOT_01, _mutate_invalid_tag_expression),
-        (JOB_06, PILOT_03, _mutate_gpu_ram),
-        (JOB_06, PILOT_03, _mutate_ram_limit),
-        (JOB_06, PILOT_03, _mutate_gpu_vendor),
-        (JOB_06, PILOT_03, _mutate_cpu_cores_min),
-        (JOB_06, PILOT_03, _mutate_microarch_min),
-        (JOB_06, PILOT_03, _mutate_microarch_max),
-        (JOB_06, PILOT_03, _mutate_gpu_count_max),
-        (JOB_06, PILOT_03, _mutate_architecture_name),
-        (JOB_06, PILOT_03, _mutate_gpu_driver_version),
-        (JOB_06, PILOT_03, _mutate_gpu_compute_capability_min),
-        (JOB_06, PILOT_03, _mutate_gpu_compute_capability_max),
-        (JOB_07, PILOT_03, _mutate_io_lan),
-        (JOB_07, PILOT_03, _mutate_io_scratch),
-        (JOB_07, PILOT_03, _mutate_user_namespaces),
+        (JOB_01, NODE_01, _mutate_missing_plain_tags),
+        (JOB_01, NODE_01, _mutate_invalid_tag_expression),
+        (JOB_06, NODE_03, _mutate_gpu_ram),
+        (JOB_06, NODE_03, _mutate_ram_limit),
+        (JOB_06, NODE_03, _mutate_gpu_vendor),
+        (JOB_06, NODE_03, _mutate_cpu_cores_min),
+        (JOB_06, NODE_03, _mutate_microarch_min),
+        (JOB_06, NODE_03, _mutate_microarch_max),
+        (JOB_06, NODE_03, _mutate_gpu_count_max),
+        (JOB_06, NODE_03, _mutate_architecture_name),
+        (JOB_06, NODE_03, _mutate_gpu_driver_version),
+        (JOB_06, NODE_03, _mutate_gpu_compute_capability_min),
+        (JOB_06, NODE_03, _mutate_gpu_compute_capability_max),
+        (JOB_07, NODE_03, _mutate_io_lan),
+        (JOB_07, NODE_03, _mutate_io_scratch),
+        (JOB_07, NODE_03, _mutate_user_namespaces),
     ],
 )
 def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
@@ -155,11 +155,11 @@ def test_valid_job_failure_paths():
 
 
 def test_valid_node_success_with_example_file():
-    assert vp.valid_node(PILOT_01)
+    assert vp.valid_node(NODE_01)
 
 
 def test_valid_node_failure_paths():
-    assert not vp.valid_node("tests/examples/nodes/invalid_07_pilot_negative_cores.yaml")
+    assert not vp.valid_node("tests/examples/nodes/invalid_07_node_negative_cores.yaml")
     assert not vp.valid_node("tests/examples/nodes/does_not_exist.yaml")
 
 
@@ -170,13 +170,13 @@ def test_evaluate_node_raises_for_unsupported_expression_node():
         vp._evaluate_node(unsupported_node, "a + b")
 
 
-def test_valid_pilot_returns_empty_when_job_specs_are_invalid():
-    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", PILOT_01)[0] is not None
-    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", PILOT_01)[0] == []
+def test_valid_node_returns_empty_when_job_specs_are_invalid():
+    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", NODE_01)[0] is not None
+    assert vp.valid_pilot("tests/examples/jobs/invalid_01_min_gt_max.yaml", NODE_01)[0] == []
 
 
-def test_valid_pilot_returns_empty_when_node_is_invalid():
-    assert vp.valid_pilot(JOB_01, "tests/examples/nodes/invalid_07_pilot_negative_cores.yaml") is None
+def test_valid_node_returns_empty_when_node_is_invalid():
+    assert vp.valid_pilot(JOB_01, "tests/examples/nodes/invalid_07_node_negative_cores.yaml") is None
 
 
 def test_invalid_version_with_adapter():

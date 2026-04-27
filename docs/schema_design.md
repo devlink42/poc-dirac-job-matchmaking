@@ -138,7 +138,7 @@ tags:
     - [name=Federico] should be done server side (using a similar mechanism as the JobCommands?)
     - [name=Alexandre] we can open an issue and see how to solve that later
 
-## Comparison of Job and Pilot Metadata
+## Comparison of Job and Node Metadata
 
 Fundamentally the job matching metadata is a document containing known keys which have the following comparision operations:
 

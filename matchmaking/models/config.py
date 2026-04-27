@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, NonNegativeInt
 
-from src.models.utils import JobType
+from matchmaking.models.utils import JobType
 
 
 class SchedulingConfig(BaseModel):

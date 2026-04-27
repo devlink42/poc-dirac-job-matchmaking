@@ -96,10 +96,9 @@ class ArchitectureName(Enum):
     x86_64 = "x86_64"
     # ARM/AArch64 64-bit
     aarch64 = "aarch64"
-    # PowerPC 64-bit
-    ppc64 = "ppc64"
+    arm64 = "arm64"
 
 
 class Io(BaseModel):
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
-    lan_mbitps: PositiveInt | None = Field(default=None, validation_alias="lan-mbitps")
+    scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")

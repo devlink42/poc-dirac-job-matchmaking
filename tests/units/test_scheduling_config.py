@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from src.models.config import SchedulingConfig
-from src.models.utils import JobType
-from tests.conftest import PROJECT_ROOT
+from matchmaking.config.paths import PROJECT_ROOT
+from matchmaking.models.config import SchedulingConfig
+from matchmaking.models.utils import JobType
 
 CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
 

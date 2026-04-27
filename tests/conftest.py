@@ -3,23 +3,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 import yaml
 
-from config import configure_logger
-from src.models.config import SchedulingConfig
-from src.models.job import Job
-from src.models.node import Node
-
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-
-
-def pytest_configure() -> None:
-    """Apply a consistent logger configuration for the whole test suite."""
-    configure_logger("DEBUG")
+from matchmaking.config.paths import PROJECT_ROOT
+from matchmaking.models.config import SchedulingConfig
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
 @pytest.fixture

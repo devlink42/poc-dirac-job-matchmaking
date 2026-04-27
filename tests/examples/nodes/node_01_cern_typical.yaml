@@ -1,4 +1,4 @@
-# Pilot: Typical CERN worker node
+# Node: Typical CERN worker node
 # Should match the majority of jobs (MCSimulation, MCFastSimulation, User, etc.)
 # x86_64 v4 (skylake+), 16 cores, 24 GB RAM, 3 days wall time
 # Has cvmfs:lhcb, os:el9 tags

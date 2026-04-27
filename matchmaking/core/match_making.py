@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-import argparse
-import ast
-import re
-import sys
 from typing import Any
 
 import yaml
 from pydantic import ValidationError
 
-from config import configure_logger, logger
-from src.models.job import Job, MatchingSpecs
-from src.models.node import Node
-
-configure_logger("WARNING")
-logger.debug("/!\\ Logging initialized with DEBUG level. /!\\")
+from matchmaking.config.logger import logger
+from matchmaking.logic.tags import evaluate_tag_expression
+from matchmaking.models.job import Job, MatchingSpecs
+from matchmaking.models.node import Node
 
 
 def valid_job(job: str) -> bool:
@@ -55,54 +49,16 @@ def valid_node(node: str) -> bool:
         return False
 
 
-def _evaluate_node(node, expr_norm):
-    if isinstance(node, ast.Constant):  # True or False
-        logger.debug(f"Evaluating constant: {node.value}")
-        return bool(node.value)
-    elif isinstance(node, ast.BoolOp):  # 'and' / 'or'
-        if isinstance(node.op, ast.And):
-            logger.debug(f"Evaluating AND: {node.values}")
-            return all(_evaluate_node(val, expr_norm) for val in node.values)
-        elif isinstance(node.op, ast.Or):
-            logger.debug(f"Evaluating OR: {node.values}")
-            return any(_evaluate_node(val, expr_norm) for val in node.values)
-    elif isinstance(node, ast.UnaryOp):  # 'not'
-        if isinstance(node.op, ast.Not):
-            logger.debug(f"Evaluating NOT: {node.operand}")
-            return not _evaluate_node(node.operand, expr_norm)
-
-    raise ValueError(f"Operation not supported: {expr_norm} =>")
-
-
 def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
     """Evaluate a simple boolean expression of tags against a set of node tags.
 
     Supported syntax examples:
       - "a & b"
       - "a | (b & c)"
-      - "not a"
-      - Operators: '&' for AND, '|' for OR, 'not' for NOT, parentheses for grouping
+      - "~a"
+      - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
     """
-
-    def repl_token(m: re.Match[str]) -> str:
-        token = m.group(0)
-        if token in {"and", "or", "not"}:
-            return token
-
-        return "True" if token in node_tags else "False"
-
-    expr_norm = expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
-    logger.debug(f"Evaluating tag expression: {expr_norm}")
-    expr_bool = re.sub(r"[A-Za-z0-9:_+-.]+", repl_token, expr_norm)
-    logger.debug(f"Normalized expression: {expr_bool}")
-
-    try:
-        tree = ast.parse(expr_bool, mode="eval")
-        logger.debug(f"Parsed expression: {tree.body}")
-        return _evaluate_node(tree.body, expr_norm)
-    except Exception:
-        logger.error(f"Error evaluating expression: {expr_norm}")
-        return False
+    return evaluate_tag_expression(expr, node_tags)
 
 
 def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bool:
@@ -139,8 +95,13 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
         logger.warning(f"Job {job_id} requires user namespaces to be {job.system.user_namespaces}, skipping...")
         return False
 
-    # CPU work
-    if node.cpu_work < job.cpu_work:
+    # Wall time check
+    if job.wall_time and node.wall_time < job.wall_time:
+        logger.warning(f"Job {job_id} requires {job.wall_time} wall time, skipping...")
+        return False
+
+    # CPU work check
+    if job.cpu_work and node.cpu_work < job.cpu_work:
         logger.warning(f"Job {job_id} requires {job.cpu_work} CPU work, skipping...")
         return False
 
@@ -237,10 +198,6 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
             logger.warning(f"Job {job_id} requires at least {job.io.scratch_mb} MB scratch space, skipping...")
             return False
 
-        if node.io.lan_mbitps and job.io.lan_mbitps and node.io.lan_mbitps < job.io.lan_mbitps:
-            logger.warning(f"Job {job_id} requires at least {job.io.lan_mbitps} Mbit/s LAN bandwidth, skipping...")
-            return False
-
     # Tags check (all job tags must be present in node tags)
     if job.tags:
         node_tags = set(node.tags)
@@ -261,28 +218,28 @@ def valid_job_with_node(job_id: str | Any, job: MatchingSpecs, node: Node) -> bo
     return True
 
 
-def valid_pilot(job: str, pilot: str) -> tuple[list[Job], Node] | None:
-    """Validate a job against a node/pilot configuration.
+def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node] | None:
+    """Validate a job against a node configuration.
 
     Args:
         job (str): Path to the job YAML file.
-        pilot (str): Path to the node/pilot YAML file.
+        node (str): Path to the node YAML file.
 
     Returns:
         list[Job]: List of matching jobs if validation is successful, otherwise
             an empty list.
     """
-    with open(job, "r") as job_file, open(pilot, "r") as pilot_file:
+    with open(job, "r") as job_file, open(node, "r") as node_file:
         yaml_job = yaml.safe_load(job_file)
-        yaml_node = yaml.safe_load(pilot_file)
+        yaml_node = yaml.safe_load(node_file)
 
     if "node_id" not in yaml_node:
-        yaml_node["node_id"] = pilot.split("/")[-1].rstrip(".yaml")
-        logger.warning(f"Node ID not specified in {pilot}, using filename as default: {yaml_node['node_id']}")
+        yaml_node["node_id"] = node.split("/")[-1].rstrip(".yaml")
+        logger.warning(f"Node ID not specified in {node}, using filename as default: {yaml_node['node_id']}")
 
     try:
         node_obj = Node.model_validate(yaml_node)
-        logger.info(f"Node file {pilot} is VALID.")
+        logger.info(f"Node file {node} is VALID.")
     except ValidationError as e:
         logger.error(f"Invalid node specification: {e}")
         return None
@@ -305,59 +262,3 @@ def valid_pilot(job: str, pilot: str) -> tuple[list[Job], Node] | None:
         logger.error(f"Invalid job specification: {e}")
 
     return jobs_match, node_obj
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Matchmaking and validation for DIRAC jobs and pilots.")
-    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
-    parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
-    parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
-    parser.add_argument(
-        "--validate-node",
-        "-VN",
-        "--validate-pilot",
-        "-VP",
-        action="store_true",
-        help="Only validate the node/pilot file",
-    )
-
-    args = parser.parse_args()
-    # Force INFO logging level to show job/node validation details
-    configure_logger("INFO")
-
-    if args.validate_job:
-        if not args.job:
-            logger.error("Error: --validate-job requires a job file path.")
-            sys.exit(1)
-
-        valid_job(args.job)
-    elif args.validate_node:
-        # If node_path is not provided, check if job_path was used instead
-        node_path = args.node_pilot or args.job
-        if not node_path:
-            logger.error("Error: --validate-node/--validate-pilot requires a node file path.")
-            sys.exit(1)
-
-        valid_node(node_path)
-    elif args.job and args.node_pilot:
-        try:
-            valid_jobs_node = valid_pilot(args.job, args.node_pilot)
-            if valid_jobs_node:
-                jobs = valid_jobs_node[0]
-
-                if jobs:
-                    logger.info(f"Match found! {len(jobs)} job(s) can run on this node:")
-
-                    for job in jobs:
-                        logger.info(f"  - Job ID: {job.job_id}")
-                else:
-                    logger.info("No jobs from the job file can run on this node.")
-        except Exception as e:
-            logger.error(f"Error during matchmaking: {e}")
-            sys.exit(1)
-    else:
-        parser.print_help()
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()

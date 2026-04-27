@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import pytest
 import yaml
 
-from src.core.valid_pilot import _eval_tag_expression, valid_job_with_node, valid_pilot
-from src.models.job import MatchingSpecs
-from src.models.node import Node
+from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
+from matchmaking.models.job import MatchingSpecs
+from matchmaking.models.node import Node
 
 
 def _base_node_spec() -> dict:
@@ -83,7 +81,7 @@ def test_valid_job_with_node_accepts_boundary_equal_values():
     assert valid_job_with_node("edge-job-0", job, node)
 
 
-def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
+def test_valid_node_returns_empty_for_invalid_node(tmp_path):
     job_file = tmp_path / "job.yaml"
     node_file = tmp_path / "node_invalid.yaml"
 
@@ -95,15 +93,15 @@ def test_valid_pilot_returns_empty_for_invalid_node(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(invalid_node, f)
 
-    assert valid_pilot(str(job_file), str(node_file)) is None
+    assert match_jobs_with_node(str(job_file), str(node_file)) is None
 
 
-def test_valid_pilot_returns_empty_even_with_mixed_specs(tmp_path):
+def test_valid_node_returns_empty_even_with_mixed_specs(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"
 
     valid_job_spec = _base_job_spec()
-    invalid_job_spec = deepcopy(_base_job_spec())
+    invalid_job_spec = _base_job_spec()
     invalid_job_spec["cpu"]["num-cores"] = {"min": 2, "max": 1}
 
     with open(job_file, "w") as f:
@@ -111,11 +109,11 @@ def test_valid_pilot_returns_empty_even_with_mixed_specs(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    assert valid_pilot(str(job_file), str(node_file))[0] == []
+    assert match_jobs_with_node(str(job_file), str(node_file))[0] == []
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
-def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_content):
+def test_valid_node_handles_missing_or_empty_matching_specs(tmp_path, job_content):
     job_file = tmp_path / "job_empty.yaml"
     node_file = tmp_path / "node.yaml"
 
@@ -124,4 +122,4 @@ def test_valid_pilot_handles_missing_or_empty_matching_specs(tmp_path, job_conte
     with open(node_file, "w") as f:
         yaml.safe_dump(_base_node_spec(), f)
 
-    assert valid_pilot(str(job_file), str(node_file))[0] == []
+    assert match_jobs_with_node(str(job_file), str(node_file))[0] == []

@@ -5,11 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from config import configure_logger, logger
-from src.core.valid_pilot import valid_pilot
-from src.models.config import SchedulingConfig
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.match_making import valid_job_with_node as valid_pilot
+from matchmaking.models.config import SchedulingConfig
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
 def select_job(
