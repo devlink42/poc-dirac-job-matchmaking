@@ -5,11 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from matchmaking.config.paths import PROJECT_ROOT
 from matchmaking.models.config import SchedulingConfig
-from matchmaking.models.utils import JobType
+from matchmaking.models.utils import CustomVersion, JobType
 
 CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
 
@@ -50,3 +50,10 @@ def test_load_scheduling_config_missing_file_raises():
 def test_load_scheduling_config_invalid_yaml_raises_validation_error():
     with pytest.raises(ValidationError):
         SchedulingConfig.load_from_yaml(CONFIG_DIR / "invalid_10_scheduling_negative_limit.yaml")
+
+
+def test_invalid_version_with_adapter():
+    adapter = TypeAdapter(CustomVersion)
+
+    with pytest.raises(ValidationError, match="Invalid version format"):
+        adapter.validate_python("version_invalide")

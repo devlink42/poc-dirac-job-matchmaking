@@ -2,12 +2,177 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 import yaml
+from pydantic import ValidationError
 
+from matchmaking.core import match_making as vp
 from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_specs_with_node
 from matchmaking.models.job import MatchingSpecs
 from matchmaking.models.node import Node
+
+
+def _load_job_spec(path: str, spec_index: int = 0) -> dict:
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+
+    spec = deepcopy(data["matching_specs"][spec_index])
+    spec.setdefault("job_id", "coverage-job")
+
+    return spec
+
+
+def _load_node_spec(path: str) -> dict:
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+
+    spec = deepcopy(data)
+    spec.setdefault("node_id", "coverage-node")
+
+    return spec
+
+
+def _build_models(job_path: str, node_path: str, mutator=None) -> tuple[MatchingSpecs, Node]:
+    job_spec = _load_job_spec(job_path)
+    node_spec = _load_node_spec(node_path)
+
+    if mutator:
+        mutator(job_spec, node_spec)
+
+    try:
+        job = MatchingSpecs.model_validate(job_spec)
+    except ValidationError:
+        raise
+
+    return job, Node.model_validate(node_spec)
+
+
+def _mutate_user_namespaces(job_spec: dict, node_spec: dict) -> None:
+    node_spec["system"]["user-namespaces"] = False
+
+
+def _mutate_cpu_cores_min(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["num-cores"] = {"min": 9, "max": 9}
+
+
+def _mutate_ram_limit(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["ram-mb"]["limit"] = {"overhead": 50000, "per-core": 0}
+
+
+def _mutate_architecture_name(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["architecture"]["name"] = "aarch64"
+
+
+def _mutate_microarch_min(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["architecture"]["microarchitecture-level"] = {"min": 5, "max": None}
+
+
+def _mutate_microarch_max(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["architecture"]["microarchitecture-level"] = {"min": 1, "max": 3}
+
+
+def _mutate_gpu_count_max(job_spec: dict, node_spec: dict) -> None:
+    node_spec["gpu"]["count"] = 2
+
+
+def _mutate_gpu_ram(job_spec: dict, node_spec: dict) -> None:
+    job_spec["gpu"]["ram-mb"] = 50000
+
+
+def _mutate_gpu_vendor(job_spec: dict, node_spec: dict) -> None:
+    job_spec["gpu"]["vendor"] = "amd"
+
+
+def _mutate_gpu_compute_capability_min(job_spec: dict, node_spec: dict) -> None:
+    job_spec["gpu"]["compute-capability"] = {"min": "9.1", "max": None}
+
+
+def _mutate_gpu_compute_capability_max(job_spec: dict, node_spec: dict) -> None:
+    job_spec["gpu"]["compute-capability"] = {"min": "7.0", "max": "7.5"}
+
+
+def _mutate_gpu_driver_version(job_spec: dict, node_spec: dict) -> None:
+    job_spec["gpu"]["driver-version"] = "999.0"
+
+
+def _mutate_io_scratch(job_spec: dict, node_spec: dict) -> None:
+    node_spec["io"] = {"scratch-mb": 1024}
+
+
+def _mutate_io_lan(job_spec: dict, node_spec: dict) -> None:
+    node_spec["io"] = {"scratch-mb": 8192, "lan-mbitps": 100}
+    job_spec["io"]["lan-mbitps"] = 200
+
+
+def _mutate_invalid_tag_expression(job_spec: dict, node_spec: dict) -> None:
+    job_spec["tags"] = "cvmfs:lhcb & ("
+
+
+def _mutate_missing_plain_tags(job_spec: dict, node_spec: dict) -> None:
+    job_spec["tags"] = "missing:tag"
+
+
+def _mutate_cpu_work(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu-work"] = 1000000
+    node_spec["cpu_work"] = 1000
+
+
+def _mutate_ram_request(job_spec: dict, node_spec: dict) -> None:
+    job_spec["cpu"]["ram-mb"]["request"] = {"overhead": 1000000, "per-core": 0}
+
+
+def _mutate_io_scratch_too_small(job_spec: dict, node_spec: dict) -> None:
+    job_spec["io"] = {"scratch-mb": 1000000, "scratch-iops": 100}
+    node_spec["io"] = {"scratch-mb": 1000, "scratch-iops": 1000}
+
+
+def _mutate_tag_eval_error(job_spec: dict, node_spec: dict) -> None:
+    job_spec["tags"] = "a & (b | c)"
+    job_spec["tags"] = "tag_that_is_missing & tag_a"
+
+
+JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
+JOB_06 = "tests/examples/jobs/job_06_gpu.yaml"
+JOB_07 = "tests/examples/jobs/job_07_sprucing_niche.yaml"
+NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
+NODE_03 = "tests/examples/nodes/node_03_gpu.yaml"
+
+
+@pytest.mark.parametrize(
+    "job_path,node_path,mutator",
+    [
+        (JOB_01, NODE_01, _mutate_missing_plain_tags),
+        (JOB_01, NODE_01, _mutate_invalid_tag_expression),
+        (JOB_01, NODE_01, _mutate_cpu_work),
+        (JOB_01, NODE_01, _mutate_ram_request),
+        (JOB_01, NODE_01, _mutate_io_scratch_too_small),
+        (JOB_01, NODE_01, _mutate_tag_eval_error),
+        (JOB_06, NODE_03, _mutate_gpu_ram),
+        (JOB_06, NODE_03, _mutate_ram_limit),
+        (JOB_06, NODE_03, _mutate_gpu_vendor),
+        (JOB_06, NODE_03, _mutate_cpu_cores_min),
+        (JOB_06, NODE_03, _mutate_microarch_min),
+        (JOB_06, NODE_03, _mutate_microarch_max),
+        (JOB_06, NODE_03, _mutate_gpu_count_max),
+        (JOB_06, NODE_03, _mutate_architecture_name),
+        (JOB_06, NODE_03, _mutate_gpu_driver_version),
+        (JOB_06, NODE_03, _mutate_gpu_compute_capability_min),
+        (JOB_06, NODE_03, _mutate_gpu_compute_capability_max),
+        (JOB_07, NODE_03, _mutate_io_lan),
+        (JOB_07, NODE_03, _mutate_io_scratch),
+        (JOB_07, NODE_03, _mutate_user_namespaces),
+    ],
+)
+def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
+    try:
+        job_specs, node = _build_models(job_path, node_path, mutator=mutator)
+    except ValidationError:
+        return
+
+    job_id = job_path.split("/")[-1].rstrip(".yaml")
+    assert not vp.valid_job_specs_with_node(job_id, job_specs, node)
 
 
 def _base_node_spec() -> dict:
@@ -123,3 +288,17 @@ def test_valid_node_handles_missing_or_empty_matching_specs(tmp_path, job_conten
         yaml.safe_dump(_base_node_spec(), f)
 
     assert match_jobs_with_node(str(job_file), str(node_file))[0] == []
+
+
+def test_match_jobs_returns_empty_when_job_specs_are_invalid():
+    # Use JOB_01 which is valid but we use a non-existent path for a really invalid one
+    # Or just use the one from the examples
+    invalid_job = "tests/examples/jobs/invalid_01_job_min_gt_max.yaml"
+    node_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
+    assert match_jobs_with_node(invalid_job, node_01)[0] == []
+
+
+def test_match_jobs_returns_none_when_node_is_invalid():
+    job_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
+    invalid_node = "tests/examples/nodes/invalid_07_node_negative_cores.yaml"
+    assert match_jobs_with_node(job_01, invalid_node) is None

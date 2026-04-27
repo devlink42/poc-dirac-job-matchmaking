@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from matchmaking.logic.tags import validate_tag_expression
+from matchmaking.logic.tags import evaluate_tag_expression, validate_tag_expression
 from matchmaking.models.job import Job
 from matchmaking.models.utils import JobGroup, JobType, SystemName
 
@@ -107,3 +107,8 @@ def test_unsupported_constant_type_in_tags():
         mock_parse.return_value = mock_node
         with pytest.raises(ValueError, match="Unsupported constant type: str"):
             validate_tag_expression("dummy")
+
+
+def test_evaluate_node_returns_false_for_unsupported_expression_node():
+    # evaluate_tag_expression now catches ValueError/SyntaxError and returns False
+    assert not evaluate_tag_expression("a + b", {"a", "b"})

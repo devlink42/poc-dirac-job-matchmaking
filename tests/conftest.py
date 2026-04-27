@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -22,7 +21,14 @@ def example_config():
 @pytest.fixture
 def load_job():
     def _load(name):
-        path = PROJECT_ROOT / f"tests/examples/jobs/{name}.yaml"
+        # Allow passing full path or just the name
+        if name.endswith(".yaml"):
+            path = PROJECT_ROOT / name
+        elif "/" in name:
+            path = PROJECT_ROOT / f"{name}.yaml"
+        else:
+            path = PROJECT_ROOT / f"tests/examples/jobs/{name}.yaml"
+
         with open(path, "r") as f:
             data = yaml.safe_load(f)
 
@@ -34,7 +40,14 @@ def load_job():
 @pytest.fixture
 def load_node():
     def _load(name):
-        path = PROJECT_ROOT / f"tests/examples/nodes/{name}.yaml"
+        # Allow passing full path or just the name
+        if name.endswith(".yaml"):
+            path = PROJECT_ROOT / name
+        elif "/" in name:
+            path = PROJECT_ROOT / f"{name}.yaml"
+        else:
+            path = PROJECT_ROOT / f"tests/examples/nodes/{name}.yaml"
+
         with open(path, "r") as f:
             data = yaml.safe_load(f)
 
@@ -46,33 +59,3 @@ def load_node():
 @pytest.fixture
 def base_time():
     return datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-
-
-@pytest.fixture
-def mock_argv():
-    with patch("sys.argv", ["scheduler.py", "jobs.yaml", "pilot.yaml", "config.yaml"]):
-        yield
-
-
-@pytest.fixture
-def mock_valid_pilot():
-    with patch("matchmaking.core.scheduler.valid_pilot") as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_select_job():
-    with patch("matchmaking.core.scheduler.select_job") as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_scheduling_config():
-    with patch("matchmaking.core.scheduler.SchedulingConfig") as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_logger():
-    with patch("matchmaking.core.scheduler.logger") as mock:
-        yield mock

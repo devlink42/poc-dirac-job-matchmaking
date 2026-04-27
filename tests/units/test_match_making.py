@@ -3,31 +3,8 @@
 from __future__ import annotations
 
 import pytest
-import yaml
 
 from matchmaking.core.match_making import match_jobs_with_node, valid_job_specs_with_node
-from matchmaking.models.job import Job
-from matchmaking.models.node import Node
-
-
-def load_node(node_path: str, node_id: str) -> Node:
-    """Load a Node object from a YAML file."""
-    with open(node_path, "r") as f:
-        data = yaml.safe_load(f)
-
-    if "node_id" not in data:
-        data["node_id"] = f"test-{node_id}"
-
-    return Node.model_validate(data)
-
-
-def load_job(job_path: str) -> Job:
-    """Load Job objects from a YAML job file."""
-    with open(job_path, "r") as f:
-        data = yaml.safe_load(f)
-
-    return Job.model_validate(data)
-
 
 JOB_FILES = {
     "job_01": "tests/examples/jobs/job_01_mcsimulation_any_site.yaml",
@@ -119,7 +96,7 @@ MATCHMAKING_CASES = [
     "job_id, node_id, expected_match",
     MATCHMAKING_CASES,
 )
-def test_matchmaking_logic(job_id, node_id, expected_match):
+def test_matchmaking_logic(load_job, load_node, job_id, node_id, expected_match):
     """Test matchmaking at both levels.
 
     1. Core logic (valid_job_specs_with_node)
@@ -129,7 +106,7 @@ def test_matchmaking_logic(job_id, node_id, expected_match):
     node_file = NODE_FILES[node_id]
 
     # Level 1: Core logic verification
-    node_obj = load_node(node_file, node_id)
+    node_obj = load_node(node_file)
     job_objs = load_job(job_file)
     core_matches = [valid_job_specs_with_node(job_id, job_specs, node_obj) for job_specs in job_objs.matching_specs]
 
