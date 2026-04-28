@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import yaml
+
+from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -10,20 +13,36 @@ from matchmaking.models.node import Node
 def select_job(
     node: Node,
     candidate_jobs: list[Job],
-    config: SchedulingConfig,
+    config: SchedulingConfig | None = None,
 ) -> Job | None:
     """Select a job from the matching jobs based on scheduling criteria.
 
     Args:
         node (Node): The node on which the job will be executed.
         candidate_jobs (list[Job]): List of jobs that match the scheduling criteria.
-        config (SchedulingConfig): Scheduling configuration parameters.
+        config (SchedulingConfig | None): Scheduling configuration parameters.
+        If None, the default config is loaded.
 
     Returns:
         Job | None: The selected job or None if no suitable job is found.
     """
     if not candidate_jobs or not node:
         return None
+
+    if not config:
+        config_path = "matchmaking/config/scheduling.yaml"
+
+        with open(config_path, "r") as f:
+            config_data = yaml.safe_load(f)
+
+            try:
+                config = SchedulingConfig.model_validate(config_data)
+            except FileNotFoundError as e:
+                raise ValueError(f"Default scheduling config not found at {config_path}") from e
+            except Exception as e:
+                raise ValueError(f"Failed to load default scheduling config: {e}") from e
+            else:
+                logger.info(f"Loaded default scheduling config from {config_path}")
 
     allowed_jobs = []
 

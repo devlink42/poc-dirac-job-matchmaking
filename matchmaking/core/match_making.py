@@ -49,18 +49,6 @@ def valid_node(node: str) -> bool:
         return False
 
 
-def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
-    """Evaluate a simple boolean expression of tags against a set of node tags.
-
-    Supported syntax examples:
-      - "a & b"
-      - "a | (b & c)"
-      - "~a"
-      - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
-    """
-    return evaluate_tag_expression(expr, node_tags)
-
-
 def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node: Node) -> bool:
     """Determine whether a given job is compatible with a specific node based on
     various requirements and constraints.
@@ -213,7 +201,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
         logger.debug(f"Job {job_id} has tags: {job_specs.tags}")
 
         if any(op in job_specs.tags for op in ("&", "|", "~", "(", ")")):
-            if not _eval_tag_expression(job_specs.tags, node_tags):
+            if not evaluate_tag_expression(job_specs.tags, node_tags):
                 logger.warning(f"Job {job_id} has invalid tag expression, skipping...")
                 return False
         else:

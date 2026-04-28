@@ -7,15 +7,12 @@ from pathlib import Path
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from matchmaking.config.paths import PROJECT_ROOT
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.utils import CustomVersion, JobType
 
-CONFIG_DIR = PROJECT_ROOT / "tests" / "examples" / "config"
-
 
 def test_load_scheduling_config_from_valid_yaml():
-    config = SchedulingConfig.load_from_yaml(CONFIG_DIR / "config_01_scheduling_valid.yaml")
+    config = SchedulingConfig.load_from_yaml("tests/examples/config/config_01_scheduling_valid.yaml")
 
     assert config.job_type_priorities == [
         JobType.WGPRODUCTION,
@@ -35,21 +32,21 @@ def test_load_scheduling_config_from_valid_yaml():
 
 
 def test_load_scheduling_config_from_empty_yaml():
-    config = SchedulingConfig.load_from_yaml(CONFIG_DIR / "config_02_scheduling_empty.yaml")
+    config = SchedulingConfig.load_from_yaml("tests/examples/config/config_02_scheduling_empty.yaml")
 
     assert config.job_type_priorities == []
     assert config.running_limits == {}
 
 
 def test_load_scheduling_config_missing_file_raises():
-    missing_file = Path(CONFIG_DIR / "does_not_exist.yaml")
+    missing_file = Path("tests/examples/config/does_not_exist.yaml")
     with pytest.raises(FileNotFoundError):
         SchedulingConfig.load_from_yaml(missing_file)
 
 
 def test_load_scheduling_config_invalid_yaml_raises_validation_error():
     with pytest.raises(ValidationError):
-        SchedulingConfig.load_from_yaml(CONFIG_DIR / "invalid_10_scheduling_negative_limit.yaml")
+        SchedulingConfig.load_from_yaml("tests/examples/config/invalid_10_scheduling_negative_limit.yaml")
 
 
 def test_invalid_version_with_adapter():

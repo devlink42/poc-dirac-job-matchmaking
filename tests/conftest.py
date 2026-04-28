@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 import yaml
 
-from matchmaking.config.paths import PROJECT_ROOT
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -15,19 +15,21 @@ from matchmaking.models.node import Node
 
 @pytest.fixture
 def example_config():
-    return SchedulingConfig.load_from_yaml(PROJECT_ROOT / "tests/examples/config/config_01_scheduling_valid.yaml")
+    config_path = Path(__file__).parent / "examples/config/config_01_scheduling_valid.yaml"
+    return SchedulingConfig.load_from_yaml(config_path)
 
 
 @pytest.fixture
 def load_job():
     def _load(name):
         # Allow passing full path or just the name
+        base_path = Path(__file__).parent
         if name.endswith(".yaml"):
-            path = PROJECT_ROOT / name
+            path = base_path.parent / name
         elif "/" in name:
-            path = PROJECT_ROOT / f"{name}.yaml"
+            path = base_path.parent / f"{name}.yaml"
         else:
-            path = PROJECT_ROOT / f"tests/examples/jobs/{name}.yaml"
+            path = base_path / f"examples/jobs/{name}.yaml"
 
         with open(path, "r") as f:
             data = yaml.safe_load(f)
@@ -41,12 +43,13 @@ def load_job():
 def load_node():
     def _load(name):
         # Allow passing full path or just the name
+        base_path = Path(__file__).parent
         if name.endswith(".yaml"):
-            path = PROJECT_ROOT / name
+            path = base_path.parent / name
         elif "/" in name:
-            path = PROJECT_ROOT / f"{name}.yaml"
+            path = base_path.parent / f"{name}.yaml"
         else:
-            path = PROJECT_ROOT / f"tests/examples/nodes/{name}.yaml"
+            path = base_path / f"examples/nodes/{name}.yaml"
 
         with open(path, "r") as f:
             data = yaml.safe_load(f)
