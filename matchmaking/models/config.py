@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, NonNegativeInt
 
-from src.models.utils import JobType
+from matchmaking.models.utils import JobType
 
 
 class SchedulingConfig(BaseModel):
@@ -23,9 +23,9 @@ class SchedulingConfig(BaseModel):
         """Load and apply the configuration from a YAML file."""
         file_path = Path(path)
         if not file_path.exists():
-            raise FileNotFoundError(f"Le fichier de configuration {file_path} est introuvable.")
+            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
 
         with open(file_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        return cls(**(data or {}))
+        return cls.model_validate(data or {})

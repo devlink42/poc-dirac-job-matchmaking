@@ -1,11 +1,11 @@
-# Pilot: High version of GLIBC + GPU
+# Node: High version of GLIBC + GPU
 
 site: "LCG.CERN.cern"
 system:
   name: Linux
   glibc: "2.37"
   user-namespaces: true
-wall-time: 86400
+wall-time: 172800
 cpu-work: 300000
 cpu:
   num-nodes: 1

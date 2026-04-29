@@ -4,19 +4,11 @@ name = "matchmaking"
 platforms = ["linux-64", "win-64"]
 version = "0.1.0"
 
-[activation]
-env = { PYTHONPATH = "." }
-
 [tasks]
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
-test = "pytest --cov=src --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
-pc-run-all = "pre-commit run --all-files"
-valid = "python src/core/valid_pilot.py"
-benchmark = "locust -f benchmark/locustfile.py --headless"
-benchmark-ui = "locust -f benchmark/locustfile.py"
-benchmark-dist = "./benchmark/run_distributed.sh --headless"
-benchmark-dist-ui = "./benchmark/run_distributed.sh"
+tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
+pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
@@ -30,6 +22,9 @@ pytest-cov = ">=7.1.0,<8"
 packaging = ">=26.0,<27"
 pre-commit = ">=4.1.0,<5"
 locust = ">=2.43.4,<3"
+
+[pypi-dependencies]
+matchmaking = { path = ".", editable = true }
 
 [feature.analysis.dependencies]
 matplotlib = ">=3.9"

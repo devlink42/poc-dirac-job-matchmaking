@@ -30,18 +30,18 @@
 
 | File         | Site          | Arch level | Cores | RAM   | GPU  | Wall time | Notes                            |
 |--------------|---------------|------------|-------|-------|------|-----------|----------------------------------|
-| `pilot_01_*` | LCG.CERN.cern | v4         | 16    | 24 GB | No   | 3d        | Should match most jobs           |
-| `pilot_02_*` | LCG.NCBJ.pl   | v2         | 8     | 16 GB | No   | 1d        | Older node, matches fewer jobs   |
-| `pilot_03_*` | LCG.CERN.cern | v4         | 8     | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
-| `pilot_04_*` | LCG.GRIDKA.de | v3         | 8     | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
-| `pilot_05_*` | LCG.CERN.cern | v4         | 16    | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
-| `pilot_06_*` | LCG.CERN.cern | v4         | 32    | 64 GB | No   | 2d        | Only matches Darwin jobs         |
+| `node_01_*` | LCG.CERN.cern | v4         | 16    | 24 GB | No   | 3d        | Should match most jobs           |
+| `node_02_*` | LCG.NCBJ.pl   | v2         | 8     | 16 GB | No   | 1d        | Older node, matches fewer jobs   |
+| `node_03_*` | LCG.CERN.cern | v4         | 8     | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
+| `node_04_*` | LCG.GRIDKA.de | v3         | 8     | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
+| `node_05_*` | LCG.CERN.cern | v4         | 16    | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
+| `node_06_*` | LCG.CERN.cern | v4         | 32    | 64 GB | No   | 2d        | Only matches Darwin jobs         |
 
 ## Expected Match Matrix
 
 This matrix shows which (job, node) pairs should match. Use this to validate your implementation.
 
-|                              |     pilot_01 (CERN v4, 3d)     |        pilot_02 (NCBJ v2, 1d)        |  pilot_03 (CERN GPU, 2d)  |           pilot_04 (GRIDKA)           |             pilot_05 (CERN GPU)             | pilot_06 (CERN Darwin) |
+|                              |     node_01 (CERN v4, 3d)     |        node_02 (NCBJ v2, 1d)        |  node_03 (CERN GPU, 2d)  |           node_04 (GRIDKA)           |             node_05 (CERN GPU)             | node_06 (CERN Darwin) |
 |------------------------------|:------------------------------:|:------------------------------------:|:-------------------------:|:-------------------------------------:|:-------------------------------------------:|:----------------------:|
 | **job_01** (MCSim, any site) |            **YES**             | NO (wall-time 1d < 3d, arch v2 < v4) |  NO (wall-time 2d < 3d)   |          NO (Not enough RAM)          |           NO (wall-time 1d < 3d)            |      NO (Darwin)       |
 | **job_02** (MCSim, 5 sites)  |            **YES**             |        NO (site not in list)         |  NO (wall-time 2d < 3d)   | NO (site not in list, not enough RAM) |  NO (site not in list, wall-time 1d < 3d)   |      NO (Darwin)       |
@@ -53,18 +53,18 @@ This matrix shows which (job, node) pairs should match. Use this to validate you
 | **job_08** (MCSim, any site) |          NO (Darwin)           |             NO (Darwin)              |        NO (Darwin)        |              NO (Darwin)              |                 NO (Darwin)                 |        **YES**         |
 | **job_09** (MCSim, any site) |       NO (GLIBC version)       |        NO (site not in list)         |    NO (GLIBC version)     |          NO (GLIBC version)           |                   **YES**                   |      NO (Darwin)       |
 
-**Summary:** pilot_01 matches 5/9 jobs, pilot_02 matches 1/9, pilot_03 matches 4/9, pilot_04 matches 0/9, pilot_05 matches 5/9, pilot_06 matches 1/9.
+**Summary:** node_01 matches 5/9 jobs, node_02 matches 1/9, node_03 matches 4/9, node_04 matches 0/9, node_05 matches 5/9, node_06 matches 1/9.
 
 ### Key things to verify
 
 - **No site = any site**: job_01 has no `site` field, so site filtering is skipped -- only other criteria matter
-- **Site filtering**: pilot_02 only matches jobs that have a spec for LCG.NCBJ.pl (or no site restriction)
-- **Architecture filtering**: v2 pilot cannot run v4-requiring jobs (job_01 requires min v4, fails on pilot_02)
-- **Wall-time**: pilot must offer >= job's wall-time (job_01 and job_02 need 3d, pilot_03 only offers 2d)
-- **RAM computation**: job_04 at 4 cores needs 2048 + 512x4 = 4096 MB request, pilot_01 has 24 GB -> OK
-- **GPU matching**: only pilot_03 can serve job_06; pilot_01 and pilot_02 have gpu.count: 0
+- **Site filtering**: node_02 only matches jobs that have a spec for LCG.NCBJ.pl (or no site restriction)
+- **Architecture filtering**: v2 pilot cannot run v4-requiring jobs (job_01 requires min v4, fails on node_02)
+- **Wall-time**: pilot must offer >= job's wall-time (job_01 and job_02 need 3d, node_03 only offers 2d)
+- **RAM computation**: job_04 at 4 cores needs 2048 + 512x4 = 4096 MB request, node_01 has 24 GB -> OK
+- **GPU matching**: only node_03 can serve job_06; node_01 and node_02 have gpu.count: 0
 - **Tag negation**: job_05 bans LCG.NIPNE-07.ro via `~diracx:banned:LCG.NIPNE-07.ro`
-- **Boundary**: job_07 needs exactly 2d wall-time, pilot_03 offers exactly 2d -> match (>=)
+- **Boundary**: job_07 needs exactly 2d wall-time, node_03 offers exactly 2d -> match (>=)
 
 ## Invalid Examples (validation tests)
 
@@ -78,5 +78,5 @@ These files should all be **rejected** by the data models during loading or vali
 | `invalid_04_*` | jobs/    | Unknown CPU architecture (`riscv64`)    | Unsupported architecture      |
 | `invalid_05_*` | jobs/    | Empty `matching_specs` list             | At least one spec required    |
 | `invalid_06_*` | jobs/    | Negative GPU count (min: -1)            | Positive number required      |
-| `invalid_07_*` | nodes/   | Pilot with negative core count (-4)     | Positive number required      |
+| `invalid_07_*` | nodes/   | Node with negative core count (-4)     | Positive number required      |
 | `invalid_08_*` | jobs/    | `wall-time` as string ("three days")    | Wrong type (expected integer) |

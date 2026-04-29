@@ -9,8 +9,9 @@ import pytest
 from pydantic import ValidationError
 from yaml import safe_load
 
-from src.models.job import Job
-from src.models.node import Node
+from matchmaking.core.match_making import valid_job, valid_node
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 
 @pytest.mark.parametrize("job_file", sorted(glob("tests/examples/jobs/*.yaml")))
@@ -26,7 +27,7 @@ def test_all_job_examples(job_file):
         data["job_id"] = "test-job-id"
 
     # invalid_05 has no specs but remains valid for the Job schema.
-    if filename == "invalid_05_empty_specs.yaml":
+    if filename == "invalid_05_job_empty_specs.yaml":
         assert not data.get("matching_specs")
 
         with pytest.raises(ValidationError):
@@ -58,3 +59,29 @@ def test_all_node_examples(node_file):
             Node.model_validate(data)
     else:
         Node.model_validate(data)
+
+
+def test_valid_job_failure_paths():
+    assert not valid_job("tests/examples/jobs/invalid_05_job_empty_specs.yaml")
+    assert not valid_job("tests/examples/jobs/invalid_01_job_min_gt_max.yaml")
+    assert not valid_job("tests/examples/jobs/does_not_exist.yaml")
+
+
+def test_valid_node_failure_paths():
+    assert not valid_node("tests/examples/nodes/invalid_07_node_negative_cores.yaml")
+    assert not valid_node("tests/examples/nodes/does_not_exist.yaml")
+
+
+def test_job_model_validation_no_time_or_work():
+    job_path = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
+
+    with open(job_path, "r") as f:
+        job_data = safe_load(f)
+
+    # Mutate to remove both wall-time and cpu-work
+    for spec in job_data.get("matching_specs", []):
+        spec.pop("wall-time", None)
+        spec.pop("cpu-work", None)
+
+    with pytest.raises(ValidationError, match="At least one of 'wall-time' or 'cpu-work' must be provided"):
+        Job.model_validate(job_data)
