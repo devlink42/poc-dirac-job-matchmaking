@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -218,7 +220,8 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
     except ValidationError:
         return
 
-    job_id = job_path.split("/")[-1].rstrip(".yaml")
+    job_id = Path(job_path).stem
+
     assert not valid_job_specs_with_node(job_id, job_specs, node)
 
 
@@ -240,10 +243,11 @@ def test_eval_tag_expression_invalid_syntax_returns_false():
 def test_valid_job_with_node_accepts_boundary_equal_values():
     job = MatchingSpecs.model_validate(_base_job_spec())
     node = Node.model_validate(_base_node_spec())
+
     assert valid_job_specs_with_node("edge-job-0", job, node)
 
 
-def test_valid_node_returns_empty_for_invalid_node(tmp_path):
+def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
     job_file = tmp_path / "job.yaml"
     node_file = tmp_path / "node_invalid.yaml"
 
@@ -255,10 +259,11 @@ def test_valid_node_returns_empty_for_invalid_node(tmp_path):
     with open(node_file, "w") as f:
         yaml.safe_dump(invalid_node, f)
 
-    assert match_jobs_with_node(str(job_file), str(node_file)) is None
+    with pytest.raises(ValidationError):
+        match_jobs_with_node(str(job_file), str(node_file))
 
 
-def test_valid_node_returns_empty_even_with_mixed_specs(tmp_path):
+def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"
 
@@ -274,7 +279,7 @@ def test_valid_node_returns_empty_even_with_mixed_specs(tmp_path):
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
-def test_valid_node_handles_missing_or_empty_matching_specs(tmp_path, job_content):
+def test_match_jobs_with_node_handles_missing_or_empty_matching_specs(tmp_path, job_content):
     job_file = tmp_path / "job_empty.yaml"
     node_file = tmp_path / "node.yaml"
 
@@ -290,10 +295,3 @@ def test_match_jobs_returns_empty_when_job_specs_are_invalid():
     node_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
     assert match_jobs_with_node(invalid_job, node_01)[0] == []
-
-
-def test_match_jobs_returns_none_when_node_is_invalid():
-    job_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
-    invalid_node = "tests/examples/nodes/invalid_07_node_negative_cores.yaml"
-
-    assert match_jobs_with_node(job_01, invalid_node) is None

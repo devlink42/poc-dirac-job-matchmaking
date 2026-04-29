@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
 
 from matchmaking.config.logger import logger
@@ -16,15 +16,9 @@ from matchmaking.models.node import Node
 def valid_job(job: str) -> bool:
     """Validate a job against a set of requirements."""
     try:
-        with open(job, "r") as f:
-            content = yaml.safe_load(f)
-
-        if "job_id" not in content:
-            content["job_id"] = job.split("/")[-1].rstrip(".yaml")
-            logger.warning(f"Job ID not specified in {job}, using filename as default: {content['job_id']}")
-
-        job_obj = Job.model_validate(content)
-        logger.info(f"Job {job_obj.job_id} is VALID.")
+        job_obj = Job.load_from_yaml(job)
+        job_id = job_obj.job_id or Path(job).stem
+        logger.info(f"Job {job_id} is VALID.")
 
         return True
     except Exception as e:
@@ -35,14 +29,9 @@ def valid_job(job: str) -> bool:
 def valid_node(node: str) -> bool:
     """Validate a node against a set of requirements."""
     try:
-        with open(node, "r") as f:
-            content = yaml.safe_load(f)
-
-        if "node_id" not in content:
-            content["node_id"] = "unknown-node-id"
-
-        Node.model_validate(content)
+        Node.load_from_yaml(node)
         logger.info(f"Node file {node} is VALID.")
+
         return True
     except Exception as e:
         logger.error(f"Error validating node: {e}")
@@ -214,7 +203,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
-def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node] | None:
+def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
     """Validate a job against a node configuration.
 
     Args:
@@ -222,33 +211,28 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node] | None:
         node (str): Path to the node YAML file.
 
     Returns:
-        list[Job]: List of matching jobs if validation is successful, otherwise
-            an empty list.
+        tuple[list[Job], Node]: A tuple containing a list of matching jobs and the node object.
     """
-    with open(job, "r") as job_file, open(node, "r") as node_file:
-        yaml_job = yaml.safe_load(job_file)
-        yaml_node = yaml.safe_load(node_file)
-
-    if "node_id" not in yaml_node:
-        yaml_node["node_id"] = node.split("/")[-1].rstrip(".yaml")
-        logger.warning(f"Node ID not specified in {node}, using filename as default: {yaml_node['node_id']}")
-
     try:
-        node_obj = Node.model_validate(yaml_node)
+        node_obj = Node.load_from_yaml(node)
         logger.info(f"Node file {node} is VALID.")
     except ValidationError as e:
         logger.error(f"Invalid node specification: {e}")
-        return None
+        raise
+
+    if not node_obj.node_id:
+        node_obj.node_id = Path(node).stem
+        logger.warning(f"Node ID not specified in {node}, using filename as default: {node_obj.node_id}")
 
     jobs_match = []
 
-    if "job_id" not in yaml_job:
-        yaml_job["job_id"] = job.split("/")[-1].rstrip(".yaml")
-        logger.warning(f"Job ID not specified in {job}, using filename as default: {yaml_job['job_id']}")
-
     try:
-        job_obj = Job.model_validate(yaml_job)
-        logger.info(f"Job {job_obj.job_id} is VALID.")
+        job_obj = Job.load_from_yaml(job)
+        logger.info(f"Job file {job} is VALID.")
+
+        if not job_obj.job_id:
+            job_obj.job_id = Path(job).stem
+            logger.warning(f"Job ID not specified in {job}, using filename as default: {job_obj.job_id}")
 
         for i, job_spec in enumerate(job_obj.matching_specs):
             if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
@@ -256,5 +240,6 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node] | None:
                 logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
     except ValidationError as e:
         logger.error(f"Invalid job specification: {e}")
+        return [], node_obj
 
     return jobs_match, node_obj

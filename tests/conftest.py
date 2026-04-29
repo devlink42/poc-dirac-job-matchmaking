@@ -16,6 +16,7 @@ from matchmaking.models.node import Node
 @pytest.fixture
 def example_config():
     config_path = Path(__file__).parent / "examples/config/config_01_scheduling_valid.yaml"
+
     return SchedulingConfig.load_from_yaml(config_path)
 
 

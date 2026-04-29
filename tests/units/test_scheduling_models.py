@@ -40,6 +40,7 @@ def test_load_scheduling_config_from_empty_yaml():
 
 def test_load_scheduling_config_missing_file_raises():
     missing_file = Path("tests/examples/config/does_not_exist.yaml")
+
     with pytest.raises(FileNotFoundError):
         SchedulingConfig.load_from_yaml(missing_file)
 

@@ -15,6 +15,7 @@ def create_mock_job(load_job, job_id, owner, group, job_type, submission_time):
     job.group = group
     job.job_type = job_type
     job.submission_time = submission_time
+
     return job
 
 
@@ -51,6 +52,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
 
     while queue:
         job = select_job(node, queue, example_config)
+
         assert job is not None
 
         selected_owners_order.append(job.owner)
@@ -107,9 +109,11 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         )
 
     job = select_job(node, queue, example_config)
+
     assert job is None
 
     job = select_job(node, queue[:19], example_config)
+
     assert job is not None
 
 

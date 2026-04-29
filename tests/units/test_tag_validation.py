@@ -84,6 +84,7 @@ def test_unexpected_name_in_tags():
     with patch("ast.parse") as mock_parse:
         mock_node = ast.Expression(body=ast.Name(id="unexpected", ctx=ast.Load()))
         mock_parse.return_value = mock_node
+
         with pytest.raises(ValueError, match="Unexpected name: unexpected"):
             validate_tag_expression("dummy")
 
@@ -94,6 +95,7 @@ def test_unsupported_unary_operator_in_tags():
         # Create a tree with an unsupported unary operator (e.g., UAdd '+')
         mock_node = ast.Expression(body=ast.UnaryOp(op=ast.UAdd(), operand=ast.Constant(value=True)))
         mock_parse.return_value = mock_node
+
         with pytest.raises(ValueError, match="Unsupported unary operator: UAdd"):
             validate_tag_expression("dummy")
 
@@ -105,6 +107,7 @@ def test_unsupported_constant_type_in_tags():
         # Create a tree with a constant string instead of bool
         mock_node = ast.Expression(body=ast.Constant(value="not-a-bool"))
         mock_parse.return_value = mock_node
+
         with pytest.raises(ValueError, match="Unsupported constant type: str"):
             validate_tag_expression("dummy")
 

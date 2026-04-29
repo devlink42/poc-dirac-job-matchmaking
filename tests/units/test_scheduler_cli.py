@@ -41,6 +41,7 @@ def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: 
     captured = capsys.readouterr()
 
     output = captured.out + captured.err
+
     assert "selected for execution on" in output
 
 
@@ -49,6 +50,7 @@ def test_main_scheduler_no_match_branch(monkeypatch: pytest.MonkeyPatch, capsys:
     captured = capsys.readouterr()
 
     output = captured.out + captured.err
+
     assert "No valid jobs from the job file can run on this node." in output
 
 
@@ -57,9 +59,11 @@ def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, c
         with open(job_path, "r") as f:
             data = yaml.safe_load(f)
             job = Job.model_validate(data)
+
         with open(node_path, "r") as f:
             data = yaml.safe_load(f)
             node = Node.model_validate(data)
+
         return [job], node
 
     def mock_select_job(node, jobs, config):
@@ -72,6 +76,7 @@ def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, c
     captured = capsys.readouterr()
 
     output = captured.out + captured.err
+
     assert "No allowed job from the job file can run on this node." in output
 
 
@@ -85,6 +90,8 @@ def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys
         _run_main(monkeypatch, [NODE_01, JOB_01, CONFIG_01])
 
     assert exc.value.code == 1
+
     captured = capsys.readouterr()
     output = captured.out + captured.err
+
     assert "Error during matchmaking: forced error" in output
