@@ -12,14 +12,14 @@ import sys
 import time
 
 import gevent
+from config import configure_logger, logger
 from locust import User, between, events, task
 from locust.runners import MasterRunner
-
-from benchmark.data_generator import generate_mock_job, generate_mock_node
-from config import configure_logger, logger
 from src.core.scheduler import select_job
 from src.core.valid_pilot import valid_job_with_node
 from src.models.config import SchedulingConfig
+
+from benchmark.data_generator import generate_mock_job, generate_mock_node
 
 # Force INFO level logging for benchmarking
 configure_logger("INFO")
