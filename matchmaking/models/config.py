@@ -23,9 +23,9 @@ class SchedulingConfig(BaseModel):
         """Load and apply the configuration from a YAML file."""
         file_path = Path(path)
         if not file_path.exists():
-            raise FileNotFoundError(f"Le fichier de configuration {file_path} est introuvable.")
+            raise FileNotFoundError(f"Le fichier de configuration '{file_path}' est introuvable.")
 
         with open(file_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        return cls(**(data or {}))
+        return cls.model_validate(data or {})

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -24,7 +22,7 @@ def _load_job_spec(path: str, spec_index: int = 0) -> dict:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    spec = deepcopy(data["matching_specs"][spec_index])
+    spec = data["matching_specs"][spec_index]
     spec.setdefault("job_id", "coverage-job")
 
     return spec
@@ -34,7 +32,7 @@ def _load_node_spec(path: str) -> dict:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    spec = deepcopy(data)
+    spec = data
     spec.setdefault("node_id", "coverage-node")
 
     return spec

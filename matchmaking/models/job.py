@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
+import yaml
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
@@ -61,6 +63,18 @@ class MatchingSpecs(BaseModel):
     io: Io | None = None
     tags: str
 
+    @classmethod
+    def load_from_yaml(cls, path: str | Path) -> MatchingSpecs:
+        """Load and apply the configuration from a YAML file."""
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Le fichier de configuration '{file_path}' est introuvable.")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls.model_validate(data or {})
+
     @field_validator("tags")
     @classmethod
     def validate_tags(cls, v: str) -> str:
@@ -93,3 +107,15 @@ class Job(BaseModel):
 
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)
+
+    @classmethod
+    def load_from_yaml(cls, path: str | Path) -> Job:
+        """Load and apply the configuration from a YAML file."""
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Le fichier de configuration '{file_path}' est introuvable.")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls.model_validate(data or {})

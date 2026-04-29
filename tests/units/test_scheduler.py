@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from matchmaking.core.scheduler import select_job
+import pytest
+
+from matchmaking.core.scheduler import DEFAULT_CONFIG_PATH, select_job
+from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.utils import JobType
 
 
@@ -89,3 +92,42 @@ def test_select_job_unknown_type_fallback(load_job, load_node):
 
     selected = select_job(node, [job_unknown, job_older], config)
     assert selected.job_id == "older"
+
+
+def test_select_job_loads_default_config(load_job, load_node):
+    job = load_job("job_01_mcsimulation_any_site")
+    node = load_node("node_01_cern_typical")
+
+    # We want to ensure that if config=None, it actually loads from DEFAULT_CONFIG_PATH
+    # We can mock SchedulingConfig.load_from_yaml to return a specific config and verify it's called
+    mock_config = SchedulingConfig(job_type_priorities=[job.job_type], running_limits={"default": {job.job_type: 10}})
+
+    with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
+        mock_load.return_value = mock_config
+
+        selected = select_job(node, [job], config=None)
+
+        assert selected == job
+        mock_load.assert_called_once_with(DEFAULT_CONFIG_PATH)
+
+
+def test_select_job_default_config_not_found(load_job, load_node):
+    job = load_job("job_01_mcsimulation_any_site")
+    node = load_node("node_01_cern_typical")
+
+    with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
+        mock_load.side_effect = FileNotFoundError("File not found")
+
+        with pytest.raises(ValueError, match=f"Default scheduling config not found at: '{DEFAULT_CONFIG_PATH}'"):
+            select_job(node, [job], config=None)
+
+
+def test_select_job_default_config_invalid(load_job, load_node):
+    job = load_job("job_01_mcsimulation_any_site")
+    node = load_node("node_01_cern_typical")
+
+    with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
+        mock_load.side_effect = Exception("Invalid YAML")
+
+        with pytest.raises(ValueError, match="Failed to load default scheduling config: Invalid YAML"):
+            select_job(node, [job], config=None)

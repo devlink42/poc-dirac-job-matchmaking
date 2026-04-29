@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import yaml
+from collections import Counter
 
 from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
+
+DEFAULT_CONFIG_PATH = "matchmaking/config/scheduling.yaml"
 
 
 def select_job(
@@ -30,42 +32,34 @@ def select_job(
         return None
 
     if not config:
-        config_path = "matchmaking/config/scheduling.yaml"
+        try:
+            config = SchedulingConfig.load_from_yaml(DEFAULT_CONFIG_PATH)
+        except FileNotFoundError as e:
+            raise ValueError(f"Default scheduling config not found at: '{DEFAULT_CONFIG_PATH}'") from e
+        except Exception as e:
+            raise ValueError(f"Failed to load default scheduling config: {e}") from e
+        else:
+            logger.info(f"Loaded default scheduling config from: '{DEFAULT_CONFIG_PATH}'")
 
-        with open(config_path, "r") as f:
-            config_data = yaml.safe_load(f)
-
-            try:
-                config = SchedulingConfig.model_validate(config_data)
-            except FileNotFoundError as e:
-                raise ValueError(f"Default scheduling config not found at {config_path}") from e
-            except Exception as e:
-                raise ValueError(f"Failed to load default scheduling config: {e}") from e
-            else:
-                logger.info(f"Loaded default scheduling config from {config_path}")
-
-    allowed_jobs = []
-
-    running_by_owner = {}
-    running_by_group = {}
-    running_type_by_site = {}
     default_limits = config.running_limits.get("default", {})
     site_limits = config.running_limits.get(node.site, {})
 
-    for job in candidate_jobs:
-        running_by_owner[job.owner] = running_by_owner.get(job.owner, 0) + 1
-        running_by_group[job.group] = running_by_group.get(job.group, 0) + 1
-        running_type_by_site[(node.site, job.job_type)] = running_type_by_site.get((node.site, job.job_type), 0) + 1
+    # Calculate counts using Counter for efficiency
+    running_by_owner = Counter(job.owner for job in candidate_jobs)
+    running_by_group = Counter(job.group for job in candidate_jobs)
+    type_counts = Counter(job.job_type for job in candidate_jobs)
 
-    for job in candidate_jobs:
-        current_running = running_type_by_site.get((node.site, job.job_type), 0)
-        limit = site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf")))
-
-        if current_running < limit:
-            allowed_jobs.append(job)
+    allowed_jobs = [
+        job
+        for job in candidate_jobs
+        if type_counts[job.job_type] < site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf")))
+    ]
 
     if not allowed_jobs:
         return None
+
+    # Pre-calculate priority map to avoid repeated .index() calls during sorting
+    priority_map = {jtype: i for i, jtype in enumerate(config.job_type_priorities)}
 
     def sorting_key(job: Job) -> tuple[int | float, int, int, float]:
         """Sort by job type priority, then by group, then by owner, then by FIFO timestamp.
@@ -77,14 +71,11 @@ def select_job(
             tuple[int, int, int, float]: Sorting key tuple for job comparison.
         """
         # Job type priority
-        try:
-            type_priority = config.job_type_priorities.index(job.job_type)
-        except ValueError:
-            type_priority = float("inf")
+        type_priority = priority_map.get(job.job_type, float("inf"))
 
         # Group and owner round-robin / fair share
-        group_running_count = running_by_group.get(job.group, 0)
-        owner_running_count = running_by_owner.get(job.owner, 0)
+        group_running_count = running_by_group[job.group]
+        owner_running_count = running_by_owner[job.owner]
 
         # Tie-breaker (FIFO)
         fifo_timestamp = job.submission_time.timestamp() if job.submission_time else float("inf")
