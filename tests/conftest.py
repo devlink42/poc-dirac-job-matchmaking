@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-import yaml
 
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
@@ -32,10 +31,7 @@ def load_job():
         else:
             path = base_path / f"examples/jobs/{name}.yaml"
 
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-
-        return Job.model_validate(data)
+        return Job.load_from_yaml(path)
 
     return _load
 
@@ -52,10 +48,7 @@ def load_node():
         else:
             path = base_path / f"examples/nodes/{name}.yaml"
 
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-
-        return Node.model_validate(data)
+        return Node.load_from_yaml(path)
 
     return _load
 
