@@ -7,13 +7,13 @@ import random
 from datetime import datetime, timezone
 from typing import Iterator
 
-from src.models.job import Architecture, ComputeMemory, Cpu, Job, MatchingSpecs, System
-from src.models.node import Architecture as NodeArchitecture
-from src.models.node import Cpu as NodeCpu
-from src.models.node import Gpu as NodeGpu
-from src.models.node import Node
-from src.models.node import System as NodeSystem
-from src.models.utils import (
+from matchmaking.models.job import Architecture, ComputeMemory, Cpu, Job, MatchingSpecs, System
+from matchmaking.models.node import Architecture as NodeArchitecture
+from matchmaking.models.node import Cpu as NodeCpu
+from matchmaking.models.node import Gpu as NodeGpu
+from matchmaking.models.node import Node
+from matchmaking.models.node import System as NodeSystem
+from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
     JobGroup,

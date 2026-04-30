@@ -12,14 +12,14 @@ import sys
 import time
 
 import gevent
-from config import configure_logger, logger
 from locust import User, between, events, task
 from locust.runners import MasterRunner
-from src.core.scheduler import select_job
-from src.core.valid_pilot import valid_job_with_node
-from src.models.config import SchedulingConfig
 
 from benchmark.data_generator import generate_mock_job, generate_mock_node
+from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.match_making import valid_job_specs_with_node
+from matchmaking.core.scheduler import select_job
+from matchmaking.models.config import SchedulingConfig
 
 # Force INFO level logging for benchmarking
 configure_logger("INFO")
@@ -52,7 +52,8 @@ def on_test_start(environment, **kwargs):
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(config_path)
         logger.info(f"Loaded scheduling configuration from {config_path}")
     except Exception as e:
-        logger.error(f"Failed to load scheduling configuration: {e}")
+        logger.error(f"Failed to load scheduling configuration (path: {config_path}): {e}")
+        raise SystemExit(1) from e
 
     max_preload = 100000
     preload_jobs = min(num_jobs, max_preload)
@@ -87,7 +88,7 @@ def _(parser):
         "--config-path",
         type=str,
         is_secret=False,
-        default="config/scheduling.yaml",
+        default="matchmaking/config/scheduling.yaml",
         help="Path to the scheduling configuration YAML",
     )
     parser.add_argument(
@@ -112,7 +113,8 @@ class MatchmakingUser(User):
         Measures the execution time and reports it to Locust.
         """
         if not JOBS_POOL or not NODES_POOL or not SCHEDULING_CONFIG:
-            return
+            logger.error("Data pools or scheduling config not initialized. Skipping task execution.")
+            raise SystemExit(1) from ValueError("Data pools or scheduling config not initialized")
 
         node = secure_random.choice(NODES_POOL)
         candidates_count = self.environment.parsed_options.candidates_count
@@ -129,7 +131,7 @@ class MatchmakingUser(User):
             matching_jobs = []
             for job in candidates:
                 # We check compatibility for the first matching spec
-                if valid_job_with_node(job.job_id, job.matching_specs[0], node):
+                if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node):
                     matching_jobs.append(job)
 
             # 2. Second step: select the best job from compatible ones
