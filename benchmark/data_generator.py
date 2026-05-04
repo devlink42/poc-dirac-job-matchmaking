@@ -24,62 +24,62 @@ from matchmaking.models.utils import (
     SystemName,
 )
 
-secure_random = random.SystemRandom()
+# Standard RNG is sufficient for benchmark data; SystemRandom (os.urandom) is
+# reserved for cryptographic use and adds unnecessary syscall overhead here.
+_rng = random.Random()  # noqa: S311
+
+# Module-level constants avoid re-allocating identical lists on every call.
+_SITES = [
+    "LCG.CERN.cern",
+    "LCG.IN2P3.fr",
+    "LCG.RAL.uk",
+    "LCG.GRIDKA.de",
+    "LCG.CNAF.it",
+    "LCG.NCBJ.pl",
+    "LCG.CSCS.ch",
+    "LCG.Beijing.cn",
+]
+_TAG_POOL = [f"tag:{i:03d}" for i in range(200)]
+_CPU_WORK_OPTIONS = [259200, 345600, 1080000, 21600]
+_RARE_JOB_TYPES = [JobType.USER, JobType.SPRUCING, JobType.MERGE, JobType.LBAPI]
+_RARE_OWNERS = ["sharmar", "jdoe", "asmith"]
 
 
 def generate_mock_job(job_id: str) -> Job:
     """Generate a mock Job object based on hypothetical LHCb distributions.
 
     Args:
-        job_id (str): A unique identifier for the generated job.
+        job_id: A unique identifier for the generated job.
 
     Returns:
-        Job: A populated Job model.
+        A populated Job model.
     """
-    job_type_roll = secure_random.random()
-    if job_type_roll < 0.60:
+    roll = _rng.random()
+    if roll < 0.60:
         job_type = JobType.MCSIMULATION
-    elif job_type_roll < 0.81:
+    elif roll < 0.81:
         job_type = JobType.MCFASTSIMULATION
-    elif job_type_roll < 0.97:
+    elif roll < 0.97:
         job_type = JobType.WGPRODUCTION
     else:
-        job_type = secure_random.choice([JobType.USER, JobType.SPRUCING, JobType.MERGE, JobType.LBAPI])
+        job_type = _rng.choice(_RARE_JOB_TYPES)
 
-    owner_roll = secure_random.random()
-    if owner_roll < 0.80:
-        owner = "lbprods"
-        group = JobGroup.LHCB_MC
-    elif owner_roll < 0.98:
-        owner = "lbprods"
-        group = JobGroup.LHCB_DATA
+    roll = _rng.random()
+    if roll < 0.80:
+        owner, group = "lbprods", JobGroup.LHCB_MC
+    elif roll < 0.98:
+        owner, group = "lbprods", JobGroup.LHCB_DATA
     else:
-        owner = secure_random.choice(["sharmar", "jdoe", "asmith"])
-        group = JobGroup.LHCB_USER
+        owner, group = _rng.choice(_RARE_OWNERS), JobGroup.LHCB_USER
 
-    sites = [
-        "LCG.CERN.cern",
-        "LCG.IN2P3.fr",
-        "LCG.RAL.uk",
-        "LCG.GRIDKA.de",
-        "LCG.CNAF.it",
-        "LCG.NCBJ.pl",
-        "LCG.CSCS.ch",
-        "LCG.Beijing.cn",
-    ]
-
-    # Generate more realistic tags
-    tag_pool = [f"tag:{i:03d}" for i in range(200)]
-    job_tags_list = ["cvmfs:lhcb", "os:el9"]
-    if secure_random.random() < 0.3:
-        job_tags_list.extend(secure_random.sample(tag_pool, secure_random.randint(1, 3)))
-
-    tag_expr = " & ".join(job_tags_list)
-    if secure_random.random() < 0.1:
+    tags = ["cvmfs:lhcb", "os:el9"]
+    if _rng.random() < 0.3:
+        tags.extend(_rng.sample(_TAG_POOL, _rng.randint(1, 3)))
+    tag_expr = " & ".join(tags)
+    if _rng.random() < 0.1:
         tag_expr += " & (feature:A | feature:B)"
 
-    cpu_work_options = [259200, 345600, 1080000, 21600]
-    cpu_work = secure_random.choice(cpu_work_options)
+    cpu_work = _rng.choice(_CPU_WORK_OPTIONS)
 
     return Job(
         job_id=job_id,
@@ -90,20 +90,21 @@ def generate_mock_job(job_id: str) -> Job:
         matching_specs=[
             MatchingSpecs(
                 **{
-                    "site": secure_random.choice(sites),
+                    "site": _rng.choice(_SITES),
                     "system": System(name=SystemName.LINUX),
                     "wall-time": cpu_work + 3600,
                     "cpu-work": cpu_work // 100,
                     "cpu": Cpu(
                         **{
-                            "num-cores": StrictRange(min=1, max=secure_random.choice([1, 2, 4, 8])),
+                            "num-cores": StrictRange(min=1, max=_rng.choice([1, 2, 4, 8])),
                             "ram-mb": ComputeMemory(
-                                request=ResourceSpec(overhead=2000), limit=ResourceSpec(overhead=4000)
+                                request=ResourceSpec(overhead=2000),
+                                limit=ResourceSpec(overhead=4000),
                             ),
                             "architecture": Architecture(
                                 **{
                                     "name": ArchitectureName.x86_64,
-                                    "microarchitecture-level": Range(min=secure_random.randint(1, 2), max=None),
+                                    "microarchitecture-level": Range(min=_rng.randint(1, 2), max=None),
                                 }
                             ),
                         }
@@ -115,43 +116,25 @@ def generate_mock_job(job_id: str) -> Job:
     )
 
 
-def job_generator(count: int) -> Iterator[Job]:
-    """Memory-efficient generator for mock jobs."""
-    for i in range(count):
-        yield generate_mock_job(f"job-{i}")
-
-
 def generate_mock_node(node_id: str) -> Node:
     """Generate a mock Node (Pilot) object.
 
     Args:
-        node_id (str): A unique identifier for the generated node.
+        node_id: A unique identifier for the generated node.
 
     Returns:
-        Node: A populated Node model.
+        A populated Node model.
     """
     node_tags = ["cvmfs:lhcb", "os:el9", "production", "tier1"]
-    if secure_random.random() < 0.5:
-        tag_pool = [f"tag:{i:03d}" for i in range(200)]
-        node_tags.extend(secure_random.sample(tag_pool, secure_random.randint(10, 20)))
-    if secure_random.random() < 0.2:
+    if _rng.random() < 0.5:
+        node_tags.extend(_rng.sample(_TAG_POOL, _rng.randint(10, 20)))
+    if _rng.random() < 0.2:
         node_tags.append("feature:A")
 
     return Node(
         **{
             "node_id": node_id,
-            "site": secure_random.choice(
-                [
-                    "LCG.CERN.cern",
-                    "LCG.IN2P3.fr",
-                    "LCG.RAL.uk",
-                    "LCG.GRIDKA.de",
-                    "LCG.CNAF.it",
-                    "LCG.NCBJ.pl",
-                    "LCG.CSCS.ch",
-                    "LCG.Beijing.cn",
-                ]
-            ),
+            "site": _rng.choice(_SITES),
             "system": NodeSystem(
                 **{"name": SystemName.LINUX, "glibc": CustomVersion(version="2.17"), "user-namespaces": True}
             ),
@@ -163,7 +146,7 @@ def generate_mock_node(node_id: str) -> Node:
                     "num-cores": 64,
                     "ram-mb": 128000,
                     "architecture": NodeArchitecture(
-                        **{"name": ArchitectureName.x86_64, "microarchitecture-level": secure_random.randint(2, 4)}
+                        **{"name": ArchitectureName.x86_64, "microarchitecture-level": _rng.randint(2, 4)}
                     ),
                 }
             ),
@@ -171,3 +154,9 @@ def generate_mock_node(node_id: str) -> Node:
             "tags": node_tags,
         }
     )
+
+
+def node_generator(count: int) -> Iterator[Node]:
+    """Memory-efficient generator for mock nodes."""
+    for i in range(count):
+        yield generate_mock_node(f"node-{i}")

@@ -11,134 +11,101 @@ import random
 import sys
 import time
 
-import gevent
 from locust import User, between, events, task
 from locust.runners import MasterRunner
 
-from benchmark.data_generator import generate_mock_job, generate_mock_node
+from benchmark.data_generator import generate_mock_job, node_generator
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.core.match_making import valid_job_specs_with_node
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 
-# Force INFO level logging for benchmarking
 configure_logger("INFO")
 
-# Global state to hold generated workloads and configuration
-JOBS_POOL = []
-NODES_POOL = []
+_rng = random.Random()  # noqa: S311
+
+# Nodes are pre-loaded once (typically ~100) and reused across all tasks.
+# Jobs are generated on-demand per task so memory usage stays constant
+# regardless of the --num-jobs queue depth.
+NODES_POOL: list = []
 SCHEDULING_CONFIG = SchedulingConfig()
-
-secure_random = random.SystemRandom()
-
-
-@events.test_start.add_listener
-def on_test_start(environment, **kwargs):
-    """Initialize the data pools before the test starts.
-
-    Generates realistic distributions based on environment custom arguments.
-    """
-    # Prevent Master from generating data
-    if isinstance(environment.runner, MasterRunner):
-        return
-
-    num_jobs = environment.parsed_options.num_jobs
-    num_nodes = environment.parsed_options.num_nodes
-    config_path = environment.parsed_options.config_path
-
-    global JOBS_POOL, NODES_POOL, SCHEDULING_CONFIG
-
-    try:
-        SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(config_path)
-        logger.info(f"Loaded scheduling configuration from {config_path}")
-    except Exception as e:
-        logger.error(f"Failed to load scheduling configuration (path: {config_path}): {e}")
-        raise SystemExit(1) from e
-
-    max_preload = 100000
-    preload_jobs = min(num_jobs, max_preload)
-
-    logger.info(f"Generating {preload_jobs} jobs (out of {num_jobs} requested) and {num_nodes} nodes for the worker...")
-
-    JOBS_POOL = []
-    for i in range(preload_jobs):
-        JOBS_POOL.append(generate_mock_job(f"job-{i}"))
-        if i % 1000 == 0:
-            gevent.sleep(0)
-
-    logger.debug("Job pool complete")
-
-    NODES_POOL = []
-    for i in range(num_nodes):
-        NODES_POOL.append(generate_mock_node(f"node-{i}"))
-        if i % 1000 == 0:
-            gevent.sleep(0)
-
-    logger.debug("Node pool complete")
-
-    logger.info("Data generation complete.")
+_num_jobs: int = 0
 
 
 @events.init_command_line_parser.add_listener
 def _(parser):
-    """Add custom command line arguments for the benchmark scaling."""
-    parser.add_argument("--num-jobs", type=int, is_secret=False, default=1000, help="Number of jobs to preload")
-    parser.add_argument("--num-nodes", type=int, is_secret=False, default=100, help="Number of nodes to preload")
+    """Register custom benchmark arguments."""
+    parser.add_argument("--num-jobs", type=int, default=1000, help="Simulated job queue depth")
+    parser.add_argument("--num-nodes", type=int, default=100, help="Number of nodes to preload")
     parser.add_argument(
         "--config-path",
         type=str,
-        is_secret=False,
         default="matchmaking/config/scheduling.yaml",
         help="Path to the scheduling configuration YAML",
     )
     parser.add_argument(
         "--candidates-count",
         type=int,
-        is_secret=False,
         default=50,
-        help="Number of candidate jobs to evaluate in each select_job call",
+        help="Number of candidate jobs to evaluate per select_job call",
     )
 
 
+@events.test_start.add_listener
+def on_test_start(environment, **kwargs):
+    """Build the node pool and load the scheduling config before the test starts."""
+    if isinstance(environment.runner, MasterRunner):
+        return
+
+    opts = environment.parsed_options
+    global NODES_POOL, SCHEDULING_CONFIG, _num_jobs
+
+    try:
+        SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
+        logger.info(f"Loaded scheduling config from {opts.config_path}")
+    except Exception as e:
+        logger.error(f"Failed to load scheduling config: {e}")
+        raise SystemExit(1) from e
+
+    _num_jobs = opts.num_jobs
+    NODES_POOL = list(node_generator(opts.num_nodes))
+    logger.info(f"Ready: {opts.num_nodes} nodes loaded, simulating {opts.num_jobs}-job queue.")
+
+
 class MatchmakingUser(User):
-    """Simulates a scheduler process attempting to match jobs to nodes."""
+    """Simulates a scheduler process matching jobs to nodes."""
 
     wait_time = between(0.01, 0.1)
 
+    def on_start(self):
+        """Cache per-user options to avoid repeated attribute lookups in the hot path."""
+        if not NODES_POOL or _num_jobs == 0:
+            raise SystemExit("Pools not initialized — check on_test_start logs.")
+        self._candidates_count = self.environment.parsed_options.candidates_count
+
     @task
     def evaluate_select_job(self):
-        """Simulate a pilot requesting a job.
+        """Simulate a pilot requesting a job: filter compatible candidates, then rank.
 
-        Evaluates compatibility for a set of candidates and then selects the best one.
-        Measures the execution time and reports it to Locust.
+        Candidate generation happens before start_time so only matchmaking
+        logic is measured.
         """
-        if not JOBS_POOL or not NODES_POOL or not SCHEDULING_CONFIG:
-            logger.error("Data pools or scheduling config not initialized. Skipping task execution.")
-            raise SystemExit(1) from ValueError("Data pools or scheduling config not initialized")
+        node = _rng.choice(NODES_POOL)
 
-        node = secure_random.choice(NODES_POOL)
-        candidates_count = self.environment.parsed_options.candidates_count
-
-        # Pick random candidates from the pool
-        candidates = secure_random.sample(JOBS_POOL, min(candidates_count, len(JOBS_POOL)))
+        # Sample job IDs from [0, _num_jobs) to simulate a realistic queue depth
+        # without holding all job objects in RAM simultaneously.
+        candidates = [generate_mock_job(f"job-{_rng.randrange(_num_jobs)}") for _ in range(self._candidates_count)]
 
         start_time = time.perf_counter()
         selected_job = None
         error = None
 
         try:
-            # 1. First step: find which jobs are compatible with this node
-            matching_jobs = []
-            for job in candidates:
-                # We check compatibility for the first matching spec
-                if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node):
-                    matching_jobs.append(job)
-
-            # 2. Second step: select the best job from compatible ones
-            if matching_jobs:
-                selected_job = select_job(node, matching_jobs, SCHEDULING_CONFIG)
-                if selected_job:
-                    logger.info(f"Selected job {selected_job.job_id} for node {node.node_id}")
+            compatible = [
+                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
+            ]
+            if compatible:
+                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
 
         except Exception as e:
             error = e
@@ -146,7 +113,6 @@ class MatchmakingUser(User):
 
         total_time_ms = (time.perf_counter() - start_time) * 1000
 
-        # Fire the event to Locust
         events.request.fire(
             request_type="Python",
             name="select_job_cycle",
