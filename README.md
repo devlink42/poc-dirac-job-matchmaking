@@ -40,9 +40,9 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
-  - `--num-jobs`: Defines the size of the job pool to generate (Default: 1000).
-  - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 100).
-  - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 50).
+  - `--num-jobs`: Defines the size of the job pool to generate (Default: 100000).
+  - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 1000).
+  - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 1000).
   - `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
 
 Locust core parameters:

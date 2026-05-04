@@ -35,8 +35,8 @@ _num_jobs: int = 0
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-jobs", type=int, default=1000, help="Simulated job queue depth")
-    parser.add_argument("--num-nodes", type=int, default=100, help="Number of nodes to preload")
+    parser.add_argument("--num-jobs", type=int, default=100000, help="Simulated job queue depth")
+    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to preload")
     parser.add_argument(
         "--config-path",
         type=str,
@@ -46,7 +46,7 @@ def _(parser):
     parser.add_argument(
         "--candidates-count",
         type=int,
-        default=50,
+        default=1000,
         help="Number of candidate jobs to evaluate per select_job call",
     )
 
