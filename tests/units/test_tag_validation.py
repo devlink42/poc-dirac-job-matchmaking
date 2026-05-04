@@ -18,7 +18,7 @@ BASE_JOB_DATA = {
 
 def test_invalid_tag_expression():
     job_data = BASE_JOB_DATA.copy()
-    job_data["tags"] = "a & (b | )"  # Invalid expression: empty parentheses or missing operand
+    job_data["tags"] = "cvmfs:lhcb & (os:el9 | )"  # Invalid expression: empty parentheses or missing operand
 
     with pytest.raises(ValidationError) as excinfo:
         Job.model_validate(job_data)
@@ -28,7 +28,7 @@ def test_invalid_tag_expression():
 
 def test_unsupported_ast_node_in_tags():
     job_data = BASE_JOB_DATA.copy()
-    job_data["tags"] = "a if b else c"  # Conditional expression not supported
+    job_data["tags"] = "cvmfs:lhcb if os:el9 else os:alma9"  # Conditional expression not supported
 
     with pytest.raises(ValidationError) as excinfo:
         Job.model_validate(job_data)
@@ -38,17 +38,18 @@ def test_unsupported_ast_node_in_tags():
 
 def test_valid_tag_expression():
     job_data = BASE_JOB_DATA.copy()
-    job_data["tags"] = "a & (b | c)"
+    job_data["tags"] = "cvmfs:lhcb & (os:el9 | os:alma9)"
     # Should not raise
     Job.model_validate(job_data)
 
 
-def test_unsupported_operator_in_tags():
+@pytest.mark.parametrize("operator", ["+", "-", "*", "/", "%", "**", "//", ","])
+def test_unsupported_operator_in_tags(operator):
     job_data = BASE_JOB_DATA.copy()
-    job_data["tags"] = "a + b"  # '+' is not supported
+    job_data["tags"] = f"cvmfs:lhcb {operator} os:el9"  # Unsupported operation
 
     with pytest.raises(ValidationError) as excinfo:
         Job.model_validate(job_data)
 
     assert "Invalid tag expression" in str(excinfo.value)
-    assert "Unsupported operation" in str(excinfo.value)
+    assert "Unsupported operation in tag expression" in str(excinfo.value)

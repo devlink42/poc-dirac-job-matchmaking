@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from matchmaking.core.match_making import _eval_tag_expression, match_jobs_with_node, valid_job_with_node
+from matchmaking.core.match_making import match_jobs_with_node, valid_job_with_node
+from matchmaking.logic.tags import evaluate_tag_expression
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
@@ -61,18 +62,18 @@ def _base_job_spec() -> dict:
 
 
 def test_eval_tag_expression_supports_special_chars_and_not_operator():
-    assert _eval_tag_expression("cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
-    assert not _eval_tag_expression("cvmfs:lhcb & diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
+    assert evaluate_tag_expression("cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
+    assert not evaluate_tag_expression("cvmfs:lhcb & diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
 
 
 def test_eval_tag_expression_respects_precedence_and_parentheses():
-    assert _eval_tag_expression("a | b & c", {"b", "c"})
-    assert _eval_tag_expression("(a | b) & c", {"b", "c"})
-    assert not _eval_tag_expression("(a | b) & c", {"b"})
+    assert evaluate_tag_expression("a | b & c", {"b", "c"})
+    assert evaluate_tag_expression("(a | b) & c", {"b", "c"})
+    assert not evaluate_tag_expression("(a | b) & c", {"b"})
 
 
 def test_eval_tag_expression_invalid_syntax_returns_false():
-    assert not _eval_tag_expression("a & (", {"a"})
+    assert not evaluate_tag_expression("a & (", {"a"})
 
 
 def test_valid_job_with_node_accepts_boundary_equal_values():

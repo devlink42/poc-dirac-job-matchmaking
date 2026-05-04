@@ -11,18 +11,6 @@ from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
 
-def _eval_tag_expression(expr: str, node_tags: set[str]) -> bool:
-    """Evaluate a simple boolean expression of tags against a set of node tags.
-
-    Supported syntax examples:
-      - "a & b"
-      - "a | (b & c)"
-      - "~a"
-      - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
-    """
-    return evaluate_tag_expression(expr, node_tags)
-
-
 def valid_job_with_node(job: Job, node: Node) -> bool:
     # Site check
     if job.site and job.site != node.site:
@@ -58,7 +46,8 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         return False
 
     # RAM check
-    if job.cpu.ram_mb and (required_ram_request := job.cpu.ram_mb.request.overhead):
+    if job.cpu.ram_mb:
+        required_ram_request = job.cpu.ram_mb.request.overhead
         if job.cpu.ram_mb.request.per_core:
             required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
 
@@ -156,7 +145,7 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
         logger.debug(f"Job {job.job_id} has tags: {job.tags}")
 
         if any(op in job.tags for op in ("&", "|", "~", "(", ")")):
-            if not _eval_tag_expression(job.tags, node_tags):
+            if not evaluate_tag_expression(job.tags, node_tags):
                 logger.warning(f"Job {job.job_id} has invalid tag expression, skipping...")
                 return False
         else:

@@ -7,6 +7,9 @@ import re
 
 from matchmaking.config.logger import logger
 
+TOKEN = {"and", "or", "not"}
+REGEX_TAG = r"[A-Za-z0-9][A-Za-z0-9:_.\-]*"
+
 
 def normalize_tag_expression(expr: str) -> str:
     """Normalize a tag expression by replacing shorthand operators with Python keywords.
@@ -38,12 +41,12 @@ def validate_tag_expression(expr: str) -> None:
 
     def repl_token(m: re.Match[str]) -> str:
         token = m.group(0)
-        if token in {"and", "or", "not"}:
+        if token in TOKEN:
             return token
 
         return "True"
 
-    expr_dummy = re.sub(r"[A-Za-z0-9][A-Za-z0-9:_.\-]*", repl_token, expr_norm)
+    expr_dummy = re.sub(REGEX_TAG, repl_token, expr_norm)
     logger.debug(f"Dummy expression for AST parsing: {expr_dummy}")
 
     try:
@@ -103,12 +106,12 @@ def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
 
     def repl_token(m: re.Match[str]) -> str:
         token = m.group(0)
-        if token in {"and", "or", "not"}:
+        if token in TOKEN:
             return token
 
         return "True" if token in node_tags else "False"
 
-    expr_bool = re.sub(r"[A-Za-z0-9][A-Za-z0-9:_.\-]*", repl_token, expr_norm)
+    expr_bool = re.sub(REGEX_TAG, repl_token, expr_norm)
     logger.debug(f"Normalized expression: {expr_bool}")
 
     def evaluate_node(node: ast.AST) -> bool:
