@@ -20,23 +20,29 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 
 ### Running the Benchmarks
 
-#### 1. Headless Mode (Quick Baseline)
-To run a quick 30-second benchmark directly in your terminal with 10 concurrent users generating load:
+#### Generate data
 
 ```bash
-pixi run benchmark -u 100 -r 50 -t 10m --num-jobs 10000000 --num-nodes 20000
+pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 ```
 
-#### 2. Web UI Mode (Interactive Exploration)
+#### Headless Mode (Quick Baseline)
+To run a quick 5 minutes benchmark directly in your terminal with 100 concurrent users generating load:
+
+```bash
+pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
+```
+
+#### Web UI Mode (Interactive Exploration)
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui -u 100 -r 50 -t 10m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 ```
 
 Then, open your browser at http://localhost:8089.
 
-### Configurable Parameters
+#### Configurable Parameters
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
@@ -44,6 +50,7 @@ You can pass custom arguments to adjust the scale of the pre-loaded data:
   - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 1000).
   - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 1000).
   - `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
+  - `--db-path`: Path to the SQLite benchmark database (generate with `benchmark/generate_db.py`, default: `benchmark/benchmark.db`).
 
 Locust core parameters:
 

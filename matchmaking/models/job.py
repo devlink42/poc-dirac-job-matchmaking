@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
 from matchmaking.models.utils import (
@@ -24,6 +24,8 @@ from matchmaking.models.utils import (
 
 
 class System(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
@@ -35,17 +37,23 @@ class ComputeMemory(BaseModel):
 
 
 class Architecture(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     name: ArchitectureName
     microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
     ram_mb: ComputeMemory | None = Field(default=None, validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
@@ -54,6 +62,8 @@ class Gpu(BaseModel):
 
 
 class MatchingSpecs(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     site: str | None = None
     system: System
     wall_time: PositiveInt | None = Field(default=None, validation_alias="wall-time")

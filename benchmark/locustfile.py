@@ -3,44 +3,68 @@
 
 This module tests the throughput and latency of the Python matching algorithm
 by directly firing events to Locust's metric system.
+
+Workflow:
+    1. Generate the benchmark database once:
+           pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
+
+    2. Run the benchmark:
+           pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
 """
 
 from __future__ import annotations
 
 import random
+import sqlite3
 import sys
 import time
 
 from locust import User, between, events, task
 from locust.runners import MasterRunner
 
-from benchmark.data_generator import job_generator, node_generator
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.core.match_making import valid_job_specs_with_node
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
+from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
-configure_logger("INFO")
+configure_logger("ERROR")
 
 _rng = random.Random()  # noqa: S311
 
-# Hard cap on the job pool to keep memory bounded.
-# The pool must be at least as large as --candidates-count; it is computed
-# dynamically in on_test_start as min(num_jobs, max(_JOB_POOL_CAP, candidates_count)).
-_JOB_POOL_CAP = 10_000
-
-# Both pools are pre-built once and reused across all tasks via random.sample /
-# random.choice — no Pydantic object is created in the hot path.
-JOBS_POOL: list = []
-NODES_POOL: list = []
+# Both pools are loaded once from SQLite at test start and reused via
+# random.sample / random.choice — no object creation in the hot path.
+JOBS_POOL: list[Job] = []
+NODES_POOL: list[Node] = []
 SCHEDULING_CONFIG = SchedulingConfig()
+
+
+def _load_pools(db_path: str, num_jobs: int, num_nodes: int) -> tuple[list[Job], list[Node]]:
+    """Load job and node pools from the SQLite benchmark database."""
+    conn = sqlite3.connect(db_path)
+    try:
+        jobs = [Job.model_validate_json(row[0]) for row in conn.execute("SELECT data FROM jobs LIMIT ?", (num_jobs,))]
+        nodes = [
+            Node.model_validate_json(row[0]) for row in conn.execute("SELECT data FROM nodes LIMIT ?", (num_nodes,))
+        ]
+    finally:
+        conn.close()
+
+    return jobs, nodes
 
 
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-jobs", type=int, default=100000, help="Simulated job queue depth")
-    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to preload")
+    parser.add_argument("--num-jobs", type=int, default=10000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to load from the database")
+    parser.add_argument(
+        "--candidates-count",
+        type=int,
+        default=1000,
+        help="Number of candidate jobs to evaluate per select_job call",
+    )
     parser.add_argument(
         "--config-path",
         type=str,
@@ -48,16 +72,16 @@ def _(parser):
         help="Path to the scheduling configuration YAML",
     )
     parser.add_argument(
-        "--candidates-count",
-        type=int,
-        default=1000,
-        help="Number of candidate jobs to evaluate per select_job call",
+        "--db-path",
+        type=str,
+        default="benchmark/benchmark.db",
+        help="Path to the SQLite benchmark database (generate with benchmark/generate_db.py)",
     )
 
 
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
-    """Build job/node pools and load the scheduling config before the test starts."""
+    """Load pools from the database and the scheduling config before the test starts."""
     if isinstance(environment.runner, MasterRunner):
         return
 
@@ -71,14 +95,20 @@ def on_test_start(environment, **kwargs):
         logger.error(f"Failed to load scheduling config: {e}")
         raise SystemExit(1) from e
 
-    # Cap the pool so RAM stays bounded while keeping enough variety for sampling.
-    pool_size = min(opts.num_jobs, max(_JOB_POOL_CAP, opts.candidates_count))
-    JOBS_POOL = list(job_generator(pool_size))
-    NODES_POOL = list(node_generator(opts.num_nodes))
-    logger.info(
-        f"Ready: {len(NODES_POOL)} nodes, {len(JOBS_POOL)} jobs pooled "
-        f"(queue depth: {opts.num_jobs}, candidates per task: {opts.candidates_count})."
-    )
+    try:
+        JOBS_POOL, NODES_POOL = _load_pools(opts.db_path, opts.num_jobs, opts.num_nodes)
+    except Exception as e:
+        logger.error(f"Failed to load pools from {opts.db_path}: {e}")
+        logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
+        raise SystemExit(1) from e
+
+    if len(JOBS_POOL) < opts.candidates_count:
+        logger.warning(
+            f"Job pool ({len(JOBS_POOL)}) is smaller than --candidates-count ({opts.candidates_count}). "
+            "Candidates will be capped to pool size."
+        )
+
+    logger.info(f"Ready: {len(NODES_POOL)} nodes, {len(JOBS_POOL)} jobs loaded from {opts.db_path}.")
 
 
 class MatchmakingUser(User):
@@ -95,7 +125,10 @@ class MatchmakingUser(User):
         if not JOBS_POOL or not NODES_POOL:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
-        self._candidates_count = self.environment.parsed_options.candidates_count
+        self._candidates_count = min(
+            self.environment.parsed_options.candidates_count,
+            len(JOBS_POOL),
+        )
 
     @task
     def evaluate_select_job(self):
@@ -105,7 +138,7 @@ class MatchmakingUser(User):
         hot path. Only matchmaking logic is timed.
         """
         node = _rng.choice(NODES_POOL)
-        candidates = _rng.sample(JOBS_POOL, min(self._candidates_count, len(JOBS_POOL)))
+        candidates = _rng.sample(JOBS_POOL, self._candidates_count)
 
         start_time = time.perf_counter()
         selected_job = None

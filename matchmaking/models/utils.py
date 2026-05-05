@@ -8,6 +8,7 @@ from typing import Annotated, Any, Generic, Self, TypeVar
 from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     GetCoreSchemaHandler,
     NonNegativeInt,
@@ -87,6 +88,8 @@ class Range(StrictRange, Generic[T]):
 
 
 class ResourceSpec(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     overhead: NonNegativeInt | None = None
     per_core: NonNegativeInt | None = Field(default=None, validation_alias="per-core")
 
@@ -100,5 +103,7 @@ class ArchitectureName(Enum):
 
 
 class Io(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
     scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")
