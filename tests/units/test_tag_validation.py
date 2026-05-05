@@ -33,7 +33,9 @@ BASE_JOB_DATA = {
 
 def test_invalid_tag_expression():
     job_data = BASE_JOB_DATA.copy()
-    job_data["matching_specs"][0]["tags"] = "cvmfs:lhcb & (os:el9 | )"  # Invalid expression: empty parentheses or missing operand
+    job_data["matching_specs"][0]["tags"] = (
+        "cvmfs:lhcb & (os:el9 | )"  # Invalid expression: empty parentheses or missing operand
+    )
 
     with pytest.raises(ValidationError) as excinfo:
         Job.model_validate(job_data)

@@ -91,11 +91,6 @@ class ResourceSpec(BaseModel):
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
 
-class Io(BaseModel):
-    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
-    scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")
-
-
 class ArchitectureName(Enum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
