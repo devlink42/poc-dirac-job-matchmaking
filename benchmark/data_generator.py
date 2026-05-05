@@ -156,6 +156,12 @@ def generate_mock_node(node_id: str) -> Node:
     )
 
 
+def job_generator(count: int) -> Iterator[Job]:
+    """Memory-efficient generator for mock jobs."""
+    for i in range(count):
+        yield generate_mock_job(f"job-{i}")
+
+
 def node_generator(count: int) -> Iterator[Node]:
     """Memory-efficient generator for mock nodes."""
     for i in range(count):
