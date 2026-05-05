@@ -2,7 +2,7 @@
 # Script to run Locust in distributed mode
 
 # Default value
-WORKERS=6
+WORKERS=5
 MODE=""
 LOCUST_ARGS=""
 
@@ -16,9 +16,9 @@ while [[ $# -gt 0 ]]; do
       LOCUST_ARGS="$LOCUST_ARGS $1 $2"
       shift 2
       ;;
-    [0-9]*)
-      WORKERS="$1"
-      shift
+    -w|--workers)
+      WORKERS="$2"
+      shift 2
       ;;
     *)
       LOCUST_ARGS="$LOCUST_ARGS $1"

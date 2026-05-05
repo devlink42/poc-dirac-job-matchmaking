@@ -29,29 +29,34 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
-configure_logger("ERROR")
+configure_logger("INFO")
 
 _rng = random.Random()  # noqa: S311
 
-# Both pools are loaded once from SQLite at test start and reused via
-# random.sample / random.choice — no object creation in the hot path.
-JOBS_POOL: list[Job] = []
-NODES_POOL: list[Node] = []
+MAX_JOB_ID_IN_DB = 0
+NODES_POOL = []
 SCHEDULING_CONFIG = SchedulingConfig()
 
 
-def _load_pools(db_path: str, num_jobs: int, num_nodes: int) -> tuple[list[Job], list[Node]]:
-    """Load job and node pools from the SQLite benchmark database."""
-    conn = sqlite3.connect(db_path)
+def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
+    """Load node pools from the SQLite benchmark database."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
-        jobs = [Job.model_validate_json(row[0]) for row in conn.execute("SELECT data FROM jobs LIMIT ?", (num_jobs,))]
         nodes = [
             Node.model_validate_json(row[0]) for row in conn.execute("SELECT data FROM nodes LIMIT ?", (num_nodes,))
         ]
     finally:
         conn.close()
 
-    return jobs, nodes
+    return nodes
+
+
+def _get_max_job_id(db_path: str) -> int:
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        return conn.execute("SELECT MAX(id) FROM jobs").fetchone()[0] or 0
+    finally:
+        conn.close()
 
 
 @events.init_command_line_parser.add_listener
@@ -86,7 +91,7 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global JOBS_POOL, NODES_POOL, SCHEDULING_CONFIG
+    global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
@@ -96,20 +101,21 @@ def on_test_start(environment, **kwargs):
         raise SystemExit(1) from e
 
     try:
-        JOBS_POOL, NODES_POOL = _load_pools(opts.db_path, opts.num_jobs, opts.num_nodes)
+        MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
+        NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
     except Exception as e:
         logger.error("Failed to load pools from %s: %s", opts.db_path, e)
         logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
         raise SystemExit(1) from e
 
-    if len(JOBS_POOL) < opts.candidates_count:
+    if MAX_JOB_ID_IN_DB < opts.candidates_count:
         logger.warning(
             "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
-            len(JOBS_POOL),
+            MAX_JOB_ID_IN_DB,
             opts.candidates_count,
         )
 
-    logger.info("Ready: %s nodes, %s jobs loaded from %s.", len(NODES_POOL), len(JOBS_POOL), opts.db_path)
+    logger.info("Ready: %s nodes, %s jobs available from %s.", len(NODES_POOL), MAX_JOB_ID_IN_DB, opts.db_path)
 
 
 class MatchmakingUser(User):
@@ -120,26 +126,38 @@ class MatchmakingUser(User):
     def __init__(self, environment):
         super().__init__(environment)
         self._candidates_count = None
+        self._db_conn = None
 
     def on_start(self):
         """Cache per-user options to avoid repeated attribute lookups in the hot path."""
-        if not JOBS_POOL or not NODES_POOL:
+        if not MAX_JOB_ID_IN_DB or not NODES_POOL:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
         self._candidates_count = min(
             self.environment.parsed_options.candidates_count,
-            len(JOBS_POOL),
+            MAX_JOB_ID_IN_DB,
         )
+        self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
+
+    def on_stop(self):
+        if self._db_conn:
+            self._db_conn.close()
 
     @task
     def evaluate_select_job(self):
         """Simulate a pilot requesting a job: filter compatible candidates, then rank.
 
-        Both pool lookups are O(k) list operations — no object creation in the
-        hot path. Only matchmaking logic is timed.
+        Instead of holding all jobs in RAM, we pick random IDs, load their JSON
+        from the database and deserialize them. The IO/Parse times are excluded
+        from the final benchmark latency reported to Locust.
         """
         node = _rng.choice(NODES_POOL)
-        candidates = _rng.sample(JOBS_POOL, self._candidates_count)
+
+        candidate_ids = _rng.sample(range(1, MAX_JOB_ID_IN_DB + 1), self._candidates_count)
+        placeholders = ",".join("?" * len(candidate_ids))
+        cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
+
+        candidates = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
 
         start_time = time.perf_counter()
         selected_job = None

@@ -1,8 +1,8 @@
 [project]
 authors = [{name = "ychabani", email = "yan.chabanis@cern.ch"}]
 dependencies = [
-    "pydantic >= 2.12.5",
-    "pyyaml >= 6.0.3",
+    "pydantic >= 2.12",
+    "pyyaml >= 6",
 ]
 name = "matchmaking"
 requires-python = ">= 3.11"
