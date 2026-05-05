@@ -88,7 +88,9 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
         return False
 
     # RAM check
-    if job_specs.cpu.ram_mb and (required_ram_request := job_specs.cpu.ram_mb.request.overhead):
+    if job_specs.cpu.ram_mb:
+        required_ram_request = job_specs.cpu.ram_mb.request.overhead
+
         if job_specs.cpu.ram_mb.request.per_core:
             required_ram_request += job_specs.cpu.ram_mb.request.per_core * job_specs.cpu.num_cores.max
 
