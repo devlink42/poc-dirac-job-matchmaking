@@ -67,7 +67,7 @@ def _(parser):
     parser.add_argument(
         "--candidates-count",
         type=int,
-        default=1000,
+        default=500,
         help="Number of candidate jobs to evaluate per select_job call",
     )
     parser.add_argument(
@@ -121,7 +121,7 @@ def on_test_start(environment, **kwargs):
 class MatchmakingUser(User):
     """Simulates a scheduler process matching jobs to nodes."""
 
-    wait_time = between(0.01, 0.1)
+    wait_time = between(0.001, 1.0)
 
     def __init__(self, environment):
         super().__init__(environment)

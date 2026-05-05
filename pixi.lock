@@ -3906,10 +3906,10 @@ packages:
 - pypi: ./
   name: matchmaking
   version: 0.1.0
-  sha256: e6f118fb5f22abf6bc73b2057e8f779a690a1bb08bfc4ff504e0439495c6553b
+  sha256: 455404ad260d2e23f594ba8cf5a250e824a2c775c1fd0218b1b2e89a28c058f9
   requires_dist:
-  - pydantic>=2.12.5
-  - pyyaml>=6.0.3
+  - pydantic>=2.12
+  - pyyaml>=6
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/matplotlib-3.10.9-py311h38be061_0.conda
   sha256: 6b953d01e930b387114f50c29ca53e4e2c205d5a6a592a0d42f1b16c3740673f
