@@ -42,14 +42,14 @@ def main():
             matched_jobs, _ = match_jobs_with_node(args.job, args.node)
 
             if matched_jobs:
-                logger.info(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
+                logger.info("Match found! %s job(s) can run on this node:", len(matched_jobs))
 
                 for job in matched_jobs:
-                    logger.info(f"  - Job ID: {job.job_id}")
+                    logger.info("  - Job ID: %s", job.job_id)
             else:
                 logger.info("No jobs from the job file can run on this node.")
         except Exception as e:
-            logger.error(f"Error during matchmaking: {e}")
+            logger.error("Error during matchmaking: %s", e)
             sys.exit(1)
     else:
         parser.print_help()

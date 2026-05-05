@@ -90,25 +90,26 @@ def on_test_start(environment, **kwargs):
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
-        logger.info(f"Loaded scheduling config from {opts.config_path}")
+        logger.info("Loaded scheduling config from %s", opts.config_path)
     except Exception as e:
-        logger.error(f"Failed to load scheduling config: {e}")
+        logger.error("Failed to load scheduling config: %s", e)
         raise SystemExit(1) from e
 
     try:
         JOBS_POOL, NODES_POOL = _load_pools(opts.db_path, opts.num_jobs, opts.num_nodes)
     except Exception as e:
-        logger.error(f"Failed to load pools from {opts.db_path}: {e}")
+        logger.error("Failed to load pools from %s: %s", opts.db_path, e)
         logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
         raise SystemExit(1) from e
 
     if len(JOBS_POOL) < opts.candidates_count:
         logger.warning(
-            f"Job pool ({len(JOBS_POOL)}) is smaller than --candidates-count ({opts.candidates_count}). "
-            "Candidates will be capped to pool size."
+            "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
+            len(JOBS_POOL),
+            opts.candidates_count,
         )
 
-    logger.info(f"Ready: {len(NODES_POOL)} nodes, {len(JOBS_POOL)} jobs loaded from {opts.db_path}.")
+    logger.info("Ready: %s nodes, %s jobs loaded from %s.", len(NODES_POOL), len(JOBS_POOL), opts.db_path)
 
 
 class MatchmakingUser(User):
@@ -153,7 +154,7 @@ class MatchmakingUser(User):
 
         except Exception as e:
             error = e
-            logger.error(f"Error during select_job: {e}")
+            logger.error("Error during select_job: %s", e)
 
         total_time_ms = (time.perf_counter() - start_time) * 1000
 

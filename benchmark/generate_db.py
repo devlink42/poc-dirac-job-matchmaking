@@ -2,8 +2,7 @@
 """Pre-generate benchmark data into a SQLite database.
 
 Run once before benchmarking so no data is generated at test runtime:
-
-    pixi run python -m benchmark.generate_db --num-jobs 100000 --num-nodes 1000
+    pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 
 The database is then consumed by locustfile.py via --db-path.
 """
@@ -39,7 +38,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
 def _populate(conn: sqlite3.Connection, num_jobs: int, num_nodes: int) -> None:
     batch: list[tuple[str, str]] = []
 
-    logger.info(f"Generating {num_jobs} jobs...")
+    logger.info("Generating %s jobs...", num_jobs)
 
     for i, job in enumerate(job_generator(num_jobs), 1):
         batch.append((job.job_id, job.model_dump_json()))
@@ -48,12 +47,12 @@ def _populate(conn: sqlite3.Connection, num_jobs: int, num_nodes: int) -> None:
             batch.clear()
 
         if i % 10000 == 0:
-            logger.info(f"  {i}/{num_jobs} jobs written")
+            logger.info("  %s/%s jobs written", i, num_jobs)
 
     if batch:
         conn.executemany("INSERT INTO jobs (job_id, data) VALUES (?, ?)", batch)
 
-    logger.info(f"Generating {num_nodes} nodes...")
+    logger.info("Generating %s nodes...", num_nodes)
     conn.executemany(
         "INSERT INTO nodes (node_id, data) VALUES (?, ?)",
         ((n.node_id, n.model_dump_json()) for n in node_generator(num_nodes)),
@@ -75,7 +74,7 @@ def main() -> None:
 
     if db_path.exists():
         if not args.overwrite:
-            logger.error(f"{db_path} already exists. Use --overwrite to replace it.")
+            logger.error("%s already exists. Use --overwrite to replace it.", db_path)
             raise SystemExit(1)
 
         db_path.unlink()
@@ -86,7 +85,7 @@ def main() -> None:
         _populate(conn, args.num_jobs, args.num_nodes)
         conn.commit()
         size_kb = db_path.stat().st_size / 1024
-        logger.info(f"Done. Database written to {db_path} ({size_kb:.0f} KB).")
+        logger.info("Done. Database written to %s (%.0s KB).", db_path, size_kb)
     finally:
         conn.close()
 

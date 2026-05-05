@@ -39,7 +39,7 @@ def select_job(
         except Exception as e:
             raise ValueError(f"Failed to load default scheduling config: {e}") from e
         else:
-            logger.info(f"Loaded default scheduling config from: '{DEFAULT_CONFIG_PATH}'")
+            logger.info("Loaded default scheduling config from: '%s'", DEFAULT_CONFIG_PATH)
 
     default_limits = config.running_limits.get("default", {})
     site_limits = config.running_limits.get(node.site, {})

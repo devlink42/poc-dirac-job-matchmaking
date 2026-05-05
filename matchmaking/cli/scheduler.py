@@ -35,13 +35,13 @@ def main():
                     )
 
                     if allowed_job:
-                        logger.info(f"Job {allowed_job.job_id} selected for execution on {node.site}.")
+                        logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)
                     else:
                         logger.info("No allowed job from the job file can run on this node.")
                 else:
                     logger.info("No valid jobs from the job file can run on this node.")
         except Exception as e:
-            logger.error(f"Error during matchmaking: {e}")
+            logger.error("Error during matchmaking: %s", e)
             sys.exit(1)
     else:
         parser.print_help()

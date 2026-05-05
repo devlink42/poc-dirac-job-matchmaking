@@ -33,9 +33,9 @@ def validate_tag_expression(expr: str) -> None:
         logger.debug("Empty tag expression provided")
         return
 
-    logger.debug(f"Validating tag expression: {expr}")
+    logger.debug("Validating tag expression: %s", expr)
     expr_norm = normalize_tag_expression(expr)
-    logger.debug(f"Normalized expression for validation: {expr_norm}")
+    logger.debug("Normalized expression for validation: %s", expr_norm)
 
     def repl_token(m: re.Match[str]) -> str:
         token = m.group(0)
@@ -45,47 +45,47 @@ def validate_tag_expression(expr: str) -> None:
         return "True"
 
     expr_dummy = re.sub(r"[A-Za-z0-9][A-Za-z0-9:_.\-]*", repl_token, expr_norm)
-    logger.debug(f"Dummy expression for AST parsing: {expr_dummy}")
+    logger.debug("Dummy expression for AST parsing: %s", expr_dummy)
 
     try:
         tree = ast.parse(expr_dummy, mode="eval")
     except SyntaxError as e:
-        logger.error(f"Syntax error in tag expression '{expr}': {e}")
+        logger.error("Syntax error in tag expression '%s': %s", expr, e)
         raise ValueError(f"Invalid tag expression syntax: {e}") from e
 
     def check_tree_node(node: ast.AST) -> None:
-        logger.debug(f"Checking AST node: {type(node).__name__}")
+        logger.debug("Checking AST node: %s", type(node).__name__)
         if isinstance(node, ast.Expression):
             check_tree_node(node.body)
         elif isinstance(node, ast.BoolOp):
-            logger.debug(f"Checking boolean operation: {type(node.op).__name__}")
+            logger.debug("Checking boolean operation: %s", type(node.op).__name__)
             for value in node.values:
                 check_tree_node(value)
         elif isinstance(node, ast.UnaryOp):
-            logger.debug(f"Checking unary operation: {type(node.op).__name__}")
+            logger.debug("Checking unary operation: %s", type(node.op).__name__)
             if not isinstance(node.op, ast.Not):
-                logger.error(f"Unsupported unary operator: {type(node.op).__name__}")
+                logger.error("Unsupported unary operator: %s", type(node.op).__name__)
                 raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
             check_tree_node(node.operand)
         elif isinstance(node, ast.Name):
-            logger.debug(f"Checking name: {node.id}")
+            logger.debug("Checking name: %s", node.id)
             if node.id not in ("True", "False", "and", "or", "not"):
-                logger.error(f"Unexpected name in expression: {node.id}")
+                logger.error("Unexpected name in expression: %s", node.id)
                 raise ValueError(f"Unexpected name: {node.id}")
         elif isinstance(node, ast.Constant):
-            logger.debug(f"Checking constant: {node.value}")
+            logger.debug("Checking constant: %s", node.value)
             if not isinstance(node.value, bool):
-                logger.error(f"Unsupported constant type: {type(node.value).__name__}")
+                logger.error("Unsupported constant type: %s", type(node.value).__name__)
                 raise ValueError(f"Unsupported constant type: {type(node.value).__name__}")
         else:
-            logger.error(f"Unsupported AST node type: {type(node).__name__}")
+            logger.error("Unsupported AST node type: %s", type(node).__name__)
             raise ValueError(f"Unsupported operation in tag expression: {type(node).__name__}")
 
     try:
         check_tree_node(tree)
         logger.debug("Tag expression validation successful")
     except ValueError as e:
-        logger.error(f"Validation failed for tag expression '{expr}': {e}")
+        logger.error("Validation failed for tag expression '%s': %s", expr, e)
         raise ValueError(f"Invalid tag expression: {e}") from e
 
 
@@ -106,7 +106,7 @@ def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
         bool: True if the expression evaluates to True, False otherwise.
     """
     expr_norm = normalize_tag_expression(expr)
-    logger.debug(f"Evaluating tag expression: {expr_norm}")
+    logger.debug("Evaluating tag expression: %s", expr_norm)
 
     def repl_token(m: re.Match[str]) -> str:
         token = m.group(0)
@@ -116,13 +116,13 @@ def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
         return "True" if token in node_tags else "False"
 
     expr_bool = re.sub(r"[A-Za-z0-9][A-Za-z0-9:_.\-]*", repl_token, expr_norm)
-    logger.debug(f"Normalized expression: {expr_bool}")
+    logger.debug("Normalized expression: %s", expr_bool)
 
     def evaluate_node(node: ast.AST) -> bool:
-        logger.debug(f"Evaluating AST node: {type(node).__name__}")
+        logger.debug("Evaluating AST node: %s", type(node).__name__)
         if isinstance(node, ast.Constant):
             val = bool(node.value)
-            logger.debug(f"Constant evaluated to: {val}")
+            logger.debug("Constant evaluated to: %s", val)
             return val
         if isinstance(node, ast.BoolOp):
             if isinstance(node.op, ast.And):
@@ -136,14 +136,14 @@ def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
                 logger.debug("Evaluating NOT operation")
                 return not evaluate_node(node.operand)
 
-        logger.error(f"Unsupported operation during evaluation: {type(node).__name__}")
+        logger.error("Unsupported operation during evaluation: %s", type(node).__name__)
         raise ValueError(f"Unsupported operation during evaluation: {type(node).__name__}")
 
     try:
         tree = ast.parse(expr_bool, mode="eval")
         result = evaluate_node(tree.body)
-        logger.debug(f"Tag expression evaluation result: {result}")
+        logger.debug("Tag expression evaluation result: %s", result)
         return result
     except (SyntaxError, ValueError) as e:
-        logger.error(f"Error evaluating tag expression '{expr}': {e}")
+        logger.error("Error evaluating tag expression '%s': %s", expr, e)
         return False
