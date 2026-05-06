@@ -190,16 +190,9 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
         logger.debug(f"Node {node.node_id} has tags: {node_tags}")
         logger.debug(f"Job {job_id} has tags: {job_specs.tags}")
 
-        if any(op in job_specs.tags for op in ("&", "|", "~", "(", ")")):
-            if not evaluate_tag_expression(job_specs.tags, node_tags):
-                logger.warning(f"Job {job_id} has invalid tag expression, skipping...")
-                return False
-        else:
-            job_tags = set(tag.strip() for tag in job_specs.tags.split())
-            logger.debug(f"Job {job_id} has tags: {job_tags}")
-            if not (job_tags <= node_tags):
-                logger.warning(f"Job {job_id} has missing tags, skipping...")
-                return False
+        if not evaluate_tag_expression(job.tags, node_tags):
+            logger.warning(f"Job {job_id} has invalid tag expression, skipping...")
+            return False
 
     return True
 
