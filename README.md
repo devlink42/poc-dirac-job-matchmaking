@@ -10,12 +10,14 @@ This directory contains the performance test suite using Locust to benchmark the
 This framework establishes the baseline for the Python prototype and will be reused for subsequent phases (e.g., Redis, Lua).
 
 ### Features
+
 - Evaluates the core `valid_job_with_node` algorithm.
 - Simulates realistic distributions (LHCb production distributions).
 - Measures **throughput (matches/sec)** and **latency distributions**.
 - Configurable scale parameters (number of jobs, nodes, users, arrival rate).
 
 ### Prerequisites
+
 Ensure your environment is properly set up using Pixi. Locust is already included in the `pixi.toml` dependencies.
 
 ### Running the Benchmarks
@@ -27,18 +29,44 @@ pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 ```
 
 #### Headless Mode (Quick Baseline)
+
 To run a quick 5 minutes benchmark directly in your terminal with 100 concurrent users generating load:
 
 ```bash
 pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
 ```
 
+`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
+
+#### Distributed Headless Mode (High Load Testing)
+
+To run the benchmark in a distributed environment with multiple nodes:
+
+```bash
+pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+```
+
+`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
+
 #### Web UI Mode (Interactive Exploration)
+
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
 pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 ```
+
+`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
+
+#### Distributed Web UI Mode (High Load Testing)
+
+To run the benchmark in a distributed environment with multiple nodes:
+
+```bash
+pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+```
+
+`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
 
 Then, open your browser at http://localhost:8089.
 
