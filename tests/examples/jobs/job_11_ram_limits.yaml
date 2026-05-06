@@ -1,0 +1,24 @@
+# Job: Specifically testing RAM limits
+owner: lbprods
+group: lhcb_data
+job_type: WGProduction
+submission_time: "2026-03-27T14:00:00Z"
+matching_specs:
+  - site: "LCG.GRIDKA.de"
+    system:
+      name: Linux
+    wall-time: 86400  # fits low RAM
+    cpu-work: 2000000
+    cpu:
+      num-cores: {"min": 4, "max": 4}
+      ram-mb:
+        request:
+          overhead: 200     # small request so it passes
+          per-core: 0
+        limit:
+          overhead: 4096    # large limit to fail
+          per-core: 512
+      architecture:
+        name: x86_64
+        microarchitecture-level: {"min": 3, "max": null}
+    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"

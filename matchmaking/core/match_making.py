@@ -49,19 +49,19 @@ def valid_job_with_node(job: Job, node: Node) -> bool:
     if job.cpu.ram_mb:
         required_ram_request = job.cpu.ram_mb.request.overhead
         if job.cpu.ram_mb.request.per_core:
-            required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.max
+            required_ram_request += job.cpu.ram_mb.request.per_core * job.cpu.num_cores.min
 
         if node.cpu.ram_mb < required_ram_request:
             logger.warning(f"Job {job.job_id} requires at least {required_ram_request} MB RAM, skipping...")
             return False
 
-        if ram_limit := job.cpu.ram_mb.limit.overhead:
-            if job.cpu.ram_mb.limit.per_core:
-                ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.max
+        ram_limit = job.cpu.ram_mb.limit.overhead
+        if job.cpu.ram_mb.limit.per_core:
+            ram_limit += job.cpu.ram_mb.limit.per_core * job.cpu.num_cores.min
 
-            if node.cpu.ram_mb < ram_limit:
-                logger.warning(f"Job {job.job_id} requires at least {ram_limit} MB RAM, skipping...")
-                return False
+        if node.cpu.ram_mb < ram_limit:
+            logger.warning(f"Job {job.job_id} requires at least {ram_limit} MB RAM, skipping...")
+            return False
 
     # Architecture check
     if job.cpu.architecture.name != node.cpu.architecture.name:
