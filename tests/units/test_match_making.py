@@ -99,30 +99,30 @@ MATCHMAKING_CASES = [
 ]
 
 
-# @pytest.mark.parametrize(
-#     "job_id, node_id, expected_match",
-#     MATCHMAKING_CASES,
-# )
-# def test_matchmaking_logic(load_job, load_node, job_id, node_id, expected_match):
-#     """Test matchmaking at both levels.
-#
-#     1. Core logic (valid_job_specs_with_node)
-#     2. Higher-level API (match_jobs_with_node)
-#     """
-#     job_file = JOB_FILES[job_id]
-#     node_file = NODE_FILES[node_id]
-#
-#     # Level 1: Core logic verification
-#     node_obj = load_node(node_file)
-#     job_objs = load_job(job_file)
-#     core_matches = [valid_job_specs_with_node(job_id, job_specs, node_obj) for job_specs in job_objs.matching_specs]
-#
-#     # Level 2: Higher-level API verification
-#     job_match_list, _ = match_jobs_with_node(job_file, node_file)
-#
-#     if expected_match:
-#         assert any(core_matches), f"Core: Expected {job_id} to match {node_id} ({job_file})"
-#         assert any(job_match_list), f"API: Expected {job_id} to match {node_id} ({job_file})"
-#     else:
-#         assert not any(core_matches), f"Core: Expected {job_id} NOT to match {node_id} ({job_file})"
-#         assert not any(job_match_list), f"API: Expected {job_id} NOT to match {node_id} ({job_file})"
+@pytest.mark.parametrize(
+    "job_id, node_id, expected_match",
+    MATCHMAKING_CASES,
+)
+def test_matchmaking_logic(load_job, load_node, job_id, node_id, expected_match):
+    """Test matchmaking at both levels.
+
+    1. Core logic (valid_job_specs_with_node)
+    2. Higher-level API (match_jobs_with_node)
+    """
+    job_file = JOB_FILES[job_id]
+    node_file = NODE_FILES[node_id]
+
+    # Level 1: Core logic verification
+    node_obj = load_node(node_file)
+    job_objs = load_job(job_file)
+    core_matches = [valid_job_specs_with_node(job_id, job_specs, node_obj) for job_specs in job_objs.matching_specs]
+
+    # Level 2: Higher-level API verification
+    job_match_list, _ = match_jobs_with_node(job_file, node_file)
+
+    if expected_match:
+        assert any(core_matches), f"Core: Expected {job_id} to match {node_id} ({job_file})"
+        assert any(job_match_list), f"API: Expected {job_id} to match {node_id} ({job_file})"
+    else:
+        assert not any(core_matches), f"Core: Expected {job_id} NOT to match {node_id} ({job_file})"
+        assert not any(job_match_list), f"API: Expected {job_id} NOT to match {node_id} ({job_file})"

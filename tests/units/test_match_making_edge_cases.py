@@ -9,7 +9,6 @@ import yaml
 from pydantic import ValidationError
 
 from matchmaking.core.match_making import match_jobs_with_node, valid_job_specs_with_node
-from matchmaking.logic.tags import evaluate_tag_expression
 from matchmaking.models.job import MatchingSpecs
 from matchmaking.models.node import Node
 
@@ -179,11 +178,11 @@ def _base_job_spec() -> dict:
 @pytest.mark.parametrize(
     "job_path,node_path,mutator",
     [
-        (JOB_01, NODE_01, _mutate_missing_plain_tags),
         (JOB_01, NODE_01, _mutate_cpu_work),
         (JOB_01, NODE_01, _mutate_ram_request),
-        (JOB_01, NODE_01, _mutate_io_scratch_too_small),
         (JOB_01, NODE_01, _mutate_tag_eval_error),
+        (JOB_01, NODE_01, _mutate_missing_plain_tags),
+        (JOB_01, NODE_01, _mutate_io_scratch_too_small),
         (JOB_06, NODE_03, _mutate_gpu_ram),
         (JOB_06, NODE_03, _mutate_ram_limit),
         (JOB_06, NODE_03, _mutate_gpu_vendor),
@@ -207,21 +206,6 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
     job_id = Path(job_path).stem
 
     assert not valid_job_specs_with_node(job_id, job_specs, node)
-
-
-def test_eval_tag_expression_supports_special_chars_and_not_operator():
-    assert evaluate_tag_expression("cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
-    assert not evaluate_tag_expression("cvmfs:lhcb & diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
-
-
-def test_eval_tag_expression_respects_precedence_and_parentheses():
-    assert evaluate_tag_expression("a | b & c", {"b", "c"})
-    assert evaluate_tag_expression("(a | b) & c", {"b", "c"})
-    assert not evaluate_tag_expression("(a | b) & c", {"b"})
-
-
-def test_eval_tag_expression_invalid_syntax_returns_false():
-    assert not evaluate_tag_expression("a & (", {"a"})
 
 
 def test_valid_job_with_node_accepts_boundary_equal_values():

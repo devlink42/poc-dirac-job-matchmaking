@@ -118,3 +118,18 @@ def test_unsupported_constant_type_in_tags():
 def test_evaluate_node_returns_false_for_unsupported_expression_node():
     # evaluate_tag_expression now catches ValueError/SyntaxError and returns False
     assert not evaluate_tag_expression("cvmfs:lhcb + os:el9", {"cvmfs:lhcb", "os:el9"})
+
+
+def test_eval_tag_expression_supports_special_chars_and_not_operator():
+    assert evaluate_tag_expression("cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
+    assert not evaluate_tag_expression("cvmfs:lhcb & diracx:banned:LCG.NIPNE-07.ro", {"cvmfs:lhcb"})
+
+
+def test_eval_tag_expression_respects_precedence_and_parentheses():
+    assert evaluate_tag_expression("a | b & c", {"b", "c"})
+    assert evaluate_tag_expression("(a | b) & c", {"b", "c"})
+    assert not evaluate_tag_expression("(a | b) & c", {"b"})
+
+
+def test_eval_tag_expression_invalid_syntax_returns_false():
+    assert not evaluate_tag_expression("a & (", {"a"})
