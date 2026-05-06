@@ -90,21 +90,20 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     # RAM check
     if job_specs.cpu.ram_mb:
         required_ram_request = job_specs.cpu.ram_mb.request.overhead
-
         if job_specs.cpu.ram_mb.request.per_core:
-            required_ram_request += job_specs.cpu.ram_mb.request.per_core * job_specs.cpu.num_cores.max
+            required_ram_request += job_specs.cpu.ram_mb.request.per_core * job_specs.cpu.num_cores.min
 
         if node.cpu.ram_mb < required_ram_request:
             logger.warning(f"Job {job_id} requires at least {required_ram_request} MB RAM, skipping...")
             return False
 
-        if ram_limit := job_specs.cpu.ram_mb.limit.overhead:
-            if job_specs.cpu.ram_mb.limit.per_core:
-                ram_limit += job_specs.cpu.ram_mb.limit.per_core * job_specs.cpu.num_cores.max
+        ram_limit = job_specs.cpu.ram_mb.limit.overhead
+        if job_specs.cpu.ram_mb.limit.per_core:
+            ram_limit += job_specs.cpu.ram_mb.limit.per_core * job_specs.cpu.num_cores.min
 
-            if node.cpu.ram_mb < ram_limit:
-                logger.warning(f"Job {job_id} requires at least {ram_limit} MB RAM, skipping...")
-                return False
+        if node.cpu.ram_mb < ram_limit:
+            logger.warning(f"Job {job_id} requires at least {ram_limit} MB RAM, skipping...")
+            return False
 
     # Architecture check
     if job_specs.cpu.architecture.name != node.cpu.architecture.name:

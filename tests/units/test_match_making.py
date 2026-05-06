@@ -16,6 +16,8 @@ JOB_FILES = {
     "job_07": "tests/examples/jobs/job_07_sprucing_niche.yaml",
     "job_08": "tests/examples/jobs/job_08_darwin.yaml",
     "job_09": "tests/examples/jobs/job_09_high_glibc.yaml",
+    "job_10": "tests/examples/jobs/job_10_ram_tests.yaml",
+    "job_11": "tests/examples/jobs/job_11_ram_limits.yaml",
 }
 
 NODE_FILES = {
@@ -39,6 +41,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_01", True),
     ("job_08", "node_01", False),
     ("job_09", "node_01", False),
+    ("job_10", "node_01", False),
+    ("job_11", "node_01", False),
     # Node 02: older Tier2
     ("job_01", "node_02", False),
     ("job_02", "node_02", False),
@@ -49,6 +53,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_02", False),
     ("job_08", "node_02", False),
     ("job_09", "node_02", False),
+    ("job_10", "node_02", False),
+    ("job_11", "node_02", False),
     # Node 03: GPU node
     ("job_01", "node_03", False),
     ("job_02", "node_03", False),
@@ -59,6 +65,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_03", True),
     ("job_08", "node_03", False),
     ("job_09", "node_03", False),
+    ("job_10", "node_03", False),
+    ("job_11", "node_03", False),
     # Node 04: Low RAM
     ("job_01", "node_04", False),
     ("job_02", "node_04", False),
@@ -69,6 +77,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_04", False),
     ("job_08", "node_04", False),
     ("job_09", "node_04", False),
+    ("job_10", "node_04", False),
+    ("job_11", "node_04", False),
     # Node 05: High GLIBC
     ("job_01", "node_05", False),
     ("job_02", "node_05", False),
@@ -79,6 +89,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_05", True),
     ("job_08", "node_05", False),
     ("job_09", "node_05", True),
+    ("job_10", "node_05", False),
+    ("job_11", "node_05", False),
     # Node 06: Darwin
     ("job_01", "node_06", False),
     ("job_02", "node_06", False),
@@ -89,6 +101,8 @@ MATCHMAKING_CASES = [
     ("job_07", "node_06", False),
     ("job_08", "node_06", True),
     ("job_09", "node_06", False),
+    ("job_10", "node_06", False),
+    ("job_11", "node_06", False),
 ]
 
 
