@@ -1,0 +1,22 @@
+# Node: Low RAM node
+
+site: "LCG.GRIDKA.de"
+system:
+  name: Linux
+  glibc: "2.12"
+  user-namespaces: true
+wall-time: 86400
+cpu-work: 2000000
+cpu:
+  num-nodes: 1
+  num-cores: 4
+  ram-mb: 1024  # 1 GB only
+  architecture:
+    name: x86_64
+    microarchitecture-level: 3
+gpu:
+  count: 0
+tags:
+  - cvmfs:lhcb
+  - cvmfs:lhcbdev
+  - os:el9

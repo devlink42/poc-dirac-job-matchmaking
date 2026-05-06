@@ -53,14 +53,14 @@ cpu:
         request:
             overhead: 512
             per-core: 256
-        limit: 
+        limit:
             overhead: 768
             per-core: 256
     # Other architectures will have different keys
     # e.g. aarch64 might have arm_version and features (neon, sve, sve2)
     architecture:
         # ==Christophe== we should check whether there is a WLCG convention
-        name: x86_64 
+        name: x86_64
         microarchitecture-level: {"min": 2, "max": None}
 gpu:
     count: {"min": 1, "max": 4}
@@ -81,7 +81,7 @@ tags: "cvmfs:lhcb & cvmfs:lhcbdev & (os:el9 | os:ubuntu26) & ~diracx:site:SiteZ"
 
 * **Multiple sites:** If a job could run at multiple sites there will be several identical matching specifications which all correspond to the same job.
 
-* **Several supported architectures:** If there are several 
+* **Several supported architectures:** If there are several
 * **Banned sites:** Rather than having a top level banned key, the `diracx:site` tag can be used to add an exclusion.
 
 ### Considerations:
@@ -89,7 +89,7 @@ tags: "cvmfs:lhcb & cvmfs:lhcbdev & (os:el9 | os:ubuntu26) & ~diracx:site:SiteZ"
 * Some of the above criteria are optional and may not be enforced depending on the installation configuration.
 * If there are multiple nodes the `gpu` requirement is applied on each node (i.e. assuming homogeneous resources)
 * The `wall-time` is provided in addition to `cpu-work` to account for jobs which are limited resources other than CPU compute, e.g. GPU or network.
- 
+
 * Definitions of "operating system" are poorly defined and should come from installation specific tags if required.
 
 ### Unsupported:
@@ -121,7 +121,7 @@ cpu:
     num-nodes: 1
     num-cores: 16
     ram-mb: 24576
-    architecture: 
+    architecture:
         name: x86_64
         # Other architectures will have different keys
         # e.g. aarch64 might have arm_version and features (neon, sve, sve2)
@@ -138,7 +138,7 @@ tags:
     - [name=Federico] should be done server side (using a similar mechanism as the JobCommands?)
     - [name=Alexandre] we can open an issue and see how to solve that later
 
-## Comparison of Job and Pilot Metadata
+## Comparison of Job and Node Metadata
 
 Fundamentally the job matching metadata is a document containing known keys which have the following comparision operations:
 
@@ -168,7 +168,7 @@ Once the set of eligible jobs is known they must then be prioritised. The availa
 
 * **Job Owner:** Simple round-robin style sharing with no concept of historical tracking for "fair share".
 * **Job Group:** Simple round-robin style sharing with no concept of historical tracking for "fair share".
-* **Job Type:** 
+* **Job Type:**
 * **Limits:** In some cases we will want to limit the maximum number of running jobs for some criteria (e.g. jobs of a given type at a specific site)
 
 **QUESTION:** Is it good enough to do this by keeping track of something like:
@@ -219,7 +219,7 @@ The source of truth for matching should be in the `JobDB`, though the matching c
         * Conclusion: no we don't want that
 * Assume homogeneous resources for multiple nodes?
     * [name=Federico] I don't understand what you mean
-    * [name=Chris B] Would we have a multi-node job with 128 riscv cores on one machine, 16 arm cores and 1 nvidia GPU on another and, a third with 8 x86 cores and an AMD GPU. 
+    * [name=Chris B] Would we have a multi-node job with 128 riscv cores on one machine, 16 arm cores and 1 nvidia GPU on another and, a third with 8 x86 cores and an AMD GPU.
     * [name=Alexandre] In general I don't think so, different nodes are separated into different partitions in HPCs
     * Conclusion: no we don't want that because no use case for now.
 * Can we get rid of rescheduling
@@ -269,4 +269,3 @@ This should be part of a separate repo, at the end of the internship, we can thi
 
 - replaces the current optimisers
 - needs the DFC and CWL to be known
-

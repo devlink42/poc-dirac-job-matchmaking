@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
-from src.models.utils import ArchitectureName, CustomVersion, Io
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io
 
 
 class System(BaseModel):
@@ -19,7 +19,6 @@ class Architecture(BaseModel):
 
 
 class Cpu(BaseModel):
-    num_nodes: PositiveInt = Field(validation_alias="num-nodes")
     num_cores: PositiveInt = Field(validation_alias="num-cores")
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     architecture: Architecture

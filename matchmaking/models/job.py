@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
-from src.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
+from matchmaking.logic.tags import validate_tag_expression
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
 
 
 class System(BaseModel):
@@ -41,9 +42,29 @@ class Job(BaseModel):
     job_id: str | None = None
     site: str | None = None
     system: System
-    wall_time: PositiveInt = Field(validation_alias="wall-time")
-    cpu_work: PositiveInt = Field(validation_alias="cpu-work")
+    wall_time: PositiveInt | None = Field(default=None, validation_alias="wall-time")
+    cpu_work: PositiveInt | None = Field(default=None, validation_alias="cpu-work")
     cpu: Cpu
     gpu: Gpu | None = None
     io: Io | None = None
     tags: str
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, v: str) -> str:
+        if not v:
+            return v
+
+        try:
+            validate_tag_expression(v)
+        except ValueError as e:
+            raise ValueError(f"Invalid tag expression: {e}") from e
+
+        return v
+
+    @model_validator(mode="after")
+    def validate_job(self):
+        if self.wall_time is None and self.cpu_work is None:
+            raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
+
+        return self
