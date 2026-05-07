@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -82,9 +82,7 @@ def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
 
 
 def test_select_job_unknown_type_fallback(load_job, load_node):
-    config = Mock()
-    config.running_limits = {"default": {}}
-    config.job_type_priorities = [JobType.WGPRODUCTION]
+    config = SchedulingConfig(running_limits={"default": {}}, job_type_priorities=[JobType.WGPRODUCTION])
 
     job_unknown = load_job("job_01_mcsimulation_any_site")
     job_unknown.job_type = "UNKNOWN"
