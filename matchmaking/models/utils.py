@@ -90,8 +90,8 @@ class Range(StrictRange, Generic[T]):
 class ResourceSpec(BaseModel):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
-    overhead: NonNegativeInt | None = None
-    per_core: NonNegativeInt | None = Field(default=None, validation_alias="per-core")
+    overhead: NonNegativeInt = 0
+    per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
 
 class ArchitectureName(Enum):
@@ -106,4 +106,6 @@ class Io(BaseModel):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
+    # We don't test scratch IOPS because we are unable to accurately obtain
+    # and use this data at the moment.
     scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")

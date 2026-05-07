@@ -28,7 +28,6 @@ class Architecture(BaseModel):
 class Cpu(BaseModel):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
-    num_nodes: PositiveInt = Field(validation_alias="num-nodes")
     num_cores: PositiveInt = Field(validation_alias="num-cores")
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     architecture: Architecture
