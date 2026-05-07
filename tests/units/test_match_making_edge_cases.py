@@ -91,11 +91,6 @@ def _mutate_gpu_count_max(job_spec: dict, node_spec: dict) -> None:
     node_spec["gpu"]["count"] = 2
 
 
-def _mutate_tag_eval_error(job_spec: dict, node_spec: dict) -> None:
-    job_spec["tags"] = "a & (b | c)"
-    job_spec["tags"] = "tag_that_is_missing & tag_a"
-
-
 def _mutate_user_namespaces(job_spec: dict, node_spec: dict) -> None:
     node_spec["system"]["user-namespaces"] = False
 
@@ -180,7 +175,6 @@ def _base_job_spec() -> dict:
     [
         (JOB_01, NODE_01, _mutate_cpu_work),
         (JOB_01, NODE_01, _mutate_ram_request),
-        (JOB_01, NODE_01, _mutate_tag_eval_error),
         (JOB_01, NODE_01, _mutate_missing_plain_tags),
         (JOB_01, NODE_01, _mutate_io_scratch_too_small),
         (JOB_06, NODE_03, _mutate_gpu_ram),

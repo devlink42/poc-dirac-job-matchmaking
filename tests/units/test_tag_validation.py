@@ -82,7 +82,6 @@ def test_unsupported_operator_in_tags(operator):
 
 
 def test_unexpected_name_in_tags():
-
     # Using mock to bypass the repl_token logic and reach lines 70-73
     with patch("ast.parse") as mock_parse:
         mock_node = ast.Expression(body=ast.Name(id="unexpected", ctx=ast.Load()))

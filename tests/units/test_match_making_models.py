@@ -6,12 +6,13 @@ import os
 from glob import glob
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from yaml import safe_load
 
 from matchmaking.core.match_making import valid_job, valid_node
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
+from matchmaking.models.utils import CustomVersion
 
 
 @pytest.mark.parametrize("job_file", sorted(glob("tests/examples/jobs/*.yaml")))
@@ -85,3 +86,10 @@ def test_job_model_validation_no_time_or_work():
 
     with pytest.raises(ValidationError, match="At least one of 'wall-time' or 'cpu-work' must be provided"):
         Job.model_validate(job_data)
+
+
+def test_invalid_version_with_adapter():
+    adapter = TypeAdapter(CustomVersion)
+
+    with pytest.raises(ValidationError, match="Invalid version format"):
+        adapter.validate_python("version_invalide")
