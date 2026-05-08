@@ -11,8 +11,8 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.utils import JobType
 
 
-def test_load_scheduling_config_from_valid_yaml():
-    config = SchedulingConfig.load_from_yaml("tests/examples/config/config_01_scheduling_valid.yaml")
+def test_load_scheduling_config_from_valid_yaml(load_config):
+    config = load_config("config_01_scheduling_valid")
 
     assert config.job_type_priorities == [
         JobType.WGPRODUCTION,
@@ -31,8 +31,8 @@ def test_load_scheduling_config_from_valid_yaml():
     assert config.running_limits["LCG.CERN.cern"][JobType.WGPRODUCTION] == 1000
 
 
-def test_load_scheduling_config_from_empty_yaml():
-    config = SchedulingConfig.load_from_yaml("tests/examples/config/config_02_scheduling_empty.yaml")
+def test_load_scheduling_config_from_empty_yaml(load_config):
+    config = load_config("config_02_scheduling_empty")
 
     assert config.job_type_priorities == []
     assert config.running_limits == {}

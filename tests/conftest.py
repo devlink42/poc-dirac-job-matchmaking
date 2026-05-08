@@ -19,38 +19,36 @@ def example_config():
     return SchedulingConfig.load_from_yaml(config_path)
 
 
-@pytest.fixture
-def load_job():
-    def _load(name):
-        # Allow passing full path or just the name
+def _create_loader(model_cls, sub_dir: str):
+    def _load(name: str):
         base_path = Path(__file__).parent
-        if name.endswith(".yaml"):
-            path = base_path.parent / name
-        elif "/" in name:
-            path = base_path.parent / f"{name}.yaml"
-        else:
-            path = base_path / f"examples/jobs/{name}.yaml"
 
-        return Job.load_from_yaml(path)
+        if "/" in name:
+            path = base_path.parent / name
+            if not str(path).endswith(".yaml"):
+                path = path.with_name(f"{path.name}.yaml")
+        else:
+            filename = name if name.endswith(".yaml") else f"{name}.yaml"
+            path = base_path / "examples" / sub_dir / filename
+
+        return model_cls.load_from_yaml(path)
 
     return _load
+
+
+@pytest.fixture
+def load_job():
+    return _create_loader(Job, "jobs")
 
 
 @pytest.fixture
 def load_node():
-    def _load(name):
-        # Allow passing full path or just the name
-        base_path = Path(__file__).parent
-        if name.endswith(".yaml"):
-            path = base_path.parent / name
-        elif "/" in name:
-            path = base_path.parent / f"{name}.yaml"
-        else:
-            path = base_path / f"examples/nodes/{name}.yaml"
+    return _create_loader(Node, "nodes")
 
-        return Node.load_from_yaml(path)
 
-    return _load
+@pytest.fixture
+def load_config():
+    return _create_loader(SchedulingConfig, "config")
 
 
 @pytest.fixture

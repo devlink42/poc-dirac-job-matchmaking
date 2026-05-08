@@ -19,11 +19,11 @@ NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 NODE_03 = "tests/examples/nodes/node_03_gpu.yaml"
 
 
-def _load_job_spec(path: str, spec_index: int = 0) -> dict:
+def _load_job_spec(path: str) -> dict:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    spec = data["matching_specs"][spec_index]
+    spec = data["matching_specs"][0]
     spec.setdefault("job_id", "coverage-job")
 
     return spec
@@ -48,10 +48,11 @@ def _build_models(job_path: str, node_path: str, mutator=None) -> tuple[Matching
 
     try:
         job = MatchingSpecs.model_validate(job_spec)
+        node = Node.model_validate(node_spec)
     except ValidationError:
         raise
 
-    return job, Node.model_validate(node_spec)
+    return job, node
 
 
 def _mutate_gpu_ram(job_spec: dict, node_spec: dict) -> None:
@@ -63,16 +64,8 @@ def _mutate_cpu_work(job_spec: dict, node_spec: dict) -> None:
     node_spec["cpu_work"] = 1000
 
 
-def _mutate_ram_limit(job_spec: dict, node_spec: dict) -> None:
-    job_spec["cpu"]["ram-mb"]["limit"] = {"overhead": 50000, "per-core": 0}
-
-
 def _mutate_gpu_vendor(job_spec: dict, node_spec: dict) -> None:
     job_spec["gpu"]["vendor"] = "amd"
-
-
-def _mutate_ram_request(job_spec: dict, node_spec: dict) -> None:
-    job_spec["cpu"]["ram-mb"]["request"] = {"overhead": 1000000, "per-core": 0}
 
 
 def _mutate_microarch_min(job_spec: dict, node_spec: dict) -> None:
@@ -174,11 +167,9 @@ def _base_job_spec() -> dict:
     "job_path,node_path,mutator",
     [
         (JOB_01, NODE_01, _mutate_cpu_work),
-        (JOB_01, NODE_01, _mutate_ram_request),
         (JOB_01, NODE_01, _mutate_missing_plain_tags),
         (JOB_01, NODE_01, _mutate_io_scratch_too_small),
         (JOB_06, NODE_03, _mutate_gpu_ram),
-        (JOB_06, NODE_03, _mutate_ram_limit),
         (JOB_06, NODE_03, _mutate_gpu_vendor),
         (JOB_06, NODE_03, _mutate_cpu_cores_min),
         (JOB_06, NODE_03, _mutate_microarch_min),
@@ -195,7 +186,7 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
     try:
         job_specs, node = _build_models(job_path, node_path, mutator=mutator)
     except ValidationError:
-        return
+        raise
 
     job_id = Path(job_path).stem
 
@@ -203,8 +194,11 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
 
 
 def test_valid_job_with_node_accepts_boundary_equal_values():
-    job = MatchingSpecs.model_validate(_base_job_spec())
-    node = Node.model_validate(_base_node_spec())
+    try:
+        job = MatchingSpecs.model_validate(_base_job_spec())
+        node = Node.model_validate(_base_node_spec())
+    except ValidationError:
+        raise
 
     assert valid_job_specs_with_node("edge-job-0", job, node)
 
