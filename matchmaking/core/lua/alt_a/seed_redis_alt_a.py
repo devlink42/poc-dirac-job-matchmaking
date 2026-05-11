@@ -8,7 +8,7 @@ from datetime import datetime
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.models.lua.alt_a.job import JobAltA
+from matchmaking.models.lua.alt_a.job import Job
 
 r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
@@ -44,7 +44,7 @@ def seed_database(db_path="benchmark/benchmark.db"):
             sub_time = 0.0
 
         # 2. Fill the Alt A Model
-        job_alt_a = JobAltA(
+        job_alt_a = Job(
             job_id=job_data.get("job_id", ""),
             priority=job_data.get("priority", 0),
             submission_time=sub_time,
