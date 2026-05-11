@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Any, Generic, Self, TypeVar
 
 from packaging.version import InvalidVersion, Version
@@ -19,7 +19,7 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
-class JobType(Enum):
+class JobType(StrEnum):
     MCSIMULATION = "MCSimulation"
     MCFASTSIMULATION = "MCFastSimulation"
     WGPRODUCTION = "WGProduction"
@@ -33,18 +33,18 @@ class JobType(Enum):
     LBAPI = "LbAPI"
 
 
-class JobOwner(Enum):
+class JobOwner(StrEnum):
     LBPRODS = "lbprods"
 
 
-class JobGroup(Enum):
+class JobGroup(StrEnum):
     LHCB_MC = "lhcb_mc"
     LHCB_DATA = "lhcb_data"
     LHCB_MCPROC = "lhcb_mproc"
     LHCB_USER = "lhcb_user"
 
 
-class SystemName(Enum):
+class SystemName(StrEnum):
     LINUX = "Linux"
     GNU = "GNU"
     FREEBSD = "FreeBSD"
@@ -94,7 +94,7 @@ class ResourceSpec(BaseModel):
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
 
-class ArchitectureName(Enum):
+class ArchitectureName(StrEnum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
     # ARM/AArch64 64-bit

@@ -218,10 +218,25 @@ class MatchmakingUser(User):
         """Simulate a pilot requesting a job using Redis Lua script."""
         node = _rng.choice(NODES_POOL)
 
-        node_ram = node.cpu.ram_mb
-        node_cores = node.cpu.num_cores
-        node_walltime = node.wall_time
-        node_site = node.site
+        args = [
+            node.cpu.ram_mb,
+            node.cpu.num_cores,
+            node.site,
+            self._candidates_count,
+            str(node.system.name),
+            str(node.system.glibc),
+            1 if node.system.user_namespaces else 0,
+            node.wall_time,
+            node.cpu_work,
+            str(node.cpu.architecture.name),
+            node.cpu.architecture.microarchitecture_level,
+            node.gpu.count,
+            node.gpu.ram_mb if node.gpu.ram_mb else 0,
+            node.gpu.vendor if node.gpu.vendor else "",
+            str(node.gpu.compute_capability) if node.gpu.compute_capability else "",
+            str(node.gpu.driver_version) if node.gpu.driver_version else "",
+            node.io.scratch_mb if node.io else 0,
+        ]
 
         start_time = time.perf_counter()
         selected_job_json = None
@@ -230,7 +245,7 @@ class MatchmakingUser(User):
         try:
             selected_job_json = match_script(
                 keys=["jobs:pending", "job:"],
-                args=[node_ram, node_cores, node_walltime, node_site, self._candidates_count],
+                args=args,
             )
         except Exception as e:
             error = e
