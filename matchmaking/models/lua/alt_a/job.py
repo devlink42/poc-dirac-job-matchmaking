@@ -17,7 +17,6 @@ class Job(JobModel):
             "cpu_num_cores_min": str(num_cores.min),
             "cpu_num_cores_max": str(num_cores.max if num_cores.max is not None else num_cores.min),
             "cpu_architecture_microarchitecture_level_min": str(spec.cpu.architecture.microarchitecture_level.min),
-            "wall_time": str(spec.wall_time if spec.wall_time is not None else spec.cpu_work or 0),
         }
 
         if spec.cpu.architecture.microarchitecture_level.max is not None:

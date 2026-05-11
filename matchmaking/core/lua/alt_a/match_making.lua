@@ -34,8 +34,7 @@ for _, job_id in ipairs(top_jobs) do
 
     local job_reqs = redis.call('HMGET', job_key,
         'cpu_num_cores_min', 'cpu_num_cores_max',
-        'cpu_ram_mb_request_overhead', 'cpu_ram_mb_request_per_core',
-        'wall_time', 'site'
+        'cpu_ram_mb_request_overhead', 'cpu_ram_mb_request_per_core', 'site'
     )
 
     if job_reqs[1] then
