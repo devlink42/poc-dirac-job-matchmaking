@@ -33,9 +33,9 @@ for _, job_id in ipairs(top_jobs) do
     local job_key = job_prefix .. job_id
 
     local job_reqs = redis.call('HMGET', job_key,
-        'min_cores', 'max_cores',
-        'ram_overhead', 'ram_per_core',
-        'walltime', 'site'
+        'cpu_num_cores_min', 'cpu_num_cores_max',
+        'cpu_ram_mb_request_overhead', 'cpu_ram_mb_request_per_core',
+        'wall_time', 'site'
     )
 
     if job_reqs[1] then
@@ -47,7 +47,7 @@ for _, job_id in ipairs(top_jobs) do
         local j_site = job_reqs[6]
 
         -- 1. Site check
-        if j_site == 'ANY' or j_site == node_site then
+        if j_site == nil or j_site == 'ANY' or j_site == node_site then
             -- 2. Walltime check
             if node_walltime >= j_walltime then
                 -- 3. Core check (does the pilot have at least the required minimum?)

@@ -1,129 +1,46 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
-
-from matchmaking.logic.tags import validate_tag_expression
+from matchmaking.models.job import Job as JobModel
 
 
-class System(BaseModel):
-    name: str
-    glibc: str
-    user_namespaces: bool
-
-
-class CpuRamRequest(BaseModel):
-    overhead: NonNegativeInt = 0
-    per_core: NonNegativeInt = 0
-
-
-class CpuRamLimit(BaseModel):
-    overhead: NonNegativeInt = 0
-    per_core: NonNegativeInt = 0
-
-
-class CpuRamMb(BaseModel):
-    request: CpuRamRequest = Field(default_factory=CpuRamRequest)
-    limit: CpuRamLimit = Field(default_factory=CpuRamLimit)
-
-
-class CpuArchitecture(BaseModel):
-    name: str
-    microarchitecture_level_min: PositiveInt
-    microarchitecture_level_max: PositiveInt | None = None
-
-
-class Cpu(BaseModel):
-    num_cores_min: NonNegativeInt
-    num_cores_max: NonNegativeInt
-    ram_mb: CpuRamMb = Field(default_factory=CpuRamMb)
-    architecture: CpuArchitecture
-
-
-class Gpu(BaseModel):
-    count_min: NonNegativeInt = 0
-    count_max: NonNegativeInt | None = None
-    ram_mb: PositiveInt | None = None
-    vendor: str | None = None
-    compute_capability_min: str | None = None
-    compute_capability_max: str | None = None
-    driver_version: str | None = None
-
-
-class Io(BaseModel):
-    scratch_mb: PositiveInt | None = None
-    scratch_iops: PositiveInt | None = None
-
-
-class Job(BaseModel):
-    """Clean, nested Job model for Alternative A.
-    While the Python interface uses clean nested sub-models, the
-    `to_redis_hash()` method dynamically flattens it for Vanilla Redis.
-    """
-
-    job_id: str = "Unknown"
+class Job(JobModel):
     priority: int = 0
 
-    # Job information
-    owner: str
-    group: str
-    job_type: str
-    submission_time: float  # Unix timestamp, Redis/Lua don't accept datetime
-
-    site: str = "ANY"
-
-    wall_time: PositiveInt | None = None
-    cpu_work: PositiveInt | None = None
-
-    # Nested Sub-models
-    system: System
-    cpu: Cpu
-    gpu: Gpu = Field(default_factory=Gpu)
-    io: Io = Field(
-        default_factory=Io,
-    )
-
-    # Tags stored as a raw string (e.g. "cvmfs:lhcb & (os:el9 | os:ubuntu)")
-    tags: str = ""
-
-    @field_validator("tags")
-    @classmethod
-    def validate_tags(cls, v: str) -> str:
-        if not v:
-            return v
-
-        try:
-            validate_tag_expression(v)
-        except ValueError as e:
-            raise ValueError(f"Invalid tag expression: {e}") from e
-
-        return v
-
-    @model_validator(mode="after")
-    def validate_job(self):
-        if self.wall_time is None and self.cpu_work is None:
-            raise ValueError("At least one of 'wall_time' or 'cpu_work' must be provided")
-
-        return self
-
     def to_redis_hash(self) -> dict[str, str]:
-        """Dynamically convert the nested model to a 1D flat dictionary for HSET.
-        Example: `self.cpu.ram_mb.request.overhead` becomes `cpu_ram_mb_request_overhead`.
-        Excludes job_id and submission_time. Casts everything to strings.
-        """
-        raw_dict = self.model_dump(exclude={"job_id", "submission_time"})
+        spec = self.matching_specs[0]
+        num_cores = spec.cpu.num_cores
+        ram_mb = spec.cpu.ram_mb
 
-        def flatten(d: dict, parent_key: str = "") -> dict:
-            items = []
-            for k, v in d.items():
-                new_key = f"{parent_key}_{k}" if parent_key else k
+        payload = {
+            "cpu_num_cores_min": str(num_cores.min),
+            "cpu_num_cores_max": str(num_cores.max if num_cores.max is not None else num_cores.min),
+            "cpu_architecture_microarchitecture_level_min": str(spec.cpu.architecture.microarchitecture_level.min),
+            "wall_time": str(spec.wall_time if spec.wall_time is not None else spec.cpu_work or 0),
+        }
 
-                if isinstance(v, dict):
-                    items.extend(flatten(v, new_key).items())
-                elif v is not None:
-                    # Redis HSET cannot store None. We only store actual values as strings.
-                    items.append((new_key, str(v)))
+        if spec.cpu.architecture.microarchitecture_level.max is not None:
+            payload["cpu_architecture_microarchitecture_level_max"] = str(
+                spec.cpu.architecture.microarchitecture_level.max
+            )
 
-            return dict(items)
+        if spec.site is not None:
+            payload["site"] = str(spec.site)
 
-        return flatten(raw_dict)
+        if ram_mb is not None:
+            payload.update(
+                {
+                    "cpu_ram_mb_request_overhead": str(ram_mb.request.overhead),
+                    "cpu_ram_mb_request_per_core": str(ram_mb.request.per_core),
+                    "cpu_ram_mb_limit_overhead": str(ram_mb.limit.overhead),
+                    "cpu_ram_mb_limit_per_core": str(ram_mb.limit.per_core),
+                }
+            )
+
+        if spec.gpu is not None:
+            payload["gpu_count_min"] = str(spec.gpu.count.min)
+            if spec.gpu.count.max is not None:
+                payload["gpu_count_max"] = str(spec.gpu.count.max)
+
+        return payload
