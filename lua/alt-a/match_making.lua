@@ -1,22 +1,22 @@
 -- ==============================================================================
--- Fichier : match_job.lua
--- Description : Trouve et assigne le job le plus prioritaire compatible avec un Pilot.
+-- Fichier : match_making.lua
+-- Description : Trouve et assigne le job le plus prioritaire compatible avec un Node.
 --
 -- Arguments d'entrée (depuis Python) :
 -- KEYS[1] : Le nom de la file d'attente (ex: 'jobs:pending')
 -- KEYS[2] : Le préfixe des clés de jobs (ex: 'job:')
--- ARGV[1] : La RAM disponible sur le Pilot (entier)
--- ARGV[2] : Les CPUs disponibles sur le Pilot (entier)
--- ARGV[3] : Le site actuel du Pilot (string, ex: 'LCG.CERN.ch')
+-- ARGV[1] : La RAM disponible sur le Node (entier)
+-- ARGV[2] : Les CPUs disponibles sur le Node (entier)
+-- ARGV[3] : Le site actuel du Node (string, ex: 'LCG.CERN.ch')
 -- ARGV[4] : La taille du batch (entier, ex: 100) -> combien de jobs on teste max
 -- ==============================================================================
 
 local queue_key = KEYS[1]
 local job_prefix = KEYS[2]
 
-local pilot_ram = tonumber(ARGV[1])
-local pilot_cpu = tonumber(ARGV[2])
-local pilot_site = ARGV[3]
+local node_ram = tonumber(ARGV[1])
+local node_cpu = tonumber(ARGV[2])
+local node_site = ARGV[3]
 local batch_size = tonumber(ARGV[4])
 
 -- 1. Récupérer les identifiants des N jobs les plus prioritaires
@@ -29,7 +29,7 @@ if #top_jobs == 0 then
 end
 
 -- 2. Boucler sur les jobs récupérés (ipairs permet d'itérer sur un tableau Lua)
-for index, job_id in ipairs(top_jobs) do
+for _, job_id in ipairs(top_jobs) do
     local job_key = job_prefix .. job_id
 
     -- HMGET récupère plusieurs champs d'un HASH d'un seul coup
@@ -43,16 +43,15 @@ for index, job_id in ipairs(top_jobs) do
 
         -- 3. Logique de "Match"
         -- Est-ce que le nœud a assez de RAM et de CPU ?
-        if pilot_ram >= j_ram and pilot_cpu >= j_cpu then
+        if node_ram >= j_ram and node_cpu >= j_cpu then
             -- Est-ce que le site correspond (ou si le job accepte n'importe où 'ANY') ?
-            if j_site == 'ANY' or j_site == pilot_site then
-
+            if j_site == 'ANY' or j_site == node_site then
                 -- C'EST UN MATCH !
                 -- On le retire de la file pour que personne d'autre ne le prenne
                 redis.call('ZREM', queue_key, job_id)
 
                 -- On change son statut dans son HASH (optionnel mais recommandé)
-                redis.call('HSET', job_key, 'status', 'assigned', 'assigned_to', pilot_site)
+                redis.call('HSET', job_key, 'status', 'assigned', 'assigned_to', node_site)
 
                 -- On renvoie l'ID au Pilot
                 return job_id
