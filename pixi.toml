@@ -26,6 +26,7 @@ pytest-cov = ">=7.1,<8"
 packaging = ">=26.0,<27"
 pre-commit = ">=4.1,<5"
 locust = ">=2.43,<3"
+redis-py = ">=7.4,<8"
 
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }

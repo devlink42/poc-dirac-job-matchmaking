@@ -19,6 +19,7 @@ import sqlite3
 import sys
 import time
 
+import redis
 from locust import User, between, events, task
 from locust.runners import MasterRunner
 
@@ -36,6 +37,11 @@ _rng = random.Random()  # noqa: S311
 MAX_JOB_ID_IN_DB = 0
 NODES_POOL = []
 SCHEDULING_CONFIG = SchedulingConfig()
+
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+with open("./matchmaking/core/lua/alt-a/match_making.lua", "r") as file:
+    match_script = redis_client.register_script(file.read())
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -62,6 +68,13 @@ def _get_max_job_id(db_path: str) -> int:
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
+    parser.add_argument(
+        "--match-mode",
+        type=str,
+        choices=["python", "alt_a", "alt_b", "alt_c"],
+        default="python",
+        help="Matchmaking algorithm to evaluate",
+    )
     parser.add_argument("--num-jobs", type=int, default=10000, help="Number of jobs to load from the database")
     parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to load from the database")
     parser.add_argument(
@@ -145,6 +158,22 @@ class MatchmakingUser(User):
 
     @task
     def evaluate_select_job(self):
+        match_mode = self.environment.parsed_options.match_mode
+
+        if match_mode == "python":
+            self.evaluate_select_job_python()
+        elif match_mode == "alt_a":
+            self.evaluate_select_job_redis_alt_a()
+        elif match_mode == "alt_b":
+            # self.evaluate_select_job_redis_alt_b()
+            pass
+        elif match_mode == "alt_c":
+            # self.evaluate_select_job_redis_alt_c()
+            pass
+        else:
+            logger.error(f"Mode inconnu: {match_mode}")
+
+    def evaluate_select_job_python(self):
         """Simulate a pilot requesting a job: filter compatible candidates, then rank.
 
         Instead of holding all jobs in RAM, we pick random IDs, load their JSON
@@ -183,4 +212,37 @@ class MatchmakingUser(User):
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,
             context={"matched": selected_job is not None},
+        )
+
+    def evaluate_select_job_redis_alt_a(self):
+        """Simulate a pilot requesting a job using Redis Lua script."""
+        node = _rng.choice(NODES_POOL)
+
+        node_ram = node.cpu.ram_mb
+        node_cores = node.cpu.num_cores
+        node_walltime = node.wall_time
+        node_site = node.site
+
+        start_time = time.perf_counter()
+        selected_job_json = None
+        error = None
+
+        try:
+            selected_job_json = match_script(
+                keys=["jobs:pending", "job:"],
+                args=[node_ram, node_cores, node_walltime, node_site, self._candidates_count],
+            )
+        except Exception as e:
+            error = e
+            logger.error("Error during Redis select_job: %s", e)
+
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        events.request.fire(
+            request_type="Redis-Lua-AltA",
+            name="select_job_cycle",
+            response_time=total_time_ms,
+            response_length=len(selected_job_json) if selected_job_json else 0,
+            exception=error,
+            context={"matched": selected_job_json is not None},
         )

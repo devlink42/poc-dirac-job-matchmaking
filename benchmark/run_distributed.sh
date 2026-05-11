@@ -5,6 +5,7 @@
 WORKERS=5
 MODE=""
 LOCUST_ARGS=""
+MATCH_MODE_ARG=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -12,12 +13,19 @@ while [[ $# -gt 0 ]]; do
       MODE="--headless"
       shift
       ;;
+    -w|--workers)
+      WORKERS="$2"
+      shift 2
+      ;;
+    --match-mode)
+      MATCH_MODE_ARG="--match-mode $2"
+      shift 2
+      ;;
     -u|-r|-t)
       LOCUST_ARGS="$LOCUST_ARGS $1 $2"
       shift 2
       ;;
-    -w|--workers)
-      WORKERS="$2"
+    --num-jobs|--num-nodes)
       shift 2
       ;;
     *)
@@ -29,8 +37,8 @@ done
 
 if [[ "$MODE" == "--headless" ]]; then
   if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
-    echo "No load parameters detected. Using default values: -u 100 -r 50 -t 5m"
-    LOCUST_ARGS="-u 100 -r 50 -t 5m"
+    echo "No load parameters detected. Using default values: -u 100 -r 50 -t 15m"
+    LOCUST_ARGS="-u 100 -r 50 -t 15m"
   fi
 
   echo "Starting Locust Master in HEADLESS mode with args: $LOCUST_ARGS"
