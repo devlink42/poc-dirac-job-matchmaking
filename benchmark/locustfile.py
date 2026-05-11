@@ -40,7 +40,7 @@ SCHEDULING_CONFIG = SchedulingConfig()
 
 redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
-with open("./matchmaking/core/lua/alt-a/match_making.lua", "r") as file:
+with open("./matchmaking/core/lua/alt_a/match_making.lua", "r") as file:
     match_script = redis_client.register_script(file.read())
 
 
