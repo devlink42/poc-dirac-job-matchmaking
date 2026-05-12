@@ -6,10 +6,10 @@ by directly firing events to Locust's metric system.
 
 Workflow:
     1. Generate the benchmark database once:
-           pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
+           pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
+           pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 50000
 """
 
 from __future__ import annotations

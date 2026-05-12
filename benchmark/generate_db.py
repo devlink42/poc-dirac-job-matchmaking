@@ -2,7 +2,7 @@
 """Pre-generate benchmark data into a SQLite database.
 
 Run once before benchmarking so no data is generated at test runtime:
-    pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
+    pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
 
 The database is then consumed by locustfile.py via --db-path.
 """
