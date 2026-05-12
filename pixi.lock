@@ -3926,7 +3926,7 @@ packages:
 - pypi: ./
   name: matchmaking
   version: 0.1.0
-  sha256: 455404ad260d2e23f594ba8cf5a250e824a2c775c1fd0218b1b2e89a28c058f9
+  sha256: 24b2779d66b6e4f4c13ae432e5b7e9fe7633e5882f9b0f3dd568dcd681e3d290
   requires_dist:
   - pydantic>=2.12
   - pyyaml>=6
