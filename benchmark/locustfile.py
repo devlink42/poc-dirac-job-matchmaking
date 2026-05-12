@@ -75,8 +75,8 @@ def _(parser):
         default="python",
         help="Matchmaking algorithm to evaluate",
     )
-    parser.add_argument("--num-jobs", type=int, default=10000, help="Number of jobs to load from the database")
-    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to load from the database")
+    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to load from the database")
     parser.add_argument(
         "--candidates-count",
         type=int,

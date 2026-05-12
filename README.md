@@ -74,8 +74,8 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
-- `--num-jobs`: Defines the size of the job pool to generate (Default: 100000).
-- `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 1000).
+- `--num-jobs`: Defines the size of the job pool to generate (Default: 1000000).
+- `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 10000).
 - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 500).
 - `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
 - `--db-path`: Path to the SQLite benchmark database (generate with `benchmark/generate_db.py`, default:
@@ -86,8 +86,10 @@ Locust core parameters:
 - `-u` / `--users`: The number of concurrent users (threads simulating scheduler processes).
 - `-r` / `--spawn-rate`: How many users to spawn per second.
 - `-t` / `--run-time`: Automatically stop the test after a certain duration (e.g., `1m`, `30s`).
+- `-w` / `--workers`: The number of worker processes to spawn (Distributed mode only, default: 5).
 
-*Note: The arrival rate of requests per user is defined in `locustfile.py` via the `wait_time` attribute.*
+*Note: The arrival rate of requests per user is defined in `locustfile.py` via the `wait_time` attribute. Also, ALL
+benchmark executions generate comprehensive CSV and HTML reports.*
 
 ### Baseline Benchmark Results (Python Prototype)
 
