@@ -5,6 +5,11 @@
 WORKERS=5
 MODE=""
 LOCUST_ARGS=""
+NUM_JOBS=10000000
+NUM_NODES=20000
+CANDIDATES_COUNT=100
+U_VAL=100
+R_VAL=50
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -12,7 +17,17 @@ while [[ $# -gt 0 ]]; do
       MODE="--headless"
       shift
       ;;
-    -u|-r|-t)
+    -u)
+      U_VAL="$2"
+      LOCUST_ARGS="$LOCUST_ARGS $1 $2"
+      shift 2
+      ;;
+    -r)
+      R_VAL="$2"
+      LOCUST_ARGS="$LOCUST_ARGS $1 $2"
+      shift 2
+      ;;
+    -t)
       LOCUST_ARGS="$LOCUST_ARGS $1 $2"
       shift 2
       ;;
@@ -31,14 +46,20 @@ if [[ "$MODE" == "--headless" ]]; then
   if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
     echo "No load parameters detected. Using default values: -u 100 -r 50 -t 5m"
     LOCUST_ARGS="-u 100 -r 50 -t 5m"
+    U_VAL=100
+    R_VAL=50
   fi
 
+  CURRENT_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+  CSV_PREFIX="benchmark/results/locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}"
+  HTML_PREFIX="benchmark/results/html/locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}"
+
   echo "Starting Locust Master in HEADLESS mode with args: $LOCUST_ARGS"
-  locust -f benchmark/locustfile.py --master --headless --num-jobs 10000000 --num-nodes 20000 --candidates-count 100 $LOCUST_ARGS &
+  locust -f benchmark/locustfile.py --master --headless --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT} $LOCUST_ARGS --csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX} &
 else
   echo "Starting Locust Master with UI..."
   LOCUST_ARGS="-u 100 -r 50 -t 15m"
-  locust -f benchmark/locustfile.py --master --num-jobs 10000000 --num-nodes 20000 --candidates-count 100 $LOCUST_ARGS &
+  locust -f benchmark/locustfile.py --master --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT} $LOCUST_ARGS &
 fi
 MASTER_PID=$!
 
