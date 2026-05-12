@@ -160,15 +160,15 @@ overhead.
 ### 1. Introduction
 
 This document outlines the design for mapping DIRAC job scheduling requirements and node characteristics to Redis data
-structures. The goal is to support high-performance matchmaking at a scale of 10M pending jobs and 1000 sites, ensuring
-atomicity and efficiency.
+structures. The goal is to support high-performance matchmaking at a scale of ~10M pending jobs and ~100 sites (×500
+nodes), ensuring atomicity and efficiency.
 
 ### 2. Requirements & Query Patterns
 
 - **Matchmaking Query:** A Pilot requests a job based on its characteristics (Available RAM, Available CPU, Tags, Site
   Name). The system must return the highest priority job that fits these constraints.
 - **Atomicity:** Concurrent pilots must not be assigned the same job.
-- **Scale:** 10,000,000 pending jobs, 1,000 active sites.
+- **Scale:** ~10,000,000 pending jobs, ~100 active sites ×500 nodes.
 
 ### 3. Alternative Data Models
 
@@ -181,8 +181,15 @@ atomicity and efficiency.
   requirements via `HMGET`, evaluates constraints against the Pilot's context, and atomically removes (`ZREM`) the first
   matching job.
 - **Pros:** Uses core Redis structures (no modules). 100% atomic execution. Predictable memory footprint.
-- **Cons:** "Head-of-line blocking" risk. If the top 1000 jobs require GPU and the Pilot has none, the Lua script wastes
-  CPU cycles iterating over incompatible jobs.
+- **Cons:**
+    - **"Head-of-line blocking" risk:** If the top 1000 jobs require GPU and the Pilot has none, the Lua script wastes
+      CPU cycles iterating over incompatible jobs.
+    - **Single-thread blocking:** Redis executes Lua scripts atomically, meaning a long-running script (iterating over
+      hundreds of jobs) will block the entire Redis instance, delaying all other operations and pilots.
+    - **Data fetching overhead:** Performing `HMGET` for every candidate job during the evaluation loop accumulates
+      significant latency relative to in-memory evaluations.
+    - **Costly priority updates:** Updating job priorities requires modifying the `ZSET` score, which is an O(log N)
+      operation. At 10 million jobs, frequent priority reassessments can cause CPU spikes.
 
 #### Alternative B: RedisJSON & RediSearch (Indexed Matching)
 
