@@ -47,6 +47,8 @@ def seed_database(db_path="benchmark/benchmark.db"):
     logger.info("Successfully finished loading jobs!")
 
 
+# TODO: function main with probably some args and add it to pyproject.toml
+
 if __name__ == "__main__":
     configure_logger("INFO")
     seed_database()
