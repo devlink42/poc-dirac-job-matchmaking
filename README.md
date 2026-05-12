@@ -30,10 +30,10 @@ pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 
 #### Headless Mode (Quick Baseline)
 
-To run a quick 5 minutes benchmark directly in your terminal with 100 concurrent users generating load:
+To run a 15 minutes benchmark directly in your terminal with 100 concurrent users generating load:
 
 ```bash
-pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -86,8 +86,10 @@ Locust core parameters:
 - `-u` / `--users`: The number of concurrent users (threads simulating scheduler processes).
 - `-r` / `--spawn-rate`: How many users to spawn per second.
 - `-t` / `--run-time`: Automatically stop the test after a certain duration (e.g., `1m`, `30s`).
+- `-w` / `--workers`: The number of worker processes to spawn (Distributed mode only, default: 5).
 
-*Note: The arrival rate of requests per user is defined in `locustfile.py` via the `wait_time` attribute.*
+*Note: The arrival rate of requests per user is defined in `locustfile.py` via the `wait_time` attribute. Also, ALL
+benchmark executions generate comprehensive CSV and HTML reports.*
 
 ### Baseline Benchmark Results (Python Prototype)
 
