@@ -2,14 +2,29 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
+
+import yaml
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
+from matchmaking.models.utils import (
+    ArchitectureName,
+    CustomVersion,
+    Io,
+    JobGroup,
+    JobOwner,
+    JobType,
+    Range,
+    ResourceSpec,
+    StrictRange,
+    SystemName,
+)
 
 
 class System(BaseModel):
-    name: str
+    name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 
@@ -38,8 +53,7 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
-class Job(BaseModel):
-    job_id: str | None = None
+class MatchingSpecs(BaseModel):
     site: str | None = None
     system: System
     wall_time: PositiveInt | None = Field(default=None, validation_alias="wall-time")
@@ -68,3 +82,28 @@ class Job(BaseModel):
             raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
 
         return self
+
+
+class Job(BaseModel):
+    job_id: str | None = None
+
+    # Job information
+    owner: JobOwner | str
+    group: JobGroup
+    job_type: JobType
+    submission_time: datetime
+
+    # Matching specs
+    matching_specs: list[MatchingSpecs] = Field(min_length=1)
+
+    @classmethod
+    def load_from_yaml(cls, path: str | Path) -> Job:
+        """Load and apply the configuration from a YAML file."""
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls.model_validate(data or {})
