@@ -9,10 +9,11 @@ DISTRIBUTED=false
 LOCUST_ARGS=""
 U_VAL=100
 R_VAL=50
+T_VAL=900  # 15min
 
 NUM_JOBS=10000000
 NUM_NODES=20000
-CANDIDATES_COUNT=100
+CANDIDATES_COUNT=500
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +40,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -t|--run-time)
+      T_VAL="$2"
       LOCUST_ARGS="$LOCUST_ARGS -t $2"
       shift 2
       ;;
@@ -65,30 +67,37 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-CURRENT_DATE=$(date + "%Y-%m-%d_%H-%M-%S")
-CSV_PREFIX="benchmark/results/locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}"
-HTML_PREFIX="benchmark/results/html/locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}.html"
+CURRENT_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+PREFIX_BASE="locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
+
+if [[ "$DISTRIBUTED" == true ]]; then
+  PREFIX_BASE="${PREFIX_BASE}_w-${WORKERS}"
+fi
+
+CSV_PREFIX="benchmark/results/${PREFIX_BASE}"
+HTML_PREFIX="benchmark/results/html/${PREFIX_BASE}.html"
 
 mkdir -p benchmark/results/html
 
 BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT}"
 
-if [[ "$MODE" == "headless" ]]; then
-  if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
-    echo "No load parameters detected. Using default values: -u 100 -r 50 -t 15m"
-    LOCUST_ARGS="-u 100 -r 50 -t 15m"
-    U_VAL=100
-    R_VAL=50
-  fi
+if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
+  LOCUST_ARGS="$LOCUST_ARGS -u $U_VAL"
+fi
 
+if [[ ! "$LOCUST_ARGS" =~ "-r" ]]; then
+  LOCUST_ARGS="$LOCUST_ARGS -r $R_VAL"
+fi
+
+if [[ ! "$LOCUST_ARGS" =~ "-t" ]]; then
+  LOCUST_ARGS="$LOCUST_ARGS -t $T_VAL"
+fi
+
+if [[ "$MODE" == "headless" ]]; then
   echo "Running in HEADLESS mode with args: $LOCUST_ARGS"
   REPORT_ARGS="--csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX}"
 else
   echo "Running with UI..."
-  if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
-    LOCUST_ARGS="-u 100 -r 50 -t 15m"
-  fi
-
   REPORT_ARGS="--csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX}"  # you can also generate reports in UI mode
 fi
 

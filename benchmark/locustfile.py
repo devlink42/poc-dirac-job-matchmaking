@@ -62,8 +62,8 @@ def _get_max_job_id(db_path: str) -> int:
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-jobs", type=int, default=10000, help="Number of jobs to load from the database")
-    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to load from the database")
+    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to load from the database")
     parser.add_argument(
         "--candidates-count",
         type=int,
