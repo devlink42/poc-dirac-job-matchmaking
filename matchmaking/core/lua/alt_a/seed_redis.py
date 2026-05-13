@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sqlite3
 
@@ -10,45 +11,96 @@ import redis
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.models.lua.alt_a.job import Job
 
-r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
+def seed_database(redis_client: redis.Redis, db_path: str = "benchmark/benchmark.db"):
+    logger.info(f"Connecting to SQLite database at {db_path}...")
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        cursor = conn.cursor()
+    except sqlite3.Error as e:
+        logger.error(f"Failed to connect to SQLite database at {db_path}: {e}")
+        raise
 
-def seed_database(db_path="benchmark/benchmark.db"):
     logger.info("Clearing the Redis database...")
-    r.flushdb()
-
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    cursor = conn.cursor()
+    try:
+        redis_client.flushdb()
+    except redis.RedisError as e:
+        logger.error(f"Failed to flush Redis database: {e}")
+        raise
 
     logger.info("Loading jobs into Redis...")
-    pipeline = r.pipeline()
-    cursor.execute("SELECT id, data FROM jobs")
+    pipeline = redis_client.pipeline()
+
+    logger.debug("Executing SELECT query on jobs table")
+    try:
+        cursor.execute("SELECT id, data FROM jobs")
+    except sqlite3.Error as e:
+        logger.error(f"Failed to execute SELECT query on jobs table: {e}")
+        raise
 
     count = 0
     for _, data_str in cursor:
-        job_data = json.loads(data_str)
-        job_alt_a = Job.model_validate(job_data)
+        try:
+            job_data = json.loads(data_str)
+            job_alt_a = Job.model_validate(job_data)
 
-        # 3. Inject into Redis
-        redis_key = f"job:{job_alt_a.job_id}"
+            # 3. Inject into Redis
+            redis_key = f"job:{job_alt_a.job_id}"
 
-        # Hash mapping
-        pipeline.hset(redis_key, mapping=job_alt_a.to_redis_hash())
+            # Hash mapping
+            pipeline.hset(redis_key, mapping=job_alt_a.to_redis_hash())
 
-        # ZSET priority queue
-        pipeline.zadd("jobs:pending", {job_alt_a.job_id: job_alt_a.priority})
+            # ZSET priority queue
+            pipeline.zadd("jobs:pending", {job_alt_a.job_id: job_alt_a.priority})
 
-        count += 1
-        if count % 10000 == 0:
-            pipeline.execute()
-            logger.info(f"{count} jobs inserted...")
+            count += 1
+            if count % 10000 == 0:
+                pipeline.execute()
+                logger.info(f"{count} jobs inserted...")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Error parsing job data. Skipping job. Error: {e}")
+            continue
+        except redis.RedisError as e:
+            logger.error(f"Redis pipeline error while adding job {job_data.get('job_id')} to pipeline. Error: {e}")
+            continue
 
-    pipeline.execute()
-    logger.info("Successfully finished loading jobs!")
+    try:
+        pipeline.execute()
+    except redis.RedisError as e:
+        logger.error(f"Failed to execute final Redis pipeline: {e}")
+        raise
+
+    logger.info(f"Successfully finished loading {count} jobs!")
 
 
-# TODO: function main with probably some args and add it to pyproject.toml
+def main():
+    parser = argparse.ArgumentParser(description="Seed Redis database with jobs for testing.")
+    parser.add_argument("--db-path", default="benchmark/benchmark.db", help="Path to the benchmark SQLite DB")
+    parser.add_argument("--redis-host", default="localhost", help="Redis host")
+    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
+    parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index")
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Log level"
+    )
 
-if __name__ == "__main__":
-    configure_logger("INFO")
-    seed_database()
+    args = parser.parse_args()
+
+    configure_logger(args.log_level)
+
+    logger.info(f"Connecting to Redis at {args.redis_host}:{args.redis_port}/{args.redis_db}")
+    try:
+        r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
+        r.ping()  # test connection immediately
+    except redis.ConnectionError as e:
+        logger.error(f"Could not connect to Redis: {e}")
+        exit(1)
+
+    try:
+        seed_database(r, args.db_path)
+    except Exception as e:
+        logger.critical(f"A critical error occurred preventing the database seeding: {e}")
+        exit(1)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

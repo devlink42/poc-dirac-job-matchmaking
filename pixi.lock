@@ -6574,4 +6574,4 @@ packages:
   requires_dist:
   - pydantic>=2.12
   - pyyaml>=6
-  requires_python: '>=3.11'
+  requires_python: '>=3.11,<3.12'
