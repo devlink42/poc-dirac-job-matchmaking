@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+"""A script to seed a Redis database with jobs for testing purposes.
+
+This script connects to a SQLite database to retrieve jobs data, processes the data
+into a format compatible with Redis, and interacts with a Redis database to load
+the jobs into appropriate structures such as hash mappings and priority queues.
+
+The script also provides command-line interface options for customizing the SQLite
+database file path, Redis connection settings, and log level.
+
+Workflow:
+    1. Generate the benchmark database once (required for Python and Lua):
+        pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+
+    2. Make sure Redis is running and accessible via the default host and port.
+        docker compose up -d redis
+
+    3. Seed the Redis database with jobs data from the SQLite database.
+        pixi run seed_redis_alt_a --db-path benchmark/benchmark.db --redis-host localhost --log-level INFO
+
+    4. Run the benchmark:
+        pixi run benchmark -u 100 -r 50 -t 15m --match-mode lua_alt_a --num-jobs 10000000 --num-nodes 50000
+"""
 
 from __future__ import annotations
 

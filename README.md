@@ -25,7 +25,7 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 #### Generate data
 
 ```bash
-pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
+pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 #### Headless Mode (Quick Baseline)
@@ -74,6 +74,8 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
+- `--match-mode`: The matching algorithm / target system to use. Allowed values: `python` (default), `lua_alt_a`,
+  `lua_alt_b`, `lua_alt_c`.
 - `--num-jobs`: Defines the size of the job pool to generate (Default: 1000000).
 - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 10000).
 - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 500).
@@ -90,6 +92,35 @@ Locust core parameters:
 
 *Note: The arrival rate of requests per user is defined in `locustfile.py` via the `wait_time` attribute. Also, ALL
 benchmark executions generate comprehensive CSV and HTML reports.*
+
+#### Using Redis Alternatives (Alternative A)
+
+If you plan to run the benchmarks using a Redis-backed Matchmaking engine (`--match-mode lua_alt_a`), you must spawn the
+Redis instance and pre-seed the jobs into it using the following steps:
+
+1. Ensure the SQLite DB contains the desired amount of jobs (e.g. 10M jobs):
+
+    ```bash
+    pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+    ```
+
+2. Make sure you have a Redis service running (a `docker-compose.yml` is provided at the root of the project):
+
+    ```bash
+    docker compose up -d redis
+    ```
+
+3. Seed the Redis instance using the generated SQLite data:
+
+    ```bash
+    pixi run seed_redis_alt_a --db-path benchmark/benchmark.db --redis-host localhost --log-level INFO
+    ```
+
+4. Run the benchmark specifying the correct matchmaking mode:
+
+    ```bash
+    pixi run benchmark -u 100 -r 50 -t 15m --match-mode lua_alt_a --num-jobs 10000000 --num-nodes 50000
+    ```
 
 ### Baseline Benchmark Results (Python Prototype)
 

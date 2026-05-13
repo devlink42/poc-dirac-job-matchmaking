@@ -24,34 +24,34 @@ extend-exclude = ["*.md", "*.yaml", "*.yml", ".pixi", "analysis"]
 
 [tool.ruff.lint]
 select = [
-  "E",   # pycodestyle errors
-  "F",   # pyflakes
-  "B",   # flake8-bugbear
-  "I",   # isort
-  "PLE", # pylint errors
-  "D",   # pydocstyle
-  # "UP",   # pyUpgrade
-  "FLY", # flynt
-  "DTZ", # flake8-datetimez
-  "S",   # flake8-bandit
-  "N",   # pep8-naming
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "PLE", # pylint errors
+    "D",   # pydocstyle
+    # "UP",   # pyUpgrade
+    "FLY", # flynt
+    "DTZ", # flake8-datetimez
+    "S",   # flake8-bandit
+    "N",   # pep8-naming
 ]
 ignore = [
-  "B905",
-  "B006",
-  "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
-  # TODO: Maybe enable these
-  "D100",
-  "D101",
-  "D102",
-  "D103",
-  "D104",
-  "D105",
-  "D107",
-  "D203",
-  "D205",
-  "D213",
-  "D413"
+    "B905",
+    "B006",
+    "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
+    # TODO: Maybe enable these
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D203",
+    "D205",
+    "D213",
+    "D413"
 ]
 
 [tool.ruff.lint.isort]
@@ -69,4 +69,14 @@ log_cli_format = "%(asctime)s %(levelname)s [%(filename)s in %(funcName)s on lin
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 filterwarnings = [
     "error",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:',
+]
+
+[tool.coverage.run]
+omit = [
+    "seed_redis.py",
 ]

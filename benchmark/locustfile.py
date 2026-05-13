@@ -5,11 +5,11 @@ This module tests the throughput and latency of the Python matching algorithm
 by directly firing events to Locust's metric system.
 
 Workflow:
-    1. Generate the benchmark database once:
-           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+    1. Generate the benchmark database once (required for Python and Lua):
+        pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 50000
+        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-jobs 10000000 --num-nodes 50000
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def _(parser):
     parser.add_argument(
         "--match-mode",
         type=str,
-        choices=["python", "alt_a", "alt_b", "alt_c"],
+        choices=["python", "lua_alt_a", "lua_alt_b", "lua_alt_c"],
         default="python",
         help="Matchmaking algorithm to evaluate",
     )
@@ -162,12 +162,12 @@ class MatchmakingUser(User):
 
         if match_mode == "python":
             self.evaluate_select_job_python()
-        elif match_mode == "alt_a":
+        elif match_mode == "lua_alt_a":
             self.evaluate_select_job_redis_alt_a()
-        elif match_mode == "alt_b":
+        elif match_mode == "lua_alt_b":
             # self.evaluate_select_job_redis_alt_b()
             pass
-        elif match_mode == "alt_c":
+        elif match_mode == "lua_alt_c":
             # self.evaluate_select_job_redis_alt_c()
             pass
         else:
