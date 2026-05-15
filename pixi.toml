@@ -1,42 +1,88 @@
 [workspace]
-channels = ["conda-forge"]
 name = "matchmaking"
-platforms = ["linux-64", "win-64"]
 version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64", "win-64"]
 
-[tasks]
-check-lint-format = "ruff check . && ruff format --check ."
-fix-lint-format = "ruff check --fix . && ruff format ."
-tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
-pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
-benchmark = "./benchmark/run_benchmark.sh --headless"
-benchmark-ui = "./benchmark/run_benchmark.sh --ui"
-benchmark-dist = "./benchmark/run_benchmark.sh --distributed --headless"
-benchmark-dist-ui = "./benchmark/run_benchmark.sh --distributed --ui"
-
+# ---------------------------------------------------------
+# CORE DEPENDENCIES (Production Environment)
+# ---------------------------------------------------------
 [dependencies]
 python = ">=3.11,<3.12"
-pip = ">=25"
-pixi-pycharm = ">=0,<1"
-pydantic = ">=2.12,<3"
-pyyaml = ">=6.0,<7"
-pytest = ">=8.1"
-ruff = ">=0.15,<0.16"
-pytest-cov = ">=7.1,<8"
-packaging = ">=26.0,<27"
-pre-commit = ">=4.1,<5"
-locust = ">=2.43,<3"
+pydantic = ">=2.13.4,<2.14"
+pyyaml = ">=6.0.3,<6.1"
+redis-py = ">=7.4.0,<7.5"
 
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }
 
+# ---------------------------------------------------------
+# FEATURE: DEVELOPMENT
+# Tools strictly required for local coding and formatting
+# ---------------------------------------------------------
+[feature.dev.dependencies]
+pip = ">=26.1.1,<26.2"
+pixi-pycharm = ">=0.0.11,<0.1"
+ruff = ">=0.15.12,<0.16"
+pre-commit = ">=4.6.0,<4.7"
+packaging = ">=26.2,<26.3"
+
+[feature.dev.tasks]
+check-lint-format = "ruff check . && ruff format --check ."
+fix-lint-format = "ruff check --fix . && ruff format ."
+pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
+
+# ---------------------------------------------------------
+# FEATURE: TESTING
+# Dependencies and tasks for unit/integration testing
+# ---------------------------------------------------------
+[feature.test.dependencies]
+pytest = ">=9.0.3,<9.1"
+pytest-cov = ">=7.1.0,<7.2"
+
+[feature.test.tasks]
+tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
+
+# ---------------------------------------------------------
+# FEATURE: BENCHMARK
+# Load testing tools and execution scripts
+# ---------------------------------------------------------
+[feature.benchmark.dependencies]
+locust = ">=2.44.0,<2.45"
+
+# TARGET-SPECIFIC DEPENDENCIES
+# The following dependencies will only be resolved and installed on Windows.
+[feature.benchmark.target.win-64.dependencies]
+m2-bash = ">=5.2.37.2,<5.3"
+
+[feature.benchmark.tasks]
+benchmark = "sh ./benchmark/run_benchmark.sh --headless"
+benchmark-ui = "sh ./benchmark/run_benchmark.sh --ui"
+benchmark-dist = "sh ./benchmark/run_benchmark.sh --distributed --headless"
+benchmark-dist-ui = "sh ./benchmark/run_benchmark.sh --distributed --ui"
+
+# ---------------------------------------------------------
+# FEATURE: ANALYSIS
+# Data exploration and Jupyter environments
+# ---------------------------------------------------------
 [feature.analysis.dependencies]
-matplotlib = ">=3.9"
-pandas = ">=2.2"
-jupyterlab = ">=4.2"
+matplotlib = ">=3.10.9,<3.11"
+pandas = ">=3.0.3,<3.1"
+jupyterlab = ">=4.5.7,<4.6"
 
 [feature.analysis.tasks]
 lab = "jupyter lab analysis/"
 
+# ---------------------------------------------------------
+# ENVIRONMENTS RESOLUTION
+# Grouping features into specific deployment/usage contexts
+# ---------------------------------------------------------
 [environments]
-analysis = { features = ["analysis"], solve-group = "analysis" }
+# The default environment loaded when running `pixi run` or `pixi shell`
+default = { features = ["dev", "test", "benchmark"], solve-group = "default" }
+
+# Data science specific environment
+analysis = { features = ["analysis", "dev"], solve-group = "default" }
+
+# Production environment: Contains ONLY core dependencies
+prod = { features = [], solve-group = "default" }
