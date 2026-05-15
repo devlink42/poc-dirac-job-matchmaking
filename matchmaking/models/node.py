@@ -2,29 +2,40 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
+from pathlib import Path
 
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, model_validator
+
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
 
 
 class System(BaseModel):
-    name: str
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    name: SystemName
     glibc: CustomVersion
     user_namespaces: bool = Field(validation_alias="user-namespaces")
 
 
 class Architecture(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     name: ArchitectureName
     microarchitecture_level: PositiveInt = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     num_cores: PositiveInt = Field(validation_alias="num-cores")
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     count: NonNegativeInt
     ram_mb: PositiveInt | None = Field(default=None, validation_alias="ram-mb")
     vendor: str | None = None
@@ -51,6 +62,8 @@ class Gpu(BaseModel):
 
 
 class Node(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     node_id: str | None = None
     site: str
     system: System
@@ -60,3 +73,15 @@ class Node(BaseModel):
     gpu: Gpu
     io: Io | None = None
     tags: list[str]
+
+    @classmethod
+    def load_from_yaml(cls, path: str | Path) -> Node:
+        """Load and apply the configuration from a YAML file."""
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls.model_validate(data or {})

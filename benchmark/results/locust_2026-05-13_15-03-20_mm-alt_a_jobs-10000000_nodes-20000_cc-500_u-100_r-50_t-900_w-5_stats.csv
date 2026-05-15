@@ -1,0 +1,3 @@
+Type,Name,Request Count,Failure Count,Median Response Time,Average Response Time,Min Response Time,Max Response Time,Average Content Size,Requests/s,Failures/s,50%,66%,75%,80%,90%,95%,98%,99%,99.9%,99.99%,100%
+Redis-Lua-AltA,select_job_cycle,179038,0,2,2.230531911359178,1.2978329905308783,122.8850629995577,0.0,198.93157349099738,0.0,2,2,2,3,3,4,5,6,10,120,120
+,Aggregated,179038,0,2,2.230531911359178,1.2978329905308783,122.8850629995577,0.0,198.93157349099738,0.0,2,2,2,3,3,4,5,6,10,120,120

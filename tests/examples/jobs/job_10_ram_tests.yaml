@@ -1,8 +1,10 @@
 # Job: Specifically testing RAM requests to trigger warnings for low RAM
+
 owner: lbprods
 group: lhcb_data
 job_type: WGProduction
 submission_time: "2026-03-27T14:00:00Z"
+
 matching_specs:
   - site: "LCG.GRIDKA.de"
     system:
@@ -22,6 +24,7 @@ matching_specs:
         name: x86_64
         microarchitecture-level: {"min": 3, "max": null}
     tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"
+
   - site: "LCG.GRIDKA.de"
     system:
       name: Linux

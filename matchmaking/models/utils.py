@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Any, Generic, Self, TypeVar
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     GetCoreSchemaHandler,
     NonNegativeInt,
@@ -18,14 +19,49 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
+class JobType(StrEnum):
+    MCSIMULATION = "MCSimulation"
+    MCFASTSIMULATION = "MCFastSimulation"
+    WGPRODUCTION = "WGProduction"
+    USER = "User"
+    SPRUCING = "Sprucing"
+    MERGE = "Merge"
+    MCRECONSTRUCTION = "MCRConstruction"
+    APMERGE = "APMerge"
+    APPOSTPROC = "APPostProc"
+    MCMERGE = "MCMerge"
+    LBAPI = "LbAPI"
+
+
+class JobOwner(StrEnum):
+    LBPRODS = "lbprods"
+
+
+class JobGroup(StrEnum):
+    LHCB_MC = "lhcb_mc"
+    LHCB_DATA = "lhcb_data"
+    LHCB_MCPROC = "lhcb_mproc"
+    LHCB_USER = "lhcb_user"
+
+
+class SystemName(StrEnum):
+    LINUX = "Linux"
+    GNU = "GNU"
+    FREEBSD = "FreeBSD"
+    OPENBSD = "OpenBSD"
+    WINDOWS_NT = "Windows_NT"
+    MSDOS = "MS-DOS"
+    DARWIN = "Darwin"
+
+
 class VersionPydanticAnnotation:
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
         def validate(value: Any) -> Version:
-            if isinstance(value, Version):
-                return value
-
-            return Version(str(value))
+            try:
+                return Version(str(value))
+            except InvalidVersion as e:
+                raise ValueError(f"Invalid version format: {value} (type: {type(value)})") from e
 
         return core_schema.no_info_plain_validator_function(validate)
 
@@ -52,20 +88,24 @@ class Range(StrictRange, Generic[T]):
 
 
 class ResourceSpec(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     overhead: NonNegativeInt = 0
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
 
-class Io(BaseModel):
-    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
-    # We don't test scratch IOPS because we are unable to accurately obtain
-    # and use this data at the moment.
-    scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")
-
-
-class ArchitectureName(Enum):
+class ArchitectureName(StrEnum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
     # ARM/AArch64 64-bit
     aarch64 = "aarch64"
     arm64 = "arm64"
+
+
+class Io(BaseModel):
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
+    scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
+    # We don't test scratch IOPS because we are unable to accurately obtain
+    # and use this data at the moment.
+    scratch_iops: PositiveInt = Field(validation_alias="scratch-iops")

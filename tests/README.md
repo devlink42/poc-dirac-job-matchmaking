@@ -25,11 +25,12 @@
 | `job_07_*` | Sprucing         | lbprods/lhcb_data | 2d       | 1-2   | No      | No                      | 1 (CERN)         | AND tags | Niche long-tail type, with IO scratch       |
 | `job_08_*` | MCSimulation     | lbprods/lhcb_mc   | 1h       | 1     | No      | No                      | **Any**          | Simple   | Darwin system only                          |
 | `job_09_*` | MCSimulation     | lbprods/lhcb_mc   | 1h       | 1     | No      | No                      | **Any**          | Simple   | High GLIBC requirement                      |
+| `job_10_*` | WGProduction     | lbprods/lhcb_data | 1h       | 1     | No      | Yes                     | 1 (GRIDKA)       | Simple   | Low RAM request to trigger warnings         |
 
 ## Node Examples
 
-| File         | Site          | Arch level | Cores | RAM   | GPU  | Wall time | Notes                            |
-|--------------|---------------|------------|-------|-------|------|-----------|----------------------------------|
+| File        | Site          | Arch level | Cores | RAM   | GPU  | Wall time | Notes                            |
+|-------------|---------------|------------|-------|-------|------|-----------|----------------------------------|
 | `node_01_*` | LCG.CERN.cern | v4         | 16    | 24 GB | No   | 3d        | Should match most jobs           |
 | `node_02_*` | LCG.NCBJ.pl   | v2         | 8     | 16 GB | No   | 1d        | Older node, matches fewer jobs   |
 | `node_03_*` | LCG.CERN.cern | v4         | 8     | 32 GB | A100 | 2d        | GPU node, matches GPU + CPU jobs |
@@ -41,19 +42,21 @@
 
 This matrix shows which (job, node) pairs should match. Use this to validate your implementation.
 
-|                              |     node_01 (CERN v4, 3d)     |        node_02 (NCBJ v2, 1d)        |  node_03 (CERN GPU, 2d)  |           node_04 (GRIDKA)           |             node_05 (CERN GPU)             | node_06 (CERN Darwin) |
-|------------------------------|:------------------------------:|:------------------------------------:|:-------------------------:|:-------------------------------------:|:-------------------------------------------:|:----------------------:|
-| **job_01** (MCSim, any site) |            **YES**             | NO (wall-time 1d < 3d, arch v2 < v4) |  NO (wall-time 2d < 3d)   |          NO (Not enough RAM)          |           NO (wall-time 1d < 3d)            |      NO (Darwin)       |
-| **job_02** (MCSim, 5 sites)  |            **YES**             |        NO (site not in list)         |  NO (wall-time 2d < 3d)   | NO (site not in list, not enough RAM) |  NO (site not in list, wall-time 1d < 3d)   |      NO (Darwin)       |
-| **job_03** (MCFast, 3 sites) |            **YES**             |               **YES**                |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)       |
-| **job_04** (WGProd, RAM)     | NO (CPU work 600000 < 2000000) |        NO (site not in list)         | NO (wall-time 2d < 12.5d) | NO (site not in list, not enough RAM) | NO (site not in list, wall-time 1d < 12.5d) |      NO (Darwin)       |
-| **job_05** (User, banned)    |            **YES**             |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)       |
-| **job_06** (GPU)             |          NO (no GPU)           |    NO (site not in list, no GPU)     |          **YES**          |     NO (site not in list, no GPU)     |                   **YES**                   |      NO (Darwin)       |
-| **job_07** (Sprucing)        |            **YES**             |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)       |
-| **job_08** (MCSim, any site) |          NO (Darwin)           |             NO (Darwin)              |        NO (Darwin)        |              NO (Darwin)              |                 NO (Darwin)                 |        **YES**         |
-| **job_09** (MCSim, any site) |       NO (GLIBC version)       |        NO (site not in list)         |    NO (GLIBC version)     |          NO (GLIBC version)           |                   **YES**                   |      NO (Darwin)       |
+|                              |     node_01 (CERN v4, 3d)      |        node_02 (NCBJ v2, 1d)         |  node_03 (CERN GPU, 2d)   |           node_04 (GRIDKA)            |             node_05 (CERN GPU)              | node_06 (CERN Darwin) |
+|------------------------------|:------------------------------:|:------------------------------------:|:-------------------------:|:-------------------------------------:|:-------------------------------------------:|:---------------------:|
+| **job_01** (MCSim, any site) |            **YES**             | NO (wall-time 1d < 3d, arch v2 < v4) |  NO (wall-time 2d < 3d)   |          NO (Not enough RAM)          |           NO (wall-time 1d < 3d)            |      NO (Darwin)      |
+| **job_02** (MCSim, 5 sites)  |            **YES**             |        NO (site not in list)         |  NO (wall-time 2d < 3d)   | NO (site not in list, not enough RAM) |  NO (site not in list, wall-time 1d < 3d)   |      NO (Darwin)      |
+| **job_03** (MCFast, 3 sites) |            **YES**             |               **YES**                |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)      |
+| **job_04** (WGProd, RAM)     | NO (CPU work 600000 < 2000000) |        NO (site not in list)         | NO (wall-time 2d < 12.5d) | NO (site not in list, not enough RAM) | NO (site not in list, wall-time 1d < 12.5d) |      NO (Darwin)      |
+| **job_05** (User, banned)    |            **YES**             |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)      |
+| **job_06** (GPU)             |          NO (no GPU)           |    NO (site not in list, no GPU)     |          **YES**          |     NO (site not in list, no GPU)     |                   **YES**                   |      NO (Darwin)      |
+| **job_07** (Sprucing)        |            **YES**             |        NO (site not in list)         |          **YES**          |         NO (site not in list)         |                   **YES**                   |      NO (Darwin)      |
+| **job_08** (MCSim, any site) |          NO (Darwin)           |             NO (Darwin)              |        NO (Darwin)        |              NO (Darwin)              |                 NO (Darwin)                 |        **YES**        |
+| **job_09** (MCSim, any site) |       NO (GLIBC version)       |        NO (site not in list)         |    NO (GLIBC version)     |          NO (GLIBC version)           |                   **YES**                   |      NO (Darwin)      |
+| **job_10** (WGProd, low RAM) |       NO (GLIBC version)       |                  NO                  |            NO             |                  NO                   |                     NO                      |      NO (Darwin)      |
 
-**Summary:** node_01 matches 5/9 jobs, node_02 matches 1/9, node_03 matches 4/9, node_04 matches 0/9, node_05 matches 5/9, node_06 matches 1/9.
+**Summary:** node_01 matches 5/10 jobs, node_02 matches 1/10, node_03 matches 4/10, node_04 matches 0/10, node_05 matches
+5/10, node_06 matches 1/10.
 
 ### Key things to verify
 
@@ -78,5 +81,5 @@ These files should all be **rejected** by the data models during loading or vali
 | `invalid_04_*` | jobs/    | Unknown CPU architecture (`riscv64`)    | Unsupported architecture      |
 | `invalid_05_*` | jobs/    | Empty `matching_specs` list             | At least one spec required    |
 | `invalid_06_*` | jobs/    | Negative GPU count (min: -1)            | Positive number required      |
-| `invalid_07_*` | nodes/   | Node with negative core count (-4)     | Positive number required      |
+| `invalid_07_*` | nodes/   | Node with negative core count (-4)      | Positive number required      |
 | `invalid_08_*` | jobs/    | `wall-time` as string ("three days")    | Wrong type (expected integer) |
