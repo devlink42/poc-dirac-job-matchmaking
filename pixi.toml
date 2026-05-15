@@ -9,18 +9,9 @@ platforms = ["linux-64", "win-64"]
 # ---------------------------------------------------------
 [dependencies]
 python = ">=3.11,<3.12"
-pip = ">=25"
-pixi-pycharm = ">=0,<1"
-pydantic = ">=2.12,<3"
-pyyaml = ">=6.0,<7"
-pytest = ">=8.1"
-ruff = ">=0.15,<0.16"
-pytest-cov = ">=7.1,<8"
-packaging = ">=26.0,<27"
-pre-commit = ">=4.1,<5"
-locust = ">=2.43,<3"
 pydantic = ">=2.13.4,<2.14"
 pyyaml = ">=6.0.3,<6.1"
+redis-py = ">=7.4.0,<7.5"
 
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }

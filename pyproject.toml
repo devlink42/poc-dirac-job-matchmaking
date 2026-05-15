@@ -12,6 +12,7 @@ version = "0.1.0"
 matchmaking = "matchmaking.cli.match_making:main"
 scheduler = "matchmaking.cli.scheduler:main"
 generate_db = "benchmark.generate_db:main"
+seed_redis_alt_a = "matchmaking.core.lua.alt_a.seed_redis:main"
 
 [build-system]
 build-backend = "hatchling.build"
@@ -73,4 +74,9 @@ filterwarnings = [
 [tool.coverage.report]
 exclude_also = [
     'if __name__ == .__main__.:',
+]
+
+[tool.coverage.run]
+omit = [
+    "seed_redis.py",
 ]
