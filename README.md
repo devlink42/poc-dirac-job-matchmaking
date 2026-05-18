@@ -25,7 +25,7 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 #### Generate data
 
 ```bash
-pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
+pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 #### Headless Mode (Quick Baseline)
@@ -33,7 +33,7 @@ pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 To run a 15 minutes benchmark directly in your terminal with 100 concurrent users generating load:
 
 ```bash
-pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -43,7 +43,7 @@ pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 To run the benchmark in a distributed environment with multiple nodes:
 
 ```bash
-pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -53,7 +53,7 @@ pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 2000
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -63,7 +63,7 @@ pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 To run the benchmark in a distributed environment with multiple nodes:
 
 ```bash
-pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -182,7 +182,10 @@ nodes), ensuring atomicity and efficiency.
 - **Matching flow:** A Lua script fetches the top N jobs from the ZSET using `ZRANGE`, iterates through them, retrieves
   requirements via `HMGET`, evaluates constraints against the Pilot's context, and atomically removes (`ZREM`) the first
   matching job.
-- **Pros:** Uses core Redis structures (no modules). 100% atomic execution. Predictable memory footprint.
+- **Pros:**
+    - Uses core Redis structures (no modules).
+    - 100% atomic execution.
+    - Predictable memory footprint.
 - **Cons:**
     - **"Head-of-line blocking" risk:** If the top 1000 jobs require GPU and the Pilot has none, the Lua script wastes
       CPU cycles iterating over incompatible jobs.
@@ -200,10 +203,14 @@ nodes), ensuring atomicity and efficiency.
 - **Matching flow:** The application executes a search query:
   `FT.SEARCH idx:jobs "@req_ram:[-inf $pilot_ram] @target_site:{$pilot_site | ANY}" SORTBY priority DESC LIMIT 0 1`.
   Once a job is found, a small Lua script attempts to "lock" it atomically.
-- **Pros:** Delegates complex multi-criteria filtering to the database engine. O(1) or O(log N) search time regardless
-  of queue shape. Highly scalable for complex Dirac JDL requirements.
-- **Cons:** Requires the RediSearch module. Indexing significantly increases memory usage. Atomicity requires an
-  optimistic locking approach (Find -> Try to Lock -> Retry if locked by another pilot).
+- **Pros:**
+    - Delegates complex multi-criteria filtering to the database engine.
+    - O(1) or O(log N) search time regardless of queue shape.
+    - Highly scalable for complex Dirac JDL requirements.
+- **Cons:**
+    - Requires the RediSearch module.
+    - Indexing significantly increases memory usage.
+    - Atomicity requires an optimistic locking approach (Find -> Try to Lock -> Retry if locked by another pilot).
 
 #### Alternative C: Categorized Queues / Bucket Model
 
@@ -251,12 +258,12 @@ nodes), ensuring atomicity and efficiency.
 
 ### 4. Memory Estimate at Target Scale (10M Jobs, 1000 Sites)
 
-| Component             | Alt A: ZSET + Hash      | Alt B: RediSearch             | Alt C: Categorized Queues         | Alt D: Custom Native Module     |
-|:----------------------|:------------------------|:------------------------------|:----------------------------------|:--------------------------------|
-| **1000 Sites**        | ~200 KB                 | ~200 KB                       | ~200 KB                           | ~50 KB (Dense structs)          |
-| **10M Jobs Data**     | ~1.5 GB                 | ~1.5 GB                       | ~1.5 GB                           | ~600 MB (Dense structs)         |
-| **Indexing / Queues** | ~1.1 GB (ZSET overhead) | ~3.5 to 5 GB (Search Indexes) | ~1.3 GB (Multiple ZSETs overhead) | ~200 MB (Custom internal index) |
-| **Total Estimated**   | **~2.6 GB - 3.5 GB**    | **~5 GB - 8 GB**              | **~2.8 GB - 4.0 GB**              | **~800 MB - 1.0 GB**            |
+| Component                    | Alt A: ZSET + Hash      | Alt B: RediSearch             | Alt C: Categorized Queues         | Alt D: Custom Native Module     |
+|:-----------------------------|:------------------------|:------------------------------|:----------------------------------|:--------------------------------|
+| **1000 Sites** (50000 nodes) | ~500 KB                 | ~500 KB                       | ~500 KB                           | ~50 KB (Dense structs)          |
+| **10M Jobs Data**            | ~1.5 GB                 | ~1.5 GB                       | ~1.5 GB                           | ~600 MB (Dense structs)         |
+| **Indexing / Queues**        | ~1.1 GB (ZSET overhead) | ~3.5 to 5 GB (Search Indexes) | ~1.3 GB (Multiple ZSETs overhead) | ~200 MB (Custom internal index) |
+| **Total Estimated**          | **~2.6 GB - 3.5 GB**    | **~5 GB - 8 GB**              | **~2.8 GB - 4.0 GB**              | **~800 MB - 1.0 GB**            |
 
 *Conclusion on Memory:*
 
@@ -268,4 +275,18 @@ nodes), ensuring atomicity and efficiency.
 
 ### 5. Recommendation
 
-...
+**Alternative A** is no longer viable due to its high memory footprint, limited scalability, and high latency when
+finding corresponding nodes for jobs.
+
+**Alternative B** is recommended for its balance between memory usage and search performance, making it suitable for
+moderate to large-scale deployments. It offers a good trade-off between memory efficiency and search speed, aligning
+well with the requirements of our application. However, atomicity and locking mechanisms must be carefully managed to
+safely handle concurrent access to the search index.
+
+**Alternative C** is a viable option for smaller deployments or when memory constraints are critical. It provides a
+memory-efficient solution with a straightforward implementation, making it suitable for environments with limited
+resources. However, it sacrifices some search performance compared to Alternative B.
+
+Finally, **Alternative D** is an option for deployments with very strict memory and performance requirements, offering
+absolute peak performance and extreme memory efficiency. However, this advantage comes at the cost of significant
+engineering effort and deployment complexity.
