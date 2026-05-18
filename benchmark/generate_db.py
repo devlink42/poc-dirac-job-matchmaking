@@ -84,8 +84,14 @@ def main() -> None:
         _create_schema(conn)
         _populate(conn, args.num_jobs, args.num_nodes)
         conn.commit()
+
         size_kb = db_path.stat().st_size / 1024
-        logger.info("Done. Database written to %s (%.0s KB).", db_path, size_kb)
+        if size_kb >= 1048576:
+            logger.info("Done. Database written to %s (%.2f GB).", db_path, size_kb / 1048576)
+        elif size_kb >= 1024:
+            logger.info("Done. Database written to %s (%.2f MB).", db_path, size_kb / 1024)
+        else:
+            logger.info("Done. Database written to %s (%.0f KB).", db_path, size_kb)
     finally:
         conn.close()
 
