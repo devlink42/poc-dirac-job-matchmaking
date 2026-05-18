@@ -25,7 +25,7 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 #### Generate data
 
 ```bash
-pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
+pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 #### Headless Mode (Quick Baseline)
@@ -33,7 +33,7 @@ pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 20000
 To run a 15 minutes benchmark directly in your terminal with 100 concurrent users generating load:
 
 ```bash
-pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -43,7 +43,7 @@ pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 To run the benchmark in a distributed environment with multiple nodes:
 
 ```bash
-pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -53,7 +53,7 @@ pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 2000
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -63,7 +63,7 @@ pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
 To run the benchmark in a distributed environment with multiple nodes:
 
 ```bash
-pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 20000
+pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
