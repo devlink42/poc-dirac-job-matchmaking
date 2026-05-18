@@ -12,7 +12,7 @@ R_VAL=50
 T_VAL=900  # 15min
 
 NUM_JOBS=10000000
-NUM_NODES=20000
+NUM_NODES=50000
 CANDIDATES_COUNT=500
 
 while [[ $# -gt 0 ]]; do
@@ -98,7 +98,7 @@ if [[ "$MODE" == "headless" ]]; then
   REPORT_ARGS="--csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX}"
 else
   echo "Running with UI..."
-  REPORT_ARGS="--csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX}"  # you can also generate reports in UI mode
+  REPORT_ARGS="--csv ${CSV_PREFIX} --csv-full-history --html ${HTML_PREFIX}"
 fi
 
 if [[ "$DISTRIBUTED" == true ]]; then
