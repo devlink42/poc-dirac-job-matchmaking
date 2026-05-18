@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+"""Populate Redis with synthetic matchmaking data.
+
+This script generates synthetic job and node data and loads it into a Redis
+database. It uses the `benchmark.data_generator` module to create the data and
+the `redis` library to interact with Redis.
+
+Workflow:
+    1. Make sure Redis is running and accessible via the default host and port.
+        docker compose up -d redis
+
+    2. Generate the benchmark database once:
+        pixi run data_loader --num-jobs 10000000 --num-nodes 50000
+
+    3. Run the benchmark:
+        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python_redis --num-jobs 10000000 --num-nodes 50000
+"""
 
 from __future__ import annotations
 
@@ -17,8 +33,9 @@ def load_data(redis_client, num_jobs: int, num_nodes: int):
     for i, job in enumerate(job_generator(num_jobs), 1):
         job_pipe.hset("jobs", job.job_id, job.model_dump_json())
 
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             job_pipe.execute()
+            logger.info(f"Loaded {i} jobs into Redis")
 
     job_pipe.execute()
 
@@ -28,8 +45,9 @@ def load_data(redis_client, num_jobs: int, num_nodes: int):
     for i, node in enumerate(node_generator(num_nodes), 1):
         node_pipe.hset("nodes", node.node_id, node.model_dump_json())
 
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             node_pipe.execute()
+            logger.info(f"Loaded {i} nodes into Redis")
 
     node_pipe.execute()
     logger.info("Data loaded successfully.")
@@ -47,9 +65,8 @@ def main():
 
     r = redis.Redis(host=args.host, port=args.port, db=0, decode_responses=True)
 
-    # Clear existing data
-    r.delete("jobs")
-    r.delete("nodes")
+    r.delete("py_redis:jobs")
+    r.delete("py_redis:nodes")
 
     load_data(r, args.num_jobs, args.num_nodes)
 

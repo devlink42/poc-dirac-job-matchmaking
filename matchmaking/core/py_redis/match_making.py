@@ -42,7 +42,7 @@ def match_job_with_redis_nodes(job_json: str, redis_client: redis.Redis) -> list
 
 
 def fetch_and_match(job_id: str, redis_client: redis.Redis) -> list[Node]:
-    job_json = redis_client.hget("jobs", job_id)
+    job_json = redis_client.hget("py_redis:jobs", job_id)
     if not job_json:
         logger.error("Job %s not found in Redis.", job_id)
         return []

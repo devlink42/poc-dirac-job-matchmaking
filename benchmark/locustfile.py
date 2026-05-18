@@ -227,7 +227,7 @@ class MatchmakingUser(User):
         candidate_ids = _rng.sample(self.job_ids, self._candidates_count)
 
         # Fetch from Redis
-        raw_jobs = redis_client.hmget("jobs", candidate_ids)
+        raw_jobs = redis_client.hmget("py_redis:jobs", candidate_ids)
 
         candidates = [Job.model_validate_json(job_json) for job_json in raw_jobs if job_json]
 
