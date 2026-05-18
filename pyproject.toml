@@ -12,6 +12,7 @@ version = "0.1.0"
 matchmaking = "matchmaking.cli.match_making:main"
 scheduler = "matchmaking.cli.scheduler:main"
 generate_db = "benchmark.generate_db:main"
+data_loader = "matchmaking.cli.py_redis.data_loader:main"
 
 [build-system]
 build-backend = "hatchling.build"

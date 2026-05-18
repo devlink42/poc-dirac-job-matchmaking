@@ -25,7 +25,7 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 #### Generate data
 
 ```bash
-pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
+pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 #### Headless Mode (Quick Baseline)
@@ -74,6 +74,7 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
+- `--match-mode`: The matching algorithm / target system to use. Allowed values: `python` (default), `py_redis`.
 - `--num-jobs`: Defines the size of the job pool to generate (Default: 1000000).
 - `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 10000).
 - `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 500).
