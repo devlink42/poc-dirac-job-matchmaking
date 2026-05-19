@@ -112,17 +112,20 @@ def on_test_start(environment, **kwargs):
 
     try:
         if opts.match_mode == "python_redis":
-            raw_nodes = redis_client.hvals("nodes")
+            raw_nodes = redis_client.hvals("py_redis:nodes")
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
-            MAX_JOB_ID_IN_DB = redis_client.hlen("jobs")
+            MAX_JOB_ID_IN_DB = redis_client.hlen("py_redis:jobs")
             logger.info("Loaded from Redis")
         else:
             MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
             NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
             logger.info("Loaded from SQLite")
     except Exception as e:
-        logger.error("Failed to load pools: %s", e)
-        logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
+        logger.error(
+            "Failed to load pools: %s\n"
+            "Generate the database first: pixi run generate_db --num-jobs 10000000 --num-nodes 50000",
+            e,
+        )
         raise SystemExit(1) from e
 
     if MAX_JOB_ID_IN_DB < opts.candidates_count:
@@ -159,7 +162,7 @@ class MatchmakingUser(User):
         if self.environment.parsed_options.match_mode == "python":
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
         else:
-            self.job_ids = list(redis_client.hkeys("jobs"))
+            self.job_ids = list(redis_client.hkeys("py_redis:jobs"))
 
     def on_stop(self):
         if self._db_conn:
