@@ -101,18 +101,12 @@ def main():
 
     logger.info("Connecting to Redis at %s:%s/%s", args.redis_host, args.redis_port, args.redis_db)
     try:
-        r = redis.Redis(
-            host=args.redis_host,
-            port=args.redis_port,
-            db=args.redis_db,
-            decode_responses=True,
-        )
+        r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
         r.ping()
     except redis.ConnectionError as e:
         logger.error("Could not connect to Redis: %s", e)
         raise SystemExit(1) from e
 
-    # Wipe existing data before loading fresh data
     r.delete(JOBS_KEY)
     r.delete(NODES_KEY)
 
