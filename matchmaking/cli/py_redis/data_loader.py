@@ -57,13 +57,23 @@ def main():
     parser = argparse.ArgumentParser(description="Populate Redis with synthetic matchmaking data.")
     parser.add_argument("--num-jobs", type=int, default=1000000, help="Number of jobs to generate")
     parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to generate")
-    parser.add_argument("--host", type=str, default="localhost", help="Redis host")
-    parser.add_argument("--port", type=int, default=6379, help="Redis port")
+    parser.add_argument("--redis-host", default="localhost", help="Redis host")
+    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
+    parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index")
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Log level"
+    )
     args = parser.parse_args()
 
-    configure_logger("INFO")
+    configure_logger(args.log_level)
 
-    r = redis.Redis(host=args.host, port=args.port, db=0, decode_responses=True)
+    logger.info(f"Connecting to Redis at {args.redis_host}:{args.redis_port}/{args.redis_db}")
+    try:
+        r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
+        r.ping()
+    except redis.ConnectionError as e:
+        logger.error(f"Could not connect to Redis: {e}")
+        exit(1)
 
     r.delete("py_redis:jobs")
     r.delete("py_redis:nodes")
