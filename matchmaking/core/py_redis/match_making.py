@@ -24,7 +24,7 @@ def match_job_with_redis_nodes(job_json: str, redis_client: redis.Redis) -> list
     matched_nodes = []
 
     # In a pure python/redis approach, we fetch all nodes and test locally
-    nodes_data = redis_client.hgetall("nodes")
+    nodes_data = redis_client.hgetall("py_redis:nodes")
 
     for _, node_json in nodes_data.items():
         try:
