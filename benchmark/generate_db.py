@@ -65,6 +65,7 @@ def main() -> None:
     parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to generate")
     parser.add_argument("--output", type=str, default=_DEFAULT_DB, help="Output database path")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing database")
+
     args = parser.parse_args()
 
     configure_logger("INFO")

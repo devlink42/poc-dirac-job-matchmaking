@@ -2,11 +2,11 @@
 """Populate Redis with synthetic matchmaking data.
 
 This script generates synthetic job and node data and loads it into a Redis
-database. It uses the `benchmark.data_generator` module to create the data and
-the `redis` library to interact with Redis.
+database. It uses the ``benchmark.data_generator`` module to create the data
+and the ``redis`` library to interact with Redis.
 
 Workflow:
-    1. Make sure Redis is running and accessible via the default host and port.
+    1. Make sure Redis is running and accessible via the default host and port:
         docker compose up -d redis
 
     2. Generate the benchmark database once:
@@ -24,23 +24,22 @@ import redis
 
 from benchmark.data_generator import job_generator, node_generator
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.py_redis.match_making import JOBS_KEY, NODES_KEY
 
-# Shared key constants — must stay in sync with matchmaking/core/py_redis/match_making.py
-JOBS_KEY = "py_redis:jobs"
-NODES_KEY = "py_redis:nodes"
-
+# Number of HSET commands buffered in the pipeline before flushing to Redis.
+# Keeps per-request memory bounded to O(_BATCH_SIZE) regardless of total volume.
 _BATCH_SIZE = 10000
 
 
 def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     """Load generated jobs and nodes into Redis using batched pipelines.
 
-    Uses non-transactional pipelines for throughput. Commands are flushed
-    every ``_BATCH_SIZE`` items to keep memory usage bounded — the pipeline
-    buffer never grows beyond ``_BATCH_SIZE`` entries at once.
+    Uses non-transactional pipelines (``transaction=False``) for maximum
+    throughput — no ``MULTI``/``EXEC`` overhead — while flushing every
+    :data:`_BATCH_SIZE` commands to keep memory usage bounded.
 
     Args:
-        redis_client: A connected Redis client.
+        redis_client: A connected Redis client with ``decode_responses=True``.
         num_jobs: Number of synthetic jobs to generate and load.
         num_nodes: Number of synthetic nodes to generate and load.
     """
@@ -61,8 +60,7 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     if pending:
         pipe.execute()
 
-    logger.info("All %s jobs loaded.", num_jobs)
-
+    logger.info("All %s jobs loaded into Redis.", num_jobs)
     logger.info("Generating and loading %s nodes into Redis...", num_nodes)
 
     pipe = redis_client.pipeline(transaction=False)
@@ -80,33 +78,46 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     if pending:
         pipe.execute()
 
-    logger.info("All %s nodes loaded.", num_nodes)
+    logger.info("All %s nodes loaded into Redis.", num_nodes)
     logger.info("Data loaded successfully.")
 
 
-def main():
+def main() -> None:
     """Entry point: parse CLI arguments and populate Redis."""
     parser = argparse.ArgumentParser(description="Populate Redis with synthetic matchmaking data.")
-    parser.add_argument("--num-jobs", type=int, default=1000000, help="Number of jobs to generate")
-    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to generate")
-    parser.add_argument("--redis-host", default="localhost", help="Redis host")
-    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
-    parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index")
     parser.add_argument(
-        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Log level"
+        "--num-jobs", type=int, default=1000000, help="Number of jobs to generate (default: 1 000 000)."
     )
+    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to generate (default: 10 000).")
+    parser.add_argument("--redis-host", default="localhost", help="Redis host.")
+    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port.")
+    parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index.")
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity level.",
+    )
+
     args = parser.parse_args()
 
     configure_logger(args.log_level)
 
-    logger.info("Connecting to Redis at %s:%s/%s", args.redis_host, args.redis_port, args.redis_db)
+    logger.info(
+        "Connecting to Redis at %s:%s/%s",
+        args.redis_host,
+        args.redis_port,
+        args.redis_db,
+    )
+
     try:
         r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
         r.ping()
-    except redis.ConnectionError as e:
-        logger.error("Could not connect to Redis: %s", e)
-        raise SystemExit(1) from e
+    except redis.ConnectionError as exc:
+        logger.error("Could not connect to Redis: %s", exc)
+        raise SystemExit(1) from exc
 
+    # Wipe any stale data before loading a fresh dataset.
     r.delete(JOBS_KEY)
     r.delete(NODES_KEY)
 

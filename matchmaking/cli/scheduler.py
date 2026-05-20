@@ -18,6 +18,7 @@ def main():
     parser.add_argument("config", nargs="?", help="Path to the configuration file")
 
     args = parser.parse_args()
+
     # Force INFO logging level to show job/node validation details
     configure_logger("INFO")
 

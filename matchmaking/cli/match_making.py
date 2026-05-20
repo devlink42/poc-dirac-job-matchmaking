@@ -22,6 +22,7 @@ def main():
     )
 
     args = parser.parse_args()
+
     # Force INFO logging level to show job/node validation details
     configure_logger("INFO")
 
