@@ -12,7 +12,7 @@ top of the filtered candidates.
 from __future__ import annotations
 
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 
 from matchmaking.core.match_making import filter_compatible_jobs as filter_jobs_python
 from matchmaking.core.py_redis.match_making import filter_compatible_jobs as filter_jobs_redis
@@ -22,12 +22,8 @@ from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
 
-class MatchMode(str, Enum):
-    """Available matchmaking implementation strategies.
-
-    The string values double as the CLI/benchmark argument tokens, so
-    ``MatchMode("python")`` resolves a user-supplied flag to its member.
-    """
+class MatchMode(StrEnum):
+    """Available matchmaking implementation strategies."""
 
     PYTHON = "python"
     PYTHON_REDIS = "python_redis"

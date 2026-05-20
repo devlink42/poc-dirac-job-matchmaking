@@ -20,11 +20,16 @@ def main():
         action="store_true",
         help="Only validate the node file",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity level.",
+    )
 
     args = parser.parse_args()
 
-    # Force INFO logging level to show job/node validation details
-    configure_logger("INFO")
+    configure_logger(args.log_level)
 
     if args.validate_job:
         if not args.job:

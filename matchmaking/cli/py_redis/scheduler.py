@@ -6,7 +6,7 @@ the best matching job for that node using the py_redis scheduling pipeline.
 
 Workflow:
     1. Populate Redis with synthetic data:
-           pixi run data_loader --num-jobs 1000000 --num-nodes 10000
+           pixi run data_loader --num-jobs 10000000 --num-nodes 50000
 
     2. Run a single scheduling cycle against a node:
            pixi run py_redis_scheduler node.yaml matchmaking/config/scheduling.yaml
@@ -63,12 +63,7 @@ def main() -> None:
 
     # Connect to Redis
     try:
-        r = redis.Redis(
-            host=args.redis_host,
-            port=args.redis_port,
-            db=args.redis_db,
-            decode_responses=True,
-        )
+        r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
         r.ping()
     except redis.ConnectionError as exc:
         logger.error("Could not connect to Redis at %s:%s — %s", args.redis_host, args.redis_port, exc)

@@ -16,11 +16,16 @@ def main():
     parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("config", nargs="?", help="Path to the configuration file")
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity level.",
+    )
 
     args = parser.parse_args()
 
-    # Force INFO logging level to show job/node validation details
-    configure_logger("INFO")
+    configure_logger(args.log_level)
 
     if args.node_pilot and args.job and args.config:
         try:
