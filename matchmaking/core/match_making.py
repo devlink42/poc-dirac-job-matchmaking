@@ -207,6 +207,34 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
+def filter_compatible_jobs(node: Node, candidates: list[Job]) -> list[Job]:
+    """Filter candidate jobs to those a node can run (base-Python variant).
+
+    Iterates over each job's ``matching_specs`` in order and includes the job
+    as soon as one spec is satisfied by the node. This is the pure-Python
+    reference implementation routed to by
+    :func:`matchmaking.core.router.select_job_for_node` for
+    :attr:`~matchmaking.core.router.MatchMode.PYTHON`.
+
+    Args:
+        node (Node): The node (pilot) requesting work.
+        candidates (list[Job]): Job objects to evaluate against the node.
+
+    Returns:
+        list[Job]: Jobs whose constraints are met by ``node``, preserving the
+        original ordering of ``candidates``.
+    """
+    compatible: list[Job] = []
+
+    for job in candidates:
+        for i, spec in enumerate(job.matching_specs):
+            if valid_job_specs_with_node(f"{job.job_id}-{i}", spec, node):
+                compatible.append(job)
+                break  # First matching spec is sufficient — skip the rest.
+
+    return compatible
+
+
 def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
     """Validate a job against a node configuration.
 

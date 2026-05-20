@@ -24,8 +24,7 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import valid_job_specs_with_node
-from matchmaking.core.scheduler import select_job
+from matchmaking.core.router import MatchMode, select_job_for_node
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -68,8 +67,8 @@ def _(parser):
     parser.add_argument(
         "--match-mode",
         type=str,
-        choices=["python", "python_redis"],
-        default="python",
+        choices=[mode.value for mode in MatchMode],
+        default=MatchMode.PYTHON.value,
         help="Matchmaking algorithm to evaluate",
     )
     parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
@@ -111,7 +110,7 @@ def on_test_start(environment, **kwargs):
         raise SystemExit(1) from e
 
     try:
-        if opts.match_mode == "python_redis":
+        if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
             raw_nodes = redis_client.hvals("py_redis:nodes")
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
             MAX_JOB_ID_IN_DB = redis_client.hlen("py_redis:jobs")
@@ -159,7 +158,7 @@ class MatchmakingUser(User):
             MAX_JOB_ID_IN_DB,
         )
 
-        if self.environment.parsed_options.match_mode == "python":
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
         else:
             self.job_ids = list(redis_client.hkeys("py_redis:jobs"))
@@ -170,14 +169,10 @@ class MatchmakingUser(User):
 
     @task
     def evaluate_select_job(self):
-        match_mode = self.environment.parsed_options.match_mode
-
-        if match_mode == "python":
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
             self.evaluate_select_job_python()
-        elif match_mode == "python_redis":
-            self.evaluate_select_job_python_redis()
         else:
-            logger.error(f"Unknown mode: {match_mode}")
+            self.evaluate_select_job_python_redis()
 
     def evaluate_select_job_python(self):
         """Simulate a pilot requesting a job: filter compatible candidates, then rank.
@@ -199,12 +194,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            compatible = [
-                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
-            ]
-            if compatible:
-                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
-
+            selected_job = select_job_for_node(MatchMode.PYTHON, node, candidates, SCHEDULING_CONFIG)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
@@ -239,11 +229,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            compatible = [
-                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
-            ]
-            if compatible:
-                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
+            selected_job = select_job_for_node(MatchMode.PYTHON_REDIS, node, candidates, SCHEDULING_CONFIG)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
