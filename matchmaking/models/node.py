@@ -35,7 +35,7 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
     @model_validator(mode="after")
-    def check_gpu_fields(self) -> "Gpu":
+    def check_gpu_fields(self) -> Gpu:
         if self.count > 0:
             missing = []
             if self.ram_mb is None:
@@ -71,7 +71,7 @@ class Node(BaseModel):
         if not file_path.exists():
             raise FileNotFoundError(f"No such file or directory: '{file_path}'")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return cls.model_validate(data or {})

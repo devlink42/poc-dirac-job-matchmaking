@@ -56,11 +56,11 @@ def test_main_scheduler_no_match_branch(monkeypatch: pytest.MonkeyPatch, capsys:
 
 def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     def mock_valid_pilot(job_path, node_path):
-        with open(job_path, "r") as f:
+        with open(job_path) as f:
             data = yaml.safe_load(f)
             job = Job.model_validate(data)
 
-        with open(node_path, "r") as f:
+        with open(node_path) as f:
             data = yaml.safe_load(f)
             node = Node.model_validate(data)
 

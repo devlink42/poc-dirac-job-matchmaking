@@ -28,15 +28,13 @@ select = [
   "I",   # isort
   "PLE", # pylint errors
   "D",   # pydocstyle
-  # "UP",   # pyUpgrade
+  "UP",  # pyUpgrade
   "FLY", # flynt
   "DTZ", # flake8-datetimez
   "S",   # flake8-bandit
   "N",   # pep8-naming
 ]
 ignore = [
-  "B905",
-  "B006",
   "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
   # TODO: Maybe enable these
   "D100",

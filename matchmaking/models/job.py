@@ -103,7 +103,7 @@ class Job(BaseModel):
         if not file_path.exists():
             raise FileNotFoundError(f"No such file or directory: '{file_path}'")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return cls.model_validate(data or {})
