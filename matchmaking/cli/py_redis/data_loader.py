@@ -24,7 +24,7 @@ import redis
 
 from benchmark.data_generator import job_generator, node_generator
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.py_redis.match_making import JOBS_KEY, NODES_KEY
+from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 
 # Number of HSET commands buffered in the pipeline before flushing to Redis.
 # Keeps per-request memory bounded to O(_BATCH_SIZE) regardless of total volume.
@@ -49,7 +49,7 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     pending = 0
 
     for i, job in enumerate(job_generator(num_jobs), 1):
-        pipe.hset(JOBS_KEY, job.job_id, job.model_dump_json())
+        pipe.hset(PY_REDIS_JOB_KEY, job.job_id, job.model_dump_json())
         pending += 1
 
         if pending >= _BATCH_SIZE:
@@ -67,7 +67,7 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     pending = 0
 
     for i, node in enumerate(node_generator(num_nodes), 1):
-        pipe.hset(NODES_KEY, node.node_id, node.model_dump_json())
+        pipe.hset(PY_REDIS_NODES_KEY, node.node_id, node.model_dump_json())
         pending += 1
 
         if pending >= _BATCH_SIZE:
@@ -118,8 +118,8 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     # Wipe any stale data before loading a fresh dataset.
-    r.delete(JOBS_KEY)
-    r.delete(NODES_KEY)
+    r.delete(PY_REDIS_JOB_KEY)
+    r.delete(PY_REDIS_NODES_KEY)
 
     load_data(r, args.num_jobs, args.num_nodes)
 

@@ -6,8 +6,8 @@ import redis
 from pydantic import ValidationError
 
 from matchmaking.config.logger import logger
-from matchmaking.core.py_redis.match_making import JOBS_KEY
-from matchmaking.core.router import MatchMode, select_job_for_node
+from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY
+from matchmaking.core.router import MatchMode, select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -37,11 +37,11 @@ def fetch_candidate_jobs(
         be shorter than *candidates_count* if some stored payloads are missing
         or fail Pydantic validation (those are silently skipped with a warning).
     """
-    job_ids: list[str] = redis_client.hrandfield(JOBS_KEY, candidates_count)
+    job_ids: list[str] = redis_client.hrandfield(PY_REDIS_JOB_KEY, candidates_count)
     if not job_ids:
         return []
 
-    raw_jobs: list[str | None] = redis_client.hmget(JOBS_KEY, job_ids)
+    raw_jobs: list[str | None] = redis_client.hmget(PY_REDIS_JOB_KEY, job_ids)
     jobs: list[Job] = []
 
     for raw in raw_jobs:
@@ -69,7 +69,7 @@ def select_job_from_redis(
     1. **Sample** — fetch *candidates_count* random jobs from Redis via
        :func:`fetch_candidate_jobs`.
     2. **Match** — delegate filtering and scheduling to
-       :func:`~matchmaking.core.router.select_job_for_node` under
+       :func:`~matchmaking.core.router.select_job` under
        :attr:`~matchmaking.core.router.MatchMode.PYTHON_REDIS`.
 
     Args:
@@ -91,4 +91,4 @@ def select_job_from_redis(
         )
         return None
 
-    return select_job_for_node(MatchMode.PYTHON_REDIS, node, candidates, config)
+    return select_job(node, candidates, config, mode=MatchMode.PYTHON_REDIS)

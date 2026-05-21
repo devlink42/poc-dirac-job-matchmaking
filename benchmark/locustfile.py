@@ -24,7 +24,8 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.router import MatchMode, select_job_for_node
+from matchmaking.core.router import MatchMode
+from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -194,7 +195,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            selected_job = select_job_for_node(MatchMode.PYTHON, node, candidates, SCHEDULING_CONFIG)
+            selected_job = select_job(node, candidates, SCHEDULING_CONFIG)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
@@ -229,7 +230,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            selected_job = select_job_for_node(MatchMode.PYTHON_REDIS, node, candidates, SCHEDULING_CONFIG)
+            selected_job = select_job(node, candidates, SCHEDULING_CONFIG)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)

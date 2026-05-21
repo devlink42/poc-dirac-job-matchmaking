@@ -11,12 +11,10 @@ top of the filtered candidates.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from enum import StrEnum
 
-from matchmaking.core.match_making import filter_compatible_jobs as filter_jobs_python
-from matchmaking.core.py_redis.match_making import filter_compatible_jobs as filter_jobs_redis
-from matchmaking.core.scheduler import select_job
+from matchmaking.core.match_making import filter_compatible_jobs as base_filter_compatible_jobs
+from matchmaking.core.scheduler import select_job as base_select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -29,55 +27,29 @@ class MatchMode(StrEnum):
     PYTHON_REDIS = "python_redis"
 
 
-# Registry mapping each mode to its candidate-filtering strategy. The shared
-# scheduling policy is applied separately by ``select_job_for_node``.
-_FILTER_STRATEGIES: dict[MatchMode, Callable[[Node, list[Job]], list[Job]]] = {
-    MatchMode.PYTHON: filter_jobs_python,
-    MatchMode.PYTHON_REDIS: filter_jobs_redis,
-}
-
-
-def get_filter_strategy(mode: MatchMode) -> Callable[[Node, list[Job]], list[Job]]:
-    """Return the candidate-filtering function registered for ``mode``.
-
-    Args:
-        mode (MatchMode): The matchmaking implementation to route to.
-
-    Returns:
-        Callable[[Node, list[Job]], list[Job]]: The filtering function for the
-        requested mode.
-
-    Raises:
-        ValueError: If no strategy is registered for ``mode``.
-    """
-    try:
-        return _FILTER_STRATEGIES[mode]
-    except KeyError as exc:
-        raise ValueError(f"Unsupported matchmaking mode: {mode}") from exc
-
-
-def select_job_for_node(
-    mode: MatchMode,
+def select_job(
     node: Node,
     candidates: list[Job],
     config: SchedulingConfig | None = None,
+    mode: MatchMode = MatchMode.PYTHON,
 ) -> Job | None:
-    """Filter candidates with the mode's strategy, then apply scheduling policy.
+    """Filter candidates according to the MatchMode and apply scheduling policy.
 
     Args:
-        mode (MatchMode): The matchmaking implementation to route to.
-        node (Node): The node (pilot) requesting work.
-        candidates (list[Job]): Pre-fetched job candidates to evaluate.
-        config (SchedulingConfig | None): Scheduling policy configuration. When
-            ``None``, the default config is loaded by
-            :func:`matchmaking.core.scheduler.select_job`.
+        node: The node on which the job will be executed.
+        candidates: List of job candidates.
+        config: Scheduling configuration parameters.
+        mode: The matchmaking implementation strategy to use based on MatchMode.
 
     Returns:
-        Job | None: The selected job, or ``None`` when no compatible candidate
-        is found.
+        The selected job or None if no suitable job is found.
     """
-    compatible = get_filter_strategy(mode)(node, candidates)
+    if mode in (MatchMode.PYTHON, MatchMode.PYTHON_REDIS):
+        compatible = base_filter_compatible_jobs(node, candidates)
+    else:
+        raise ValueError(f"Unknown match mode: {mode}")
+
     if not compatible:
         return None
 
-    return select_job(node, compatible, config)
+    return base_select_job(node, compatible, config)

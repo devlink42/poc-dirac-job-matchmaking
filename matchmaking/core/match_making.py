@@ -230,7 +230,7 @@ def filter_compatible_jobs(node: Node, candidates: list[Job]) -> list[Job]:
         for i, spec in enumerate(job.matching_specs):
             if valid_job_specs_with_node(f"{job.job_id}-{i}", spec, node):
                 compatible.append(job)
-                break  # First matching spec is sufficient — skip the rest.
+                break
 
     return compatible
 

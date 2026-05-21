@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from matchmaking.core.py_redis.match_making import JOBS_KEY
+from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs, select_job_from_redis
 
 
@@ -32,7 +32,7 @@ def test_fetch_candidate_jobs_skips_missing_and_malformed(load_job):
 
     assert len(fetched) == 1
     assert fetched[0].job_id == job.job_id
-    client.hrandfield.assert_called_once_with(JOBS_KEY, 3)
+    client.hrandfield.assert_called_once_with(PY_REDIS_JOB_KEY, 3)
 
 
 def test_select_job_from_redis_no_candidates_returns_none(load_node):
