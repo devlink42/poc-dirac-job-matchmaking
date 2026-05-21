@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
 from matchmaking.models.job import Architecture, ComputeMemory, Cpu, Job, MatchingSpecs, System
 from matchmaking.models.node import Architecture as NodeArchitecture
@@ -86,7 +86,7 @@ def generate_mock_job(job_id: str) -> Job:
         owner=owner,
         group=group,
         job_type=job_type,
-        submission_time=datetime.now(tz=timezone.utc),
+        submission_time=datetime.now(tz=UTC),
         matching_specs=[
             MatchingSpecs(
                 **{
