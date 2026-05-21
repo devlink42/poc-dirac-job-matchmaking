@@ -2,13 +2,10 @@ name: Python CI
 
 on:
   push:
-    branches: [ "**" ]
     branches-ignore:
       - release-please-**
   pull_request:
     branches: [ main ]
-    branches-ignore:
-      - release-please-**
 
 jobs:
   tests:
