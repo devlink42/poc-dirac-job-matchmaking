@@ -55,7 +55,7 @@ def test_main_scheduler_no_match_branch(monkeypatch: pytest.MonkeyPatch, capsys:
 
 
 def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    def mock_valid_pilot(job_path, node_path):
+    def mock_match_jobs_with_node(job_path, node_path):
         with open(job_path) as f:
             data = yaml.safe_load(f)
             job = Job.model_validate(data)
@@ -69,7 +69,7 @@ def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, c
     def mock_select_job(node, jobs, config):
         return None
 
-    monkeypatch.setattr(scheduler, "valid_pilot", mock_valid_pilot)
+    monkeypatch.setattr(scheduler, "match_jobs_with_node", mock_match_jobs_with_node)
     monkeypatch.setattr(scheduler, "select_job", mock_select_job)
 
     _run_main(monkeypatch, [NODE_01, JOB_01, CONFIG_01])
@@ -84,7 +84,7 @@ def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys
     def _raise_error(*_args, **_kwargs):
         raise RuntimeError("forced error")
 
-    monkeypatch.setattr(scheduler, "valid_pilot", _raise_error)
+    monkeypatch.setattr(scheduler, "match_jobs_with_node", _raise_error)
 
     with pytest.raises(SystemExit) as exc:
         _run_main(monkeypatch, [NODE_01, JOB_01, CONFIG_01])
