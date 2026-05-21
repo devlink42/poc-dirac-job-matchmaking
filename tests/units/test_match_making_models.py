@@ -18,7 +18,7 @@ from matchmaking.models.utils import CustomVersion
 @pytest.mark.parametrize("job_file", sorted(glob("tests/examples/jobs/*.yaml")))
 def test_all_job_examples(job_file):
     """Ensure all job files validate (or fail correctly) against the Job model."""
-    with open(job_file, "r") as f:
+    with open(job_file) as f:
         data = safe_load(f)
 
     filename = os.path.basename(job_file)
@@ -46,7 +46,7 @@ def test_all_job_examples(job_file):
 @pytest.mark.parametrize("node_file", sorted(glob("tests/examples/nodes/*.yaml")))
 def test_all_node_examples(node_file):
     """Ensure all node files validate (or fail correctly) against the Node model."""
-    with open(node_file, "r") as f:
+    with open(node_file) as f:
         data = safe_load(f)
 
     filename = os.path.basename(node_file)
@@ -76,7 +76,7 @@ def test_valid_node_failure_paths():
 def test_job_model_validation_no_time_or_work():
     job_path = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 
-    with open(job_path, "r") as f:
+    with open(job_path) as f:
         job_data = safe_load(f)
 
     # Mutate to remove both wall-time and cpu-work

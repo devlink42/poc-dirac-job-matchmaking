@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -18,7 +18,7 @@ BASE_JOB_DATA = {
     "owner": "test-owner",
     "group": JobGroup.LHCB_MC,
     "job_type": JobType.USER,
-    "submission_time": datetime.now(tz=timezone.utc),
+    "submission_time": datetime.now(tz=UTC),
     "matching_specs": [
         {
             "system": {"name": SystemName.LINUX},
