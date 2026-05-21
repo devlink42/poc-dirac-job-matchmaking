@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -53,4 +53,4 @@ def load_config():
 
 @pytest.fixture
 def base_time():
-    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
