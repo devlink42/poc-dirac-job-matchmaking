@@ -20,7 +20,7 @@ NODE_03 = "tests/examples/nodes/node_03_gpu.yaml"
 
 
 def _load_job_spec(path: str) -> dict:
-    with open(path, "r") as f:
+    with open(path) as f:
         data = yaml.safe_load(f)
 
     spec = data["matching_specs"][0]
@@ -30,7 +30,7 @@ def _load_job_spec(path: str) -> dict:
 
 
 def _load_node_spec(path: str) -> dict:
-    with open(path, "r") as f:
+    with open(path) as f:
         data = yaml.safe_load(f)
 
     spec = data
