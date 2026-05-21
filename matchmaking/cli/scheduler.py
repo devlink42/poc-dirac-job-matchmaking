@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import match_jobs_with_node as valid_pilot
+from matchmaking.core.match_making import match_jobs_with_node
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 
@@ -29,8 +29,7 @@ def main():
 
     if args.node_pilot and args.job and args.config:
         try:
-            valid_jobs_node = valid_pilot(args.job, args.node_pilot)
-            if valid_jobs_node:
+            if valid_jobs_node := match_jobs_with_node(args.job, args.node_pilot):
                 jobs, node = valid_jobs_node
 
                 if jobs:
