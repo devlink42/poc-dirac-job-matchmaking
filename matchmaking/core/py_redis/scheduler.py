@@ -6,18 +6,18 @@ import redis
 from pydantic import ValidationError
 
 from matchmaking.config.logger import logger
-from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY
-from matchmaking.core.router import MatchMode, select_job
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY
+from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
-_DEFAULT_CANDIDATES_COUNT = 500
+_DEFAULT_CANDIDATES_COUNT = 1000
 
 
 def fetch_candidate_jobs(
     redis_client: redis.Redis,
-    candidates_count: int,
+    candidates_jobs_count: int,
 ) -> list[Job]:
     """Sample random jobs from Redis without loading the full key space into memory.
 
@@ -29,15 +29,15 @@ def fetch_candidate_jobs(
 
     Args:
         redis_client: A connected Redis client with ``decode_responses=True``.
-        candidates_count: How many jobs to sample.  When the hash contains
-            fewer entries than requested, all available jobs are returned.
+        candidates_jobs_count: How many jobs to sample. When the hash contains fewer
+            entries than requested, all available jobs are returned.
 
     Returns:
         A list of validated :class:`~matchmaking.models.job.Job` objects.  May
         be shorter than *candidates_count* if some stored payloads are missing
         or fail Pydantic validation (those are silently skipped with a warning).
     """
-    job_ids: list[str] = redis_client.hrandfield(PY_REDIS_JOB_KEY, candidates_count)
+    job_ids: list[str] = redis_client.hrandfield(PY_REDIS_JOB_KEY, candidates_jobs_count)
     if not job_ids:
         return []
 
@@ -57,9 +57,9 @@ def fetch_candidate_jobs(
 
 
 def select_job_from_redis(
-    node: Node,
     redis_client: redis.Redis,
-    candidates_count: int = _DEFAULT_CANDIDATES_COUNT,
+    node: Node,
+    candidates_jobs_count: int = _DEFAULT_CANDIDATES_COUNT,
     config: SchedulingConfig | None = None,
 ) -> Job | None:
     """Full Redis-backed scheduling pipeline for a single node cycle.
@@ -75,7 +75,7 @@ def select_job_from_redis(
     Args:
         node: The node (pilot) requesting work.
         redis_client: A connected Redis client with ``decode_responses=True``.
-        candidates_count: Number of jobs to sample per scheduling cycle.
+        candidates_jobs_count: Number of jobs to sample per scheduling cycle.
         config: Scheduling policy configuration.  When *None*, the default
             config path is used by :func:`~matchmaking.core.scheduler.select_job`.
 
@@ -83,7 +83,7 @@ def select_job_from_redis(
         The selected :class:`~matchmaking.models.job.Job`, or *None* when no
         compatible candidate is found.
     """
-    candidates = fetch_candidate_jobs(redis_client, candidates_count)
+    candidates = fetch_candidate_jobs(redis_client, candidates_jobs_count)
     if not candidates:
         logger.debug(
             "No candidate jobs fetched from Redis for node %s.",
@@ -91,4 +91,4 @@ def select_job_from_redis(
         )
         return None
 
-    return select_job(node, candidates, config, mode=MatchMode.PYTHON_REDIS)
+    return select_job(node, candidates, config)

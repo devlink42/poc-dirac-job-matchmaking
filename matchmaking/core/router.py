@@ -13,8 +13,10 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from matchmaking.core.match_making import filter_compatible_jobs as base_filter_compatible_jobs
-from matchmaking.core.scheduler import select_job as base_select_job
+import redis
+
+from matchmaking.core.py_redis.scheduler import select_job_from_redis
+from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -27,29 +29,32 @@ class MatchMode(StrEnum):
     PYTHON_REDIS = "python_redis"
 
 
-def select_job(
+def select_job_router(
     node: Node,
-    candidates: list[Job],
+    jobs: list[Job],
     config: SchedulingConfig | None = None,
     mode: MatchMode = MatchMode.PYTHON,
+    redis_client: redis.Redis | None = None,
 ) -> Job | None:
     """Filter candidates according to the MatchMode and apply scheduling policy.
 
     Args:
         node: The node on which the job will be executed.
-        candidates: List of job candidates.
+        jobs: List of job candidates.
         config: Scheduling configuration parameters.
         mode: The matchmaking implementation strategy to use based on MatchMode.
+        redis_client: A connection to Redis for Redis-based matchmaking.
 
     Returns:
         The selected job or None if no suitable job is found.
     """
-    if mode in (MatchMode.PYTHON, MatchMode.PYTHON_REDIS):
-        compatible = base_filter_compatible_jobs(node, candidates)
-    else:
-        raise ValueError(f"Unknown match mode: {mode}")
-
-    if not compatible:
-        return None
-
-    return base_select_job(node, compatible, config)
+    match mode:
+        case MatchMode.PYTHON:
+            return select_job(node, jobs, config)
+        case MatchMode.PYTHON_REDIS:
+            try:
+                return select_job_from_redis(redis_client, node, len(jobs), config)
+            except Exception as e:
+                raise ValueError(f"Redis error in matchmaking: {e}") from e
+        case _:
+            raise ValueError(f"Unsupported MatchMode: {mode}")

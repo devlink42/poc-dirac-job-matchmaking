@@ -9,7 +9,7 @@ import pytest
 import redis
 
 from matchmaking.cli.py_redis import data_loader
-from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:

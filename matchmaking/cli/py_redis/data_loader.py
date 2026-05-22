@@ -24,7 +24,7 @@ import redis
 
 from benchmark.data_generator import job_generator, node_generator
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.py_redis.match_making import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 
 # Number of HSET commands buffered in the pipeline before flushing to Redis.
 # Keeps per-request memory bounded to O(_BATCH_SIZE) regardless of total volume.

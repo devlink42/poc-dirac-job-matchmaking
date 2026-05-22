@@ -24,6 +24,7 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 from matchmaking.core.router import MatchMode
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
@@ -112,9 +113,9 @@ def on_test_start(environment, **kwargs):
 
     try:
         if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
-            raw_nodes = redis_client.hvals("py_redis:nodes")
+            raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
-            MAX_JOB_ID_IN_DB = redis_client.hlen("py_redis:jobs")
+            MAX_JOB_ID_IN_DB = redis_client.hlen(PY_REDIS_JOB_KEY)
             logger.info("Loaded from Redis")
         else:
             MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
@@ -162,7 +163,7 @@ class MatchmakingUser(User):
         if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
         else:
-            self.job_ids = list(redis_client.hkeys("py_redis:jobs"))
+            self.job_ids = list(redis_client.hkeys(PY_REDIS_JOB_KEY))
 
     def on_stop(self):
         if self._db_conn:
@@ -221,7 +222,7 @@ class MatchmakingUser(User):
         candidate_ids = _rng.sample(self.job_ids, self._candidates_count)
 
         # Fetch from Redis
-        raw_jobs = redis_client.hmget("py_redis:jobs", candidate_ids)
+        raw_jobs = redis_client.hmget(PY_REDIS_JOB_KEY, candidate_ids)
 
         candidates = [Job.model_validate_json(job_json) for job_json in raw_jobs if job_json]
 
