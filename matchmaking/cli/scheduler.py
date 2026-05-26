@@ -13,7 +13,7 @@ from matchmaking.models.config import SchedulingConfig
 
 def main():
     parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
-    parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file")
+    parser.add_argument("node", nargs="?", help="Path to the node YAML file")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("config", nargs="?", help="Path to the configuration file")
     parser.add_argument(
@@ -27,9 +27,9 @@ def main():
 
     configure_logger(args.log_level)
 
-    if args.node_pilot and args.job and args.config:
+    if args.node and args.job and args.config:
         try:
-            if valid_jobs_node := match_jobs_with_node(args.job, args.node_pilot):
+            if valid_jobs_node := match_jobs_with_node(args.job, args.node):
                 jobs, node = valid_jobs_node
 
                 if jobs:

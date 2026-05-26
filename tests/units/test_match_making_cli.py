@@ -23,7 +23,7 @@ def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: 
     _run_main(monkeypatch, [])
     captured = capsys.readouterr()
 
-    assert "Matchmaking and validation for DIRAC jobs and pilots" in captured.out
+    assert "Matchmaking and validation for DIRAC jobs and nodes" in captured.out
 
 
 def test_main_validate_job_requires_path(monkeypatch: pytest.MonkeyPatch):

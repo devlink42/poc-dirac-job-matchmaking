@@ -7,10 +7,7 @@ from pydantic import ValidationError
 
 from matchmaking.config.logger import logger
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY
-from matchmaking.core.scheduler import select_job
-from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
-from matchmaking.models.node import Node
 
 _DEFAULT_CANDIDATES_COUNT = 1000
 
@@ -49,46 +46,10 @@ def fetch_candidate_jobs(
             continue
 
         try:
-            jobs.append(Job.model_validate_json(raw))
+            job = Job.model_validate_json(raw)
         except ValidationError as exc:
             logger.warning("Skipping malformed job payload in Redis: %s", exc)
+        else:
+            jobs.append(job)
 
     return jobs
-
-
-def select_job_from_redis(
-    redis_client: redis.Redis,
-    node: Node,
-    candidates_jobs_count: int = _DEFAULT_CANDIDATES_COUNT,
-    config: SchedulingConfig | None = None,
-) -> Job | None:
-    """Full Redis-backed scheduling pipeline for a single node cycle.
-
-    Executes two steps:
-
-    1. **Sample** — fetch *candidates_count* random jobs from Redis via
-       :func:`fetch_candidate_jobs`.
-    2. **Match** — delegate filtering and scheduling to
-       :func:`~matchmaking.core.router.select_job` under
-       :attr:`~matchmaking.core.router.MatchMode.PYTHON_REDIS`.
-
-    Args:
-        node: The node (pilot) requesting work.
-        redis_client: A connected Redis client with ``decode_responses=True``.
-        candidates_jobs_count: Number of jobs to sample per scheduling cycle.
-        config: Scheduling policy configuration.  When *None*, the default
-            config path is used by :func:`~matchmaking.core.scheduler.select_job`.
-
-    Returns:
-        The selected :class:`~matchmaking.models.job.Job`, or *None* when no
-        compatible candidate is found.
-    """
-    candidates = fetch_candidate_jobs(redis_client, candidates_jobs_count)
-    if not candidates:
-        logger.debug(
-            "No candidate jobs fetched from Redis for node %s.",
-            node.node_id,
-        )
-        return None
-
-    return select_job(node, candidates, config)

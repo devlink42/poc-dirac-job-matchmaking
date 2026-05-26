@@ -117,7 +117,7 @@ def generate_mock_job(job_id: str) -> Job:
 
 
 def generate_mock_node(node_id: str) -> Node:
-    """Generate a mock Node (Pilot) object.
+    """Generate a mock Node object.
 
     Args:
         node_id: A unique identifier for the generated node.

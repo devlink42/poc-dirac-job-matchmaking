@@ -20,15 +20,15 @@ import sys
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.py_redis.scheduler import select_job_from_redis
+from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.node import Node
 
 
 def main() -> None:
     """Entry point for the Redis-backed scheduler CLI."""
-    parser = argparse.ArgumentParser(description="Select a job from Redis for a given node pilot.")
-    parser.add_argument("node_pilot", nargs="?", help="Path to the node/pilot YAML file.")
+    parser = argparse.ArgumentParser(description="Select a job from Redis for a given node.")
+    parser.add_argument("node", nargs="?", help="Path to the node YAML file.")
     parser.add_argument("config", nargs="?", help="Path to the scheduling configuration YAML file.")
     parser.add_argument("--redis-host", default="localhost", help="Redis host (default: localhost).")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port (default: 6379).")
@@ -36,8 +36,8 @@ def main() -> None:
     parser.add_argument(
         "--candidates-count",
         type=int,
-        default=500,
-        help="Number of candidate jobs to sample per scheduling cycle (default: 500).",
+        default=1000,
+        help="Number of candidate jobs to sample per scheduling cycle (default: 1000).",
     )
     parser.add_argument(
         "--log-level",
@@ -50,16 +50,9 @@ def main() -> None:
 
     configure_logger(args.log_level)
 
-    if not args.node_pilot or not args.config:
+    if not args.node or not args.config:
         parser.print_help()
         return
-
-    # Load node specification
-    try:
-        node_obj = Node.load_from_yaml(args.node_pilot)
-    except Exception as exc:
-        logger.error("Invalid node specification: %s", exc)
-        sys.exit(1)
 
     # Connect to Redis
     try:
@@ -67,6 +60,13 @@ def main() -> None:
         r.ping()
     except redis.ConnectionError as exc:
         logger.error("Could not connect to Redis at %s:%s — %s", args.redis_host, args.redis_port, exc)
+        sys.exit(1)
+
+    # Load node specification
+    try:
+        node_obj = Node.load_from_yaml(args.node)
+    except Exception as exc:
+        logger.error("Invalid node specification: %s", exc)
         sys.exit(1)
 
     # Load scheduling config
@@ -78,7 +78,7 @@ def main() -> None:
 
     # Run scheduling cycle
     try:
-        selected = select_job_from_redis(node_obj, r, args.candidates_count, config)
+        selected = select_job(node_obj, args.candidates_count, config)
     except Exception as exc:
         logger.error("Error during Redis matchmaking: %s", exc)
         sys.exit(1)
