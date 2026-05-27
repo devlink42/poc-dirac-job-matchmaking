@@ -25,6 +25,7 @@ from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.router import MatchMode
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
@@ -76,7 +77,7 @@ def _(parser):
     parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
     parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to load from the database")
     parser.add_argument(
-        "--candidates-count",
+        "--candidate-jobs-count",
         type=int,
         default=500,
         help="Number of candidate jobs to evaluate per select_job call",
@@ -117,10 +118,12 @@ def on_test_start(environment, **kwargs):
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
             MAX_JOB_ID_IN_DB = redis_client.hlen(PY_REDIS_JOB_KEY)
             logger.info("Loaded from Redis")
-        else:
+        elif MatchMode(opts.match_mode) is MatchMode.PYTHON:
             MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
             NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
             logger.info("Loaded from SQLite")
+        else:
+            raise ValueError(f"Unsupported match mode: {opts.match_mode}")
     except Exception as e:
         logger.error(
             "Failed to load pools: %s\n"
@@ -129,11 +132,11 @@ def on_test_start(environment, **kwargs):
         )
         raise SystemExit(1) from e
 
-    if MAX_JOB_ID_IN_DB < opts.candidates_count:
+    if MAX_JOB_ID_IN_DB < opts.candidate_jobs_count:
         logger.warning(
-            "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
+            "Job pool (%s) is smaller than --candidate-jobs-count (%s). Candidates will be capped to pool size.",
             MAX_JOB_ID_IN_DB,
-            opts.candidates_count,
+            opts.candidate_jobs_count,
         )
 
     logger.info("Ready: %s nodes, %s jobs available.", len(NODES_POOL), MAX_JOB_ID_IN_DB)
@@ -146,7 +149,7 @@ class MatchmakingUser(User):
 
     def __init__(self, environment):
         super().__init__(environment)
-        self._candidates_count = None
+        self._candidate_jobs_count = None
         self._db_conn = None
         self.job_ids = []
 
@@ -155,8 +158,8 @@ class MatchmakingUser(User):
         if not MAX_JOB_ID_IN_DB or not NODES_POOL:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
-        self._candidates_count = min(
-            self.environment.parsed_options.candidates_count,
+        self._candidate_jobs_count = min(
+            self.environment.parsed_options.candidate_jobs_count,
             MAX_JOB_ID_IN_DB,
         )
 
@@ -185,7 +188,7 @@ class MatchmakingUser(User):
         """
         node = _rng.choice(NODES_POOL)
 
-        candidate_ids = _rng.sample(range(1, MAX_JOB_ID_IN_DB + 1), self._candidates_count)
+        candidate_ids = _rng.sample(range(1, MAX_JOB_ID_IN_DB + 1), self._candidate_jobs_count)
         placeholders = ",".join("?" * len(candidate_ids))
         cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 
@@ -218,13 +221,7 @@ class MatchmakingUser(User):
 
         node = _rng.choice(NODES_POOL)
 
-        # Pick random candidate IDs from the Redis keys
-        candidate_ids = _rng.sample(self.job_ids, self._candidates_count)
-
-        # Fetch from Redis
-        raw_jobs = redis_client.hmget(PY_REDIS_JOB_KEY, candidate_ids)
-
-        candidates = [Job.model_validate_json(job_json) for job_json in raw_jobs if job_json]
+        candidates = fetch_candidate_jobs(redis_client, self._candidate_jobs_count)
 
         start_time = time.perf_counter()
         selected_job = None

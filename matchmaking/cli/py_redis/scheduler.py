@@ -20,6 +20,7 @@ import sys
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.node import Node
@@ -34,10 +35,10 @@ def main() -> None:
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port (default: 6379).")
     parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index (default: 0).")
     parser.add_argument(
-        "--candidates-count",
+        "--candidate-jobs-count",
         type=int,
-        default=1000,
-        help="Number of candidate jobs to sample per scheduling cycle (default: 1000).",
+        default=500,
+        help="Number of candidate jobs to sample per scheduling cycle (default: 500).",
     )
     parser.add_argument(
         "--log-level",
@@ -78,7 +79,8 @@ def main() -> None:
 
     # Run scheduling cycle
     try:
-        selected = select_job(node_obj, args.candidates_count, config)
+        candidates = fetch_candidate_jobs(r, args.candidate_jobs_count)
+        selected = select_job(node_obj, candidates, config)
     except Exception as exc:
         logger.error("Error during Redis matchmaking: %s", exc)
         sys.exit(1)

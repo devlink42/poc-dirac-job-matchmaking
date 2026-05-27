@@ -39,7 +39,7 @@
 #     node = load_node("node_01_cern_typical")
 #     client = _fake_redis([], [])
 #
-#     assert select_job_from_redis(node, client, candidates_count=5) is None
+#     assert select_job_from_redis(node, client, candidate_jobs_count=5) is None
 #
 #
 # def test_select_job_from_redis_no_compatible_returns_none(example_config, load_job, load_node):
@@ -47,7 +47,7 @@
 #     node = load_node("node_01_cern_typical")
 #     client = _fake_redis(["job_04"], [job.model_dump_json()])
 #
-#     assert select_job_from_redis(node, client, candidates_count=5, config=example_config) is None
+#     assert select_job_from_redis(node, client, candidate_jobs_count=5, config=example_config) is None
 #
 #
 # def test_select_job_from_redis_returns_selected_job(example_config, load_job, load_node):
@@ -55,7 +55,7 @@
 #     node = load_node("node_01_cern_typical")
 #     client = _fake_redis(["job_01"], [job.model_dump_json()])
 #
-#     selected = select_job_from_redis(node, client, candidates_count=5, config=example_config)
+#     selected = select_job_from_redis(node, client, candidate_jobs_count=5, config=example_config)
 #
 #     assert selected is not None
 #     assert selected.job_id == job.job_id

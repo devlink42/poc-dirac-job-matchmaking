@@ -13,7 +13,7 @@ T_VAL=900  # 15min
 
 NUM_JOBS=10000000
 NUM_NODES=50000
-CANDIDATES_COUNT=500
+CANDIDATE_JOBS_COUNT=500
 MATCH_MODE="python"
 
 while [[ $# -gt 0 ]]; do
@@ -61,8 +61,8 @@ while [[ $# -gt 0 ]]; do
       NUM_NODES="$2"
       shift 2
       ;;
-    --candidates-count)
-      CANDIDATES_COUNT="$2"
+    --candidate-jobs-count)
+      CANDIDATE_JOBS_COUNT="$2"
       shift 2
       ;;
     *)
@@ -73,7 +73,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 CURRENT_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
-PREFIX_BASE="locust_${CURRENT_DATE}_mm-${MATCH_MODE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
+PREFIX_BASE="locust_${CURRENT_DATE}_mm-${MATCH_MODE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cjc-${CANDIDATE_JOBS_COUNT}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
 
 if [[ "$DISTRIBUTED" == true ]]; then
   PREFIX_BASE="${PREFIX_BASE}_w-${WORKERS}"
@@ -84,7 +84,7 @@ HTML_PREFIX="benchmark/results/html/${PREFIX_BASE}.html"
 
 mkdir -p benchmark/results/html
 
-BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --match-mode ${MATCH_MODE} --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT}"
+BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --match-mode ${MATCH_MODE} --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidate-jobs-count ${CANDIDATE_JOBS_COUNT}"
 
 if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
   LOCUST_ARGS="$LOCUST_ARGS -u $U_VAL"
