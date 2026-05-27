@@ -29,15 +29,17 @@ def main():
 
     if args.node and args.job and args.config:
         try:
+            config = SchedulingConfig.load_from_yaml(args.config)
+        except Exception as exc:
+            logger.error("Failed to load scheduling config: %s", exc)
+            sys.exit(1)
+
+        try:
             if valid_jobs_node := match_jobs_with_node(args.job, args.node):
                 jobs, node = valid_jobs_node
 
                 if jobs:
-                    allowed_job = select_job(
-                        node,
-                        jobs,
-                        SchedulingConfig.load_from_yaml(args.config),
-                    )
+                    allowed_job = select_job(node, jobs, config)
 
                     if allowed_job:
                         logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)

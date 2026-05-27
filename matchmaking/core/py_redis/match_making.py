@@ -12,7 +12,7 @@ from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
 
-def match_job_with_node_redis(jobs: list[Job], node: str) -> tuple[list[Job], Node]:
+def match_jobs_with_node_redis(jobs: list[Job], node: str) -> tuple[list[Job], Node]:
     """Match jobs with a specific node using Redis data structures.
 
     Args:

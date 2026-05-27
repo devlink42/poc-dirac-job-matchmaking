@@ -20,10 +20,10 @@ import sys
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.py_redis.match_making import match_jobs_with_node_redis
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
-from matchmaking.models.node import Node
 
 
 def main() -> None:
@@ -55,7 +55,6 @@ def main() -> None:
         parser.print_help()
         return
 
-    # Connect to Redis
     try:
         r = redis.Redis(host=args.redis_host, port=args.redis_port, db=args.redis_db, decode_responses=True)
         r.ping()
@@ -63,39 +62,27 @@ def main() -> None:
         logger.error("Could not connect to Redis at %s:%s — %s", args.redis_host, args.redis_port, exc)
         sys.exit(1)
 
-    # Load node specification
-    try:
-        node_obj = Node.load_from_yaml(args.node)
-    except Exception as exc:
-        logger.error("Invalid node specification: %s", exc)
-        sys.exit(1)
-
-    # Load scheduling config
     try:
         config = SchedulingConfig.load_from_yaml(args.config)
     except Exception as exc:
         logger.error("Failed to load scheduling config: %s", exc)
         sys.exit(1)
 
-    # Run scheduling cycle
     try:
         candidates = fetch_candidate_jobs(r, args.candidate_jobs_count)
-        selected = select_job(node_obj, candidates, config)
+        if valid_jobs_node := match_jobs_with_node_redis(candidates, args.node):
+            jobs, node = valid_jobs_node
+
+            if jobs:
+                selected = select_job(node, jobs, config)
+
+                if selected:
+                    logger.info("Job %s selected for execution on %s.", selected.job_id, node.site)
+                else:
+                    logger.info("No compatible job found for node %s.", node.node_id or node.site)
     except Exception as exc:
         logger.error("Error during Redis matchmaking: %s", exc)
         sys.exit(1)
-
-    if selected:
-        logger.info(
-            "Job %s selected for execution on %s.",
-            selected.job_id,
-            node_obj.site,
-        )
-    else:
-        logger.info(
-            "No compatible job found for node %s.",
-            node_obj.node_id or node_obj.site,
-        )
 
 
 if __name__ == "__main__":
