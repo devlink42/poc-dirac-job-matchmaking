@@ -27,31 +27,35 @@ def main():
 
     configure_logger(args.log_level)
 
-    if args.node and args.job and args.config:
+    if not args.node or not args.job:
+        parser.print_help()
+        return
+
+    if args.config:
         try:
             config = SchedulingConfig.load_from_yaml(args.config)
         except Exception as exc:
             logger.error("Failed to load scheduling config: %s", exc)
             sys.exit(1)
-
-        try:
-            if valid_jobs_node := match_jobs_with_node(args.job, args.node):
-                jobs, node = valid_jobs_node
-
-                if jobs:
-                    allowed_job = select_job(node, jobs, config)
-
-                    if allowed_job:
-                        logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)
-                    else:
-                        logger.info("No allowed job from the job file can run on this node.")
-                else:
-                    logger.info("No valid jobs from the job file can run on this node.")
-        except Exception as e:
-            logger.error("Error during matchmaking: %s", e)
-            sys.exit(1)
     else:
-        parser.print_help()
+        config = None
+
+    try:
+        if valid_jobs_node := match_jobs_with_node(args.job, args.node):
+            jobs, node = valid_jobs_node
+
+            if jobs:
+                allowed_job = select_job(node, jobs, config)
+
+                if allowed_job:
+                    logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)
+                else:
+                    logger.info("No allowed job from the job file can run on this node.")
+            else:
+                logger.info("No valid jobs from the job file can run on this node.")
+    except Exception as e:
+        logger.error("Error during matchmaking: %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

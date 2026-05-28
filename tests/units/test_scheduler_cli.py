@@ -29,13 +29,6 @@ def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: 
     assert "usage:" in captured.out.lower() or "usage:" in captured.err.lower()
 
 
-def test_main_missing_config_arg_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [NODE_01, JOB_01])
-    captured = capsys.readouterr()
-
-    assert "usage:" in captured.out.lower() or "usage:" in captured.err.lower()
-
-
 def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     _run_main(monkeypatch, [NODE_01, JOB_01, CONFIG_01])
     captured = capsys.readouterr()
