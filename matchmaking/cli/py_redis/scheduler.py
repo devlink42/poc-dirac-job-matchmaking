@@ -70,16 +70,17 @@ def main() -> None:
 
     try:
         candidates = fetch_candidate_jobs(r, args.candidate_jobs_count)
+
         if valid_jobs_node := match_jobs_with_node_redis(candidates, args.node):
             jobs, node = valid_jobs_node
 
             if jobs:
-                selected = select_job(node, jobs, config)
+                allowed_job = select_job(node, jobs, config)
 
-                if selected:
-                    logger.info("Job %s selected for execution on %s.", selected.job_id, node.site)
+                if allowed_job:
+                    logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)
                 else:
-                    logger.info("No compatible job found for node %s.", node.node_id or node.site)
+                    logger.info("No allowed job found for node %s.", node.node_id or node.site)
     except Exception as exc:
         logger.error("Error during Redis matchmaking: %s", exc)
         sys.exit(1)
