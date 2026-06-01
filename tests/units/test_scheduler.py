@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
-from matchmaking.core.scheduler import DEFAULT_CONFIG_PATH, select_job
+from matchmaking.core.scheduler import CONFIG_PATH, select_job
 from matchmaking.models.config import SchedulingConfig
-from matchmaking.models.utils import JobType
+from matchmaking.models.utils import Type
 
 
 def test_select_job_respects_site_limits(example_config, load_job, load_node):
@@ -82,14 +82,14 @@ def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
 
 
 def test_select_job_unknown_type_fallback(load_job, load_node):
-    config = SchedulingConfig(running_limits={"default": {}}, job_type_priorities=[JobType.WGPRODUCTION])
+    config = SchedulingConfig(running_limits={"default": {}}, job_type_priorities=[Type.WGPRODUCTION])
 
     job_unknown = load_job("job_01_mcsimulation_any_site")
-    job_unknown.job_type = "UNKNOWN"
+    job_unknown.type = "UNKNOWN"
     job_unknown.job_id = "unknown"
 
     job_older = load_job("job_01_mcsimulation_any_site")
-    job_older.job_type = "OTHER"
+    job_older.type = "OTHER"
     job_older.job_id = "older"
     job_older.submission_time = job_unknown.submission_time - timedelta(days=1)
 
@@ -106,7 +106,7 @@ def test_select_job_loads_default_config(load_job, load_node):
 
     # We want to ensure that if config=None, it actually loads from DEFAULT_CONFIG_PATH
     # We can mock SchedulingConfig.load_from_yaml to return a specific config and verify it's called
-    mock_config = SchedulingConfig(job_type_priorities=[job.job_type], running_limits={"default": {job.job_type: 10}})
+    mock_config = SchedulingConfig(job_type_priorities=[job.type], running_limits={"default": {job.type: 10}})
 
     with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
         mock_load.return_value = mock_config
@@ -115,7 +115,7 @@ def test_select_job_loads_default_config(load_job, load_node):
 
         assert selected == job
 
-        mock_load.assert_called_once_with(DEFAULT_CONFIG_PATH)
+        mock_load.assert_called_once_with(CONFIG_PATH)
 
 
 def test_select_job_default_config_not_found(load_job, load_node):
@@ -125,7 +125,7 @@ def test_select_job_default_config_not_found(load_job, load_node):
     with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
         mock_load.side_effect = FileNotFoundError("File not found")
 
-        with pytest.raises(ValueError, match=f"Default scheduling config not found at: '{DEFAULT_CONFIG_PATH}'"):
+        with pytest.raises(ValueError, match=f"Default scheduling config not found at: '{CONFIG_PATH}'"):
             select_job(node, [job], config=None)
 
 

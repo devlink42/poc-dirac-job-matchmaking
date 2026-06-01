@@ -223,17 +223,17 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
     try:
         job_obj = Job.load_from_yaml(job)
         logger.info(f"Job file {job} is VALID.")
-
-        if not job_obj.job_id:
-            job_obj.job_id = Path(job).stem
-            logger.warning(f"Job ID not specified in {job}, using filename as default: {job_obj.job_id}")
-
-        for i, job_spec in enumerate(job_obj.matching_specs):
-            if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
-                jobs_match.append(job_obj)
-                logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
     except ValidationError as e:
         logger.error(f"Invalid job specification: {e}")
-        return [], node_obj
+        raise
+
+    if not job_obj.job_id:
+        job_obj.job_id = Path(job).stem
+        logger.warning(f"Job ID not specified in {job}, using filename as default: {job_obj.job_id}")
+
+    for i, job_spec in enumerate(job_obj.matching_specs):
+        if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
+            jobs_match.append(job_obj)
+            logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
 
     return jobs_match, node_obj

@@ -5,15 +5,16 @@ from __future__ import annotations
 from datetime import timedelta
 
 from matchmaking.core.scheduler import select_job
-from matchmaking.models.utils import JobGroup, JobOwner, JobType
+from matchmaking.models.utils import OwnerGroup, Type
 
 
-def create_mock_job(load_job, job_id, owner, group, job_type, submission_time):
+def create_mock_job(load_job, job_id, owner, owner_group, job_group, job_type, submission_time):
     job = load_job("job_01_mcsimulation_any_site")
     job.job_id = job_id
     job.owner = owner
-    job.group = group
-    job.job_type = job_type
+    job.owner_group = owner_group
+    job.job_group = job_group
+    job.type = job_type
     job.submission_time = submission_time
 
     return job
@@ -29,9 +30,9 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
             create_mock_job(
                 load_job,
                 job_id=f"lbprods-{i}",
-                owner=JobOwner.LBPRODS,
-                group=JobGroup.LHCB_MC,
-                job_type=JobType.MCSIMULATION,
+                owner="lbprods",
+                job_group=OwnerGroup.LHCB_MC,
+                job_type=Type.MCSIMULATION,
                 submission_time=base_time,
             )
         )
@@ -42,8 +43,8 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
                 load_job,
                 job_id=f"jdoe-{i}",
                 owner="jdoe",
-                group=JobGroup.LHCB_USER,
-                job_type=JobType.MCSIMULATION,
+                job_group=OwnerGroup.LHCB_USER,
+                job_type=Type.MCSIMULATION,
                 submission_time=base_time,
             )
         )
@@ -59,7 +60,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
         queue.remove(job)
 
     assert selected_owners_order[:5] == ["jdoe", "jdoe", "jdoe", "jdoe", "jdoe"]
-    assert selected_owners_order[5:] == [JobOwner.LBPRODS] * 20
+    assert selected_owners_order[5:] == ["lbprods"] * 20
 
 
 def test_integration_type_priority_overrides_fair_share(example_config, base_time, load_job, load_node):
@@ -70,17 +71,17 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
         create_mock_job(
             load_job,
             job_id="high-prio-lbprods",
-            owner=JobOwner.LBPRODS,
-            group=JobGroup.LHCB_MC,
-            job_type=JobType.WGPRODUCTION,  # Highest priority
+            owner="lbprods",
+            job_group=OwnerGroup.LHCB_MC,
+            job_type=Type.WGPRODUCTION,  # Highest priority
             submission_time=base_time,
         ),
         create_mock_job(
             load_job,
             job_id="low-prio-jdoe",
             owner="jdoe",
-            group=JobGroup.LHCB_USER,
-            job_type=JobType.MCSIMULATION,
+            job_group=OwnerGroup.LHCB_USER,
+            job_type=Type.MCSIMULATION,
             submission_time=base_time,
         ),
     ]
@@ -101,9 +102,9 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
             create_mock_job(
                 load_job,
                 job_id=f"user-job-{i}",
-                owner=JobOwner.LBPRODS,
-                group=JobGroup.LHCB_USER,
-                job_type=JobType.USER,
+                owner="lbprods",
+                job_group=OwnerGroup.LHCB_USER,
+                job_type=Type.USER,
                 submission_time=base_time,
             )
         )
@@ -126,16 +127,16 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
             load_job,
             job_id="new-job",
             owner="alice",
-            group=JobGroup.LHCB_USER,
-            job_type=JobType.USER,
+            job_group=OwnerGroup.LHCB_USER,
+            job_type=Type.USER,
             submission_time=base_time,
         ),
         create_mock_job(
             load_job,
             job_id="old-job",
             owner="bob",
-            group=JobGroup.LHCB_USER,
-            job_type=JobType.USER,
+            job_group=OwnerGroup.LHCB_USER,
+            job_type=Type.USER,
             submission_time=base_time - timedelta(hours=2),
         ),
     ]

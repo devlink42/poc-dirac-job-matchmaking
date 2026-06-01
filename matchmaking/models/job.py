@@ -13,13 +13,12 @@ from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
     Io,
-    JobGroup,
-    JobOwner,
-    JobType,
+    OwnerGroup,
     Range,
     ResourceSpec,
     StrictRange,
     SystemName,
+    Type,
 )
 
 
@@ -86,11 +85,13 @@ class MatchingSpecs(BaseModel):
 
 class Job(BaseModel):
     job_id: str | None = None
+    version: CustomVersion  # Define as the last current version
 
     # Job information
-    owner: JobOwner | str
-    group: JobGroup
-    job_type: JobType
+    owner: str
+    owner_group: OwnerGroup | str
+    job_group: str
+    type: Type
     submission_time: datetime
 
     # Matching specs

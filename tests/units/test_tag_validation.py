@@ -9,13 +9,13 @@ from pydantic import ValidationError
 
 from matchmaking.logic.tags import evaluate_tag_expression, validate_tag_expression
 from matchmaking.models.job import Job
-from matchmaking.models.utils import JobGroup, JobType, SystemName
+from matchmaking.models.utils import OwnerGroup, SystemName, Type
 
 BASE_JOB_DATA = {
     "job_id": "test-job",
     "owner": "test-owner",
-    "group": JobGroup.LHCB_MC,
-    "job_type": JobType.USER,
+    "group": OwnerGroup.LHCB_MC,
+    "job_type": Type.USER,
     "submission_time": datetime.now(tz=UTC),
     "matching_specs": [
         {

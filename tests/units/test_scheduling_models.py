@@ -8,27 +8,27 @@ import pytest
 from pydantic import ValidationError
 
 from matchmaking.models.config import SchedulingConfig
-from matchmaking.models.utils import JobType
+from matchmaking.models.utils import Type
 
 
 def test_load_scheduling_config_from_valid_yaml(load_config):
     config = load_config("config_01_scheduling_valid")
 
     assert config.job_type_priorities == [
-        JobType.WGPRODUCTION,
-        JobType.SPRUCING,
-        JobType.MCFASTSIMULATION,
-        JobType.MCSIMULATION,
-        JobType.USER,
-        JobType.MERGE,
-        JobType.MCRECONSTRUCTION,
-        JobType.APMERGE,
-        JobType.APPOSTPROC,
-        JobType.MCMERGE,
-        JobType.LBAPI,
+        Type.WGPRODUCTION,
+        Type.SPRUCING,
+        Type.MCFASTSIMULATION,
+        Type.MCSIMULATION,
+        Type.USER,
+        Type.MERGE,
+        Type.MCRECONSTRUCTION,
+        Type.APMERGE,
+        Type.APPOSTPROC,
+        Type.MCMERGE,
+        Type.LBAPI,
     ]
-    assert config.running_limits["default"][JobType.MCSIMULATION] == 1000
-    assert config.running_limits["LCG.CERN.cern"][JobType.WGPRODUCTION] == 1000
+    assert config.running_limits["default"][Type.MCSIMULATION] == 1000
+    assert config.running_limits["LCG.CERN.cern"][Type.WGPRODUCTION] == 1000
 
 
 def test_load_scheduling_config_from_empty_yaml(load_config):

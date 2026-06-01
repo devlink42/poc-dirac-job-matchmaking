@@ -12,11 +12,6 @@ job_type_priorities:
   - LbAPI
 
 running_limits:
-  # Global limit by default
-  default:
-    MCSimulation: 1000
-    User: 200
-
   # Local limits by site
   LCG.CERN.cern:
     WGProduction: 1000

@@ -55,6 +55,8 @@ class Gpu(BaseModel):
 
 class Node(BaseModel):
     node_id: str | None = None
+    version: CustomVersion  # Define as the last current version
+
     site: str
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
