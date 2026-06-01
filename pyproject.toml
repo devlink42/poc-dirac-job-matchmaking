@@ -22,32 +22,32 @@ extend-exclude = ["*.md", "*.yaml", "*.yml", ".pixi", "analysis"]
 
 [tool.ruff.lint]
 select = [
-  "E",   # pycodestyle errors
-  "F",   # pyflakes
-  "B",   # flake8-bugbear
-  "I",   # isort
-  "PLE", # pylint errors
-  "D",   # pydocstyle
-  "UP",  # pyUpgrade
-  "FLY", # flynt
-  "DTZ", # flake8-datetimez
-  "S",   # flake8-bandit
-  "N",   # pep8-naming
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "PLE", # pylint errors
+    "D",   # pydocstyle
+    "UP",  # pyUpgrade
+    "FLY", # flynt
+    "DTZ", # flake8-datetimez
+    "S",   # flake8-bandit
+    "N",   # pep8-naming
 ]
 ignore = [
-  "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
-  # TODO: Maybe enable these
-  "D100",
-  "D101",
-  "D102",
-  "D103",
-  "D104",
-  "D105",
-  "D107",
-  "D203",
-  "D205",
-  "D213",
-  "D413"
+    "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
+    # TODO: Maybe enable these
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D203",
+    "D205",
+    "D213",
+    "D413"
 ]
 
 [tool.ruff.lint.isort]

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.utils import OwnerGroup, Type
 
@@ -31,6 +29,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
                 load_job,
                 job_id=f"lbprods-{i}",
                 owner="lbprods",
+                owner_group="admin",
                 job_group=OwnerGroup.LHCB_MC,
                 job_type=Type.MCSIMULATION,
                 submission_time=base_time,
@@ -43,6 +42,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
                 load_job,
                 job_id=f"jdoe-{i}",
                 owner="jdoe",
+                owner_group="user",
                 job_group=OwnerGroup.LHCB_USER,
                 job_type=Type.MCSIMULATION,
                 submission_time=base_time,
@@ -52,14 +52,14 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
     selected_owners_order = []
 
     while queue:
-        job = select_job(node, queue, example_config)
+        job = select_job(node)
 
         assert job is not None
 
         selected_owners_order.append(job.owner)
         queue.remove(job)
 
-    assert selected_owners_order[:5] == ["jdoe", "jdoe", "jdoe", "jdoe", "jdoe"]
+    assert selected_owners_order[:5] == ["jdoe"] * 5
     assert selected_owners_order[5:] == ["lbprods"] * 20
 
 
@@ -67,26 +67,28 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
     """Verifies that JobType priority overrides the fair-share running count."""
     node = load_node("node_01_cern_typical")
 
-    queue = [
-        create_mock_job(
-            load_job,
-            job_id="high-prio-lbprods",
-            owner="lbprods",
-            job_group=OwnerGroup.LHCB_MC,
-            job_type=Type.WGPRODUCTION,  # Highest priority
-            submission_time=base_time,
-        ),
-        create_mock_job(
-            load_job,
-            job_id="low-prio-jdoe",
-            owner="jdoe",
-            job_group=OwnerGroup.LHCB_USER,
-            job_type=Type.MCSIMULATION,
-            submission_time=base_time,
-        ),
-    ]
+    # queue = [
+    #     create_mock_job(
+    #         load_job,
+    #         job_id="high-prio-lbprods",
+    #         owner="lbprods",
+    #         owner_group="admin",
+    #         job_group=OwnerGroup.LHCB_MC,
+    #         job_type=Type.WGPRODUCTION,  # Highest priority
+    #         submission_time=base_time,
+    #     ),
+    #     create_mock_job(
+    #         load_job,
+    #         job_id="low-prio-jdoe",
+    #         owner="jdoe",
+    #         owner_group="admin",
+    #         job_group=OwnerGroup.LHCB_USER,
+    #         job_type=Type.MCSIMULATION,
+    #         submission_time=base_time,
+    #     ),
+    # ]
 
-    job1 = select_job(node, queue, example_config)
+    job1 = select_job(node)
 
     assert job1 is not None
     assert job1.job_id == "high-prio-lbprods"
@@ -122,26 +124,28 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
     """In case of a perfect tie, the oldest job (FIFO) must win."""
     node = load_node("node_01_cern_typical")
 
-    queue = [
-        create_mock_job(
-            load_job,
-            job_id="new-job",
-            owner="alice",
-            job_group=OwnerGroup.LHCB_USER,
-            job_type=Type.USER,
-            submission_time=base_time,
-        ),
-        create_mock_job(
-            load_job,
-            job_id="old-job",
-            owner="bob",
-            job_group=OwnerGroup.LHCB_USER,
-            job_type=Type.USER,
-            submission_time=base_time - timedelta(hours=2),
-        ),
-    ]
+    # queue = [
+    #     create_mock_job(
+    #         load_job,
+    #         job_id="new-job",
+    #         owner="alice",
+    #         owner_group="user",
+    #         job_group=OwnerGroup.LHCB_USER,
+    #         job_type=Type.USER,
+    #         submission_time=base_time,
+    #     ),
+    #     create_mock_job(
+    #         load_job,
+    #         job_id="old-job",
+    #         owner="bob",
+    #         owner_group="user",
+    #         job_group=OwnerGroup.LHCB_USER,
+    #         job_type=Type.USER,
+    #         submission_time=base_time - timedelta(hours=2),
+    #     ),
+    # ]
 
-    job = select_job(node, queue, example_config)
+    job = select_job(node)
 
     assert job is not None
     assert job.job_id == "old-job"
