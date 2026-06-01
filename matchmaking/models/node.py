@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName, get_current_schema_version
 
 
 class System(BaseModel):
@@ -55,7 +55,7 @@ class Gpu(BaseModel):
 
 class Node(BaseModel):
     node_id: str | None = None
-    version: CustomVersion  # Define as the last current version
+    version: CustomVersion = Field(default_factory=get_current_schema_version)
 
     site: str
     system: System

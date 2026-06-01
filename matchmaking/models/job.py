@@ -19,6 +19,7 @@ from matchmaking.models.utils import (
     StrictRange,
     SystemName,
     Type,
+    get_current_schema_version,
 )
 
 
@@ -85,7 +86,7 @@ class MatchingSpecs(BaseModel):
 
 class Job(BaseModel):
     job_id: str | None = None
-    version: CustomVersion  # Define as the last current version
+    version: CustomVersion = Field(default_factory=get_current_schema_version)
 
     # Job information
     owner: str
