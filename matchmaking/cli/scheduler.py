@@ -6,7 +6,6 @@ import argparse
 import sys
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import match_jobs_with_node
 from matchmaking.core.scheduler import select_job
 
 
@@ -30,18 +29,12 @@ def main():
         return
 
     try:
-        if valid_jobs_node := match_jobs_with_node(args.job, args.node):
-            jobs, node = valid_jobs_node
+        allowed_job = select_job(args.node)
 
-            if jobs:
-                allowed_job = select_job(node)
-
-                if allowed_job:
-                    logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node.site)
-                else:
-                    logger.info("No allowed job from the job file can run on this node.")
-            else:
-                logger.info("No valid jobs from the job file can run on this node.")
+        if allowed_job:
+            logger.info("Job %s selected for execution on %s.", allowed_job.job_id, args.node["site"])
+        else:
+            logger.info("No allowed job from the job file can run on this node.")
     except Exception as e:
         logger.error("Error during matchmaking: %s", e)
         sys.exit(1)

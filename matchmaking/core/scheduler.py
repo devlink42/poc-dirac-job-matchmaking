@@ -29,6 +29,8 @@ def select_job(
         return None
 
     try:
+        # TODO: Better way to implement this part to get running job directly
+        #       and not from tests/examples/jobs/*.yaml
         candidate_jobs = []
 
         for job in Path(JOB_PATH).glob("*.yaml"):
