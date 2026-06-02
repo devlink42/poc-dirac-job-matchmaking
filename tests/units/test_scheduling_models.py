@@ -27,8 +27,7 @@ def test_load_scheduling_config_from_valid_yaml(load_config):
         Type.MCMERGE,
         Type.LBAPI,
     ]
-    assert config.running_limits["default"][Type.MCSIMULATION] == 1000
-    assert config.running_limits["LCG.CERN.cern"][Type.WGPRODUCTION] == 1000
+    assert config["LCG.CERN.cern"].running_limits[Type.WGPRODUCTION] == 1000
 
 
 def test_load_scheduling_config_from_empty_yaml(load_config):
