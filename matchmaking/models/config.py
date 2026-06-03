@@ -28,8 +28,9 @@ class Site(BaseModel):
 class SchedulingConfig(BaseModel):
     """Global scheduling configuration."""
 
-    job_type_priorities: list[Type] = Field(
-        default_factory=list, description="A sorted list of job types, from highest to lowest priority."
+    job_type_priorities: list[Type | dict[Type, NonNegativeInt]] = Field(
+        default_factory=list,
+        description="A sorted list of job types or weighted groups, from highest to lowest priority.",
     )
     by_site: dict[str, Site] = Field(default_factory=dict, description="Configuration per site.")
 
