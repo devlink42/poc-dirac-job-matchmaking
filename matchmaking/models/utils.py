@@ -20,6 +20,13 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
+class JobGroup(StrEnum):
+    LHCB_MC = "lhcb_mc"
+    LHCB_DATA = "lhcb_data"
+    LHCB_MCPROC = "lhcb_mproc"
+    LHCB_USER = "lhcb_user"
+
+
 class Type(StrEnum):
     MCSIMULATION = "MCSimulation"
     MCFASTSIMULATION = "MCFastSimulation"
@@ -34,11 +41,13 @@ class Type(StrEnum):
     LBAPI = "LbAPI"
 
 
-class JobGroup(StrEnum):
-    LHCB_MC = "lhcb_mc"
-    LHCB_DATA = "lhcb_data"
-    LHCB_MCPROC = "lhcb_mproc"
-    LHCB_USER = "lhcb_user"
+class JobStatus(StrEnum):
+    WAITING = "waiting"
+    STAGING = "staging"
+    HOLD = "hold"
+    FAIL = "fail"
+    RUNNING = "running"
+    DONE = "done"
 
 
 class SystemName(StrEnum):

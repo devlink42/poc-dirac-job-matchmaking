@@ -16,9 +16,9 @@ from matchmaking.models.utils import JobGroup, SystemName, Type
 BASE_JOB_DATA = {
     "job_id": "test-job",
     "owner": "test-owner",
-    "job_group": JobGroup.LHCB_MC,
+    "group": JobGroup.LHCB_MC,
     "job_type": Type.USER,
-    "submission_time": datetime.now(tz=UTC),
+    "submit_time": datetime.now(tz=UTC),
     "matching_specs": [
         {
             "system": {"name": SystemName.LINUX},

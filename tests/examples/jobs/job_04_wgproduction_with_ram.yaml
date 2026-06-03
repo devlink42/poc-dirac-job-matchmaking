@@ -5,19 +5,23 @@
 # This is one of the rare jobs (~2%) that specifies RAM needs
 # Demonstrates the computed RAM model: overhead + per-core * N
 
+version: 0.1.0
+job_id: '21463776'
+submit_time: '2026-03-27T14:00:00Z'
+
 owner: lbprods
-job_group: lhcb_data
+group: lhcb_data
 job_type: WGProduction
-submission_time: "2026-03-27T14:00:00Z"
+status: waiting
 
 matching_specs:
-  - site: "LCG.CERN.cern"
+  - site: LCG.CERN.cern
     system:
       name: Linux
     wall-time: 1080000  # 12.5 days
     cpu-work: 2000000
     cpu:
-      num-cores: {"min": 4, "max": 8}
+      num-cores: {min: 4, max: 8}
       ram-mb:
         request:
           overhead: 2048    # 2 GB base
@@ -27,16 +31,16 @@ matching_specs:
           per-core: 512
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 3, "max": null}
-    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"
+        microarchitecture-level: {min: 3, max: null}
+    tags: cvmfs:lhcb & cvmfs:lhcbdev & os:el9
 
-  - site: "LCG.GRIDKA.de"
+  - site: LCG.GRIDKA.de
     system:
       name: Linux
     wall-time: 1080000
     cpu-work: 2000000
     cpu:
-      num-cores: {"min": 4, "max": 8}
+      num-cores: {min: 4, max: 8}
       ram-mb:
         request:
           overhead: 2048
@@ -46,5 +50,5 @@ matching_specs:
           per-core: 512
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 3, "max": null}
-    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"
+        microarchitecture-level: {min: 3, max: null}
+    tags: cvmfs:lhcb & cvmfs:lhcbdev & os:el9

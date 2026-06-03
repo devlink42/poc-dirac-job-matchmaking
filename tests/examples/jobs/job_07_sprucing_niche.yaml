@@ -4,24 +4,28 @@
 # Medium CPU time (2 days), specific platform requirement (skylake+)
 # Tests that niche job types get matched despite being rare
 
+version: 0.1.0
+job_id: '22796188'
+submit_time: '2026-03-28T06:00:00Z'
+
 owner: lbprods
-job_group: lhcb_data
+group: lhcb_data
 job_type: Sprucing
-submission_time: "2026-03-28T06:00:00Z"
+status: waiting
 
 matching_specs:
-  - site: "LCG.CERN.cern"
+  - site: LCG.CERN.cern
     system:
       name: Linux
       user-namespaces: true
     wall-time: 172800  # 2 days
     cpu-work: 300000
     cpu:
-      num-cores: {"min": 1, "max": 2}
+      num-cores: {min: 1, max: 2}
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 4, "max": null}  # Needs AVX-512 (skylake+)
+        microarchitecture-level: {min: 4, max: null}  # Needs AVX-512 (skylake+)
     io:
       scratch-mb: 5120   # 5 GB scratch space
       scratch-iops: 1000
-    tags: "cvmfs:lhcb & cvmfs:lhcbdev & os:el9"
+    tags: cvmfs:lhcb & cvmfs:lhcbdev & os:el9
