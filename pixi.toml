@@ -8,7 +8,7 @@ version = "0.1.0"
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
 tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
-pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
+pc-run-all = "pre-commit run --all-files"
 
 [dependencies]
 python = ">=3.11.3,<3.12"
