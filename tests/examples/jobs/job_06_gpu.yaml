@@ -5,7 +5,7 @@
 # Requires NVIDIA GPU with compute capability >= 8.0 (Ampere+)
 
 owner: lbprods
-group: lhcb_mc
+job_group: lhcb_mc
 job_type: MCSimulation
 submission_time: "2026-03-28T12:00:00Z"
 

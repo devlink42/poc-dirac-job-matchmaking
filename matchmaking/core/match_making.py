@@ -14,7 +14,14 @@ from matchmaking.models.node import Node
 
 
 def valid_job(job: str) -> bool:
-    """Validate a job against a set of requirements."""
+    """Validate a job against a set of requirements.
+
+    Args:
+        job (str): Path to the job YAML file.
+
+    Returns:
+        bool: True if the job is valid, False otherwise.
+    """
     try:
         job_obj = Job.load_from_yaml(job)
         job_id = job_obj.job_id or Path(job).stem
@@ -27,7 +34,14 @@ def valid_job(job: str) -> bool:
 
 
 def valid_node(node: str) -> bool:
-    """Validate a node against a set of requirements."""
+    """Validate a node against a set of requirements.
+
+    Args:
+        node (str): Path to the node YAML file.
+
+    Returns:
+        bool: True if the node is valid, False otherwise.
+    """
     try:
         Node.load_from_yaml(node)
         logger.info(f"Node file {node} is VALID.")
@@ -198,7 +212,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
 
 
 def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
-    """Validate a job against a node configuration.
+    """Perform matchmaking between jobs in a file and a node.
 
     Args:
         job (str): Path to the job YAML file.

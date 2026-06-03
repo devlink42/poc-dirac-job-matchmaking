@@ -1,7 +1,7 @@
 # Job: Darwin-only job (example for failure test)
 
 owner: lbprods
-group: lhcb_mc
+job_group: lhcb_mc
 job_type: MCSimulation
 submission_time: "2026-03-28T10:00:00Z"
 

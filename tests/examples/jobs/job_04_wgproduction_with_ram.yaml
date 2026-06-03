@@ -6,7 +6,7 @@
 # Demonstrates the computed RAM model: overhead + per-core * N
 
 owner: lbprods
-group: lhcb_data
+job_group: lhcb_data
 job_type: WGProduction
 submission_time: "2026-03-27T14:00:00Z"
 

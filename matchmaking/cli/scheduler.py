@@ -7,9 +7,15 @@ import sys
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.core.scheduler import select_job
+from matchmaking.models.node import Node
 
 
 def main():
+    """Run the scheduler CLI.
+
+    This function parses command line arguments and invokes the job selection
+    logic for a given node.
+    """
     parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
@@ -29,12 +35,13 @@ def main():
         return
 
     try:
-        allowed_job = select_job(args.node)
+        node_obj = Node.load_from_yaml(args.node)
+        allowed_job = select_job(node_obj)
 
         if allowed_job:
-            logger.info("Job %s selected for execution on %s.", allowed_job.job_id, args.node["site"])
+            logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
         else:
-            logger.info("No allowed job from the job file can run on this node.")
+            logger.info("No allowed job can run on this node.")
     except Exception as e:
         logger.error("Error during matchmaking: %s", e)
         sys.exit(1)

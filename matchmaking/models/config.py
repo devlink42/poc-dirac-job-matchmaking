@@ -11,6 +11,8 @@ from matchmaking.models.utils import Type
 
 
 class Site(BaseModel):
+    """Configuration for a specific computing site."""
+
     ce_s: list | None = Field(
         default=None, validation_alias="CEs", description="List of compute elements associated with the site."
     )
@@ -24,10 +26,12 @@ class Site(BaseModel):
 
 
 class SchedulingConfig(BaseModel):
+    """Global scheduling configuration."""
+
     job_type_priorities: list[Type] = Field(
         default_factory=list, description="A sorted list of job types, from highest to lowest priority."
     )
-    by_site: dict[str, Site]
+    by_site: dict[str, Site] = Field(default_factory=dict, description="Configuration per site.")
 
     @classmethod
     def load_from_yaml(cls, path: str | Path) -> SchedulingConfig:

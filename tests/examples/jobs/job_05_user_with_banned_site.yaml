@@ -6,7 +6,7 @@
 # Uses a banned-site tag to exclude a specific site
 
 owner: sharmar
-group: lhcb_user
+job_group: lhcb_user
 job_type: User
 submission_time: "2026-03-28T16:30:00Z"
 

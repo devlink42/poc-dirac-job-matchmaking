@@ -27,14 +27,14 @@ def test_load_scheduling_config_from_valid_yaml(load_config):
         Type.MCMERGE,
         Type.LBAPI,
     ]
-    assert config["LCG.CERN.cern"].running_limits[Type.WGPRODUCTION] == 1000
+    assert config.by_site["LCG.CERN.cern"].running_limits[Type.WGPRODUCTION] == 1000
 
 
 def test_load_scheduling_config_from_empty_yaml(load_config):
     config = load_config("config_02_scheduling_empty")
 
     assert config.job_type_priorities == []
-    assert config.running_limits == {}
+    assert config.by_site == {}
 
 
 def test_load_scheduling_config_missing_file_raises():

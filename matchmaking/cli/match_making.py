@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -8,6 +10,11 @@ from matchmaking.core.match_making import match_jobs_with_node, valid_job, valid
 
 
 def main():
+    """Run the matchmaking CLI.
+
+    This function parses command line arguments and performs job/node validation
+    or matchmaking based on the provided inputs.
+    """
     parser = argparse.ArgumentParser(description="Matchmaking and validation for DIRAC jobs and pilots.")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file")

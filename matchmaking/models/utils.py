@@ -34,7 +34,7 @@ class Type(StrEnum):
     LBAPI = "LbAPI"
 
 
-class OwnerGroup(StrEnum):
+class JobGroup(StrEnum):
     LHCB_MC = "lhcb_mc"
     LHCB_DATA = "lhcb_data"
     LHCB_MCPROC = "lhcb_mproc"
@@ -52,6 +52,8 @@ class SystemName(StrEnum):
 
 
 class VersionPydanticAnnotation:
+    """Pydantic annotation for the Version class from packaging.version."""
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
         def validate(value: Any) -> Version:
@@ -88,6 +90,8 @@ T = TypeVar("T")
 
 
 class StrictRange(BaseModel, Generic[T]):
+    """A range with mandatory min and max values."""
+
     min: T
     max: T
 
@@ -100,10 +104,14 @@ class StrictRange(BaseModel, Generic[T]):
 
 
 class Range(StrictRange, Generic[T]):
+    """A range with mandatory min and optional max value."""
+
     max: T | None = None
 
 
 class ResourceSpec(BaseModel):
+    """Specification of resources, potentially per-core."""
+
     overhead: NonNegativeInt = 0
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
@@ -117,6 +125,8 @@ class ArchitectureName(StrEnum):
 
 
 class Io(BaseModel):
+    """Input/Output resource requirements."""
+
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
     # We don't test scratch IOPS because we are unable to accurately obtain
     # and use this data at the moment.

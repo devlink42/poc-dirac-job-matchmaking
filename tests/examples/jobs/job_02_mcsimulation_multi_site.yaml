@@ -5,7 +5,7 @@
 # 3 days CPU time, accepts multiple x86_64 microarchitecture levels
 
 owner: lbprods
-group: lhcb_mc
+job_group: lhcb_mc
 job_type: MCSimulation
 submission_time: "2026-03-28T09:30:00Z"
 

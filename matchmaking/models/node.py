@@ -11,23 +11,31 @@ from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, System
 
 
 class System(BaseModel):
+    """System information of a node."""
+
     name: SystemName
     glibc: CustomVersion
     user_namespaces: bool = Field(validation_alias="user-namespaces")
 
 
 class Architecture(BaseModel):
+    """CPU architecture of a node."""
+
     name: ArchitectureName
     microarchitecture_level: PositiveInt = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
+    """CPU resources of a node."""
+
     num_cores: PositiveInt = Field(validation_alias="num-cores")
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
+    """GPU resources of a node."""
+
     count: NonNegativeInt
     ram_mb: PositiveInt | None = Field(default=None, validation_alias="ram-mb")
     vendor: str | None = None
@@ -54,6 +62,8 @@ class Gpu(BaseModel):
 
 
 class Node(BaseModel):
+    """Data model representing a compute node."""
+
     node_id: str | None = None
     version: CustomVersion = Field(default_factory=get_current_schema_version)
 
