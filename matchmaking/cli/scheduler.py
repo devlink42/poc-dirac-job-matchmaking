@@ -18,7 +18,6 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file")
-    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument(
         "--log-level",
         default="INFO",
@@ -30,7 +29,7 @@ def main():
 
     configure_logger(args.log_level)
 
-    if not args.node or not args.job:
+    if not args.node:
         parser.print_help()
         return
 

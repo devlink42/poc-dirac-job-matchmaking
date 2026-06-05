@@ -63,6 +63,8 @@ def select_job(
     site_config = config.by_site.get(node.site)
     site_limits = site_config.running_limits if site_config else {}
 
+    # For the moment running jobs are only those that have "running" in their config
+    # and don't get all the jobs running in the site. Have to change this later!
     running_job_type_counts = Counter(job.job_type for job in running_jobs)
     running_by_job_group = Counter(job.group for job in running_jobs)
     running_by_job_owner = Counter(job.owner for job in running_jobs)
@@ -83,7 +85,7 @@ def select_job(
         if isinstance(priority_entry, dict):
             # Weighted random selection between JobTypes in this priority level
             relevant_types = {
-                jt: weight for jt, weight in priority_entry.items() if any(j.job_type == jt for j in allowed_jobs)
+                jt: weight for jt, weight in priority_entry.items() if any(job.job_type == jt for job in allowed_jobs)
             }
             if not relevant_types:
                 continue
@@ -112,15 +114,13 @@ def select_job(
     # implying we only consider what's in the list.
 
     if not selected_job_type:
-        # Fallback for jobs whose type is not in the priority list?
-        # The current implementation uses float("inf") for them.
-        # Let's see if we have any allowed jobs left.
+        # Fallback for jobs whose type is not in the priority list.
         # If we didn't find a selected_job_type, it means none of the allowed_jobs types
         # are in the priority list.
         # In that case, we can still pick from allowed_jobs.
         candidates = allowed_jobs
     else:
-        candidates = [j for j in allowed_jobs if j.job_type == selected_job_type]
+        candidates = [job for job in allowed_jobs if job.job_type == selected_job_type]
 
     # Step 2: Round-robin style sharing for job owner and job group
     # We sort the candidates by running counts of group and owner, then FIFO.
@@ -135,7 +135,7 @@ def select_job(
         """
         job_group_running_count = running_by_job_group[job.group]
         owner_running_count = running_by_job_owner[job.owner]
-        fifo_timestamp = job.submit_time.timestamp() if job.submit_time else float("inf")
+        fifo_timestamp = job.submit_time.timestamp()
 
         return job_group_running_count, owner_running_count, fifo_timestamp
 
