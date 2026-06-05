@@ -2,9 +2,13 @@
 # A job must have at least one matching spec
 # Expected: validation error
 
+version: 0.1.0
+job_id: '25849903'
+submit_time: '2026-03-28T10:00:00Z'
+
 owner: lbprods
 group: lhcb_mc
 job_type: MCSimulation
-submission_time: "2026-03-28T10:00:00Z"
+status: waiting
 
 matching_specs: []  # ERROR: no specs

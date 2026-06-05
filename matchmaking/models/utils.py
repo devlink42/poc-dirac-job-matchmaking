@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+import re
+from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Any, Generic, Self, TypeVar
 
 from packaging.version import InvalidVersion, Version
@@ -19,7 +21,14 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
-class JobType(Enum):
+class JobGroup(StrEnum):
+    LHCB_MC = "lhcb_mc"
+    LHCB_DATA = "lhcb_data"
+    LHCB_MCPROC = "lhcb_mproc"
+    LHCB_USER = "lhcb_user"
+
+
+class Type(StrEnum):
     MCSIMULATION = "MCSimulation"
     MCFASTSIMULATION = "MCFastSimulation"
     WGPRODUCTION = "WGProduction"
@@ -33,18 +42,16 @@ class JobType(Enum):
     LBAPI = "LbAPI"
 
 
-class JobOwner(Enum):
-    LBPRODS = "lbprods"
+class JobStatus(StrEnum):
+    WAITING = "waiting"
+    STAGING = "staging"
+    HOLD = "hold"
+    FAIL = "fail"
+    RUNNING = "running"
+    DONE = "done"
 
 
-class JobGroup(Enum):
-    LHCB_MC = "lhcb_mc"
-    LHCB_DATA = "lhcb_data"
-    LHCB_MCPROC = "lhcb_mproc"
-    LHCB_USER = "lhcb_user"
-
-
-class SystemName(Enum):
+class SystemName(StrEnum):
     LINUX = "Linux"
     GNU = "GNU"
     FREEBSD = "FreeBSD"
@@ -55,6 +62,8 @@ class SystemName(Enum):
 
 
 class VersionPydanticAnnotation:
+    """Pydantic annotation for the Version class from packaging.version."""
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
         def validate(value: Any) -> Version:
@@ -68,10 +77,31 @@ class VersionPydanticAnnotation:
 
 CustomVersion = Annotated[Version, VersionPydanticAnnotation, PlainSerializer(lambda v: str(v), return_type=str)]
 
+
+def get_current_schema_version() -> CustomVersion:
+    schema_path = Path(__file__).parents[2] / "docs" / "schema_design.md"
+
+    if not schema_path.exists():
+        raise FileNotFoundError(f"No such file or directory: '{schema_path}'")
+
+    content = schema_path.read_text(encoding="utf-8")
+    versions = [CustomVersion(match) for match in re.findall(r"\bv?(\d+\.\d+(?:\.\d+)?)\b", content)]
+
+    if not versions:
+        raise ValueError(f"No schema version found in '{schema_path}'")
+
+    latest = max(versions)
+    current = (*latest.release, 0, 0)[:3]
+
+    return CustomVersion(".".join(str(part) for part in current))
+
+
 T = TypeVar("T")
 
 
 class StrictRange(BaseModel, Generic[T]):
+    """A range with mandatory min and max values."""
+
     min: T
     max: T
 
@@ -84,17 +114,21 @@ class StrictRange(BaseModel, Generic[T]):
 
 
 class Range(StrictRange, Generic[T]):
+    """A range with mandatory min and optional max value."""
+
     max: T | None = None
 
 
 class ResourceSpec(BaseModel):
+    """Specification of resources, potentially per-core."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     overhead: NonNegativeInt = 0
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
 
-class ArchitectureName(Enum):
+class ArchitectureName(StrEnum):
     # Intel/AMD 64-bit
     x86_64 = "x86_64"
     # ARM/AArch64 64-bit
@@ -103,6 +137,8 @@ class ArchitectureName(Enum):
 
 
 class Io(BaseModel):
+    """Input/Output resource requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")

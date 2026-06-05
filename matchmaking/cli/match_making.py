@@ -10,20 +10,26 @@ from matchmaking.core.match_making import match_jobs_with_node, valid_job, valid
 
 
 def main():
+    """Run the matchmaking CLI.
+
+    This function parses command line arguments and performs job/node validation
+    or matchmaking based on the provided inputs.
+    """
     parser = argparse.ArgumentParser(description="Matchmaking and validation for DIRAC jobs and pilots.")
     parser.add_argument("job", nargs="?", help="Path to the job YAML file")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file")
     parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
+    parser.add_argument("--validate-node", "-VN", action="store_true", help="Only validate the node file")
     parser.add_argument(
-        "--validate-node",
-        "-VN",
-        action="store_true",
-        help="Only validate the node file",
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity level.",
     )
 
     args = parser.parse_args()
-    # Force INFO logging level to show job/node validation details
-    configure_logger("INFO")
+
+    configure_logger(args.log_level)
 
     if args.validate_job:
         if not args.job:
