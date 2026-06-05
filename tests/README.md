@@ -71,7 +71,10 @@ This matrix shows which (job, node) pairs should match. Use this to validate you
 
 ## Config Examples
 
-
+| File          | Priorities        | Sites | Running limits          | Notes                                      |
+|---------------|-------------------|-------|-------------------------|--------------------------------------------|
+| `config_01_*` | 11 ordered types  | 8     | Per-site, per-job-type  | Valid default-like scheduling policy       |
+| `config_02_*` | Empty/default     | 0     | None                    | Minimal empty config, resolves to defaults |
 
 ## Invalid Examples (validation tests)
 
@@ -87,5 +90,5 @@ These files should all be **rejected** by the data models during loading or vali
 | `invalid_06_*` | jobs/    | Negative GPU count (min: -1)            | Positive number required      |
 | `invalid_07_*` | nodes/   | Node with negative core count (-4)      | Positive number required      |
 | `invalid_08_*` | jobs/    | `wall-time` as string ("three days")    | Wrong type (expected integer) |
-| `invalid_09_*` | nodes/   |                                         |                               |
-| `invalid_10_*` | config/  |                                         |                               |
+| `invalid_09_*` | nodes/   | GPU count is 1 but GPU details missing  | Required GPU fields missing   |
+| `invalid_10_*` | config/  | Negative scheduling limit (-1)          | Non-negative number required  |
