@@ -219,6 +219,29 @@ def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
         match_jobs_with_node(str(job_file), str(node_file))
 
 
+def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
+    job_file = tmp_path / "job_without_id.yaml"
+    node_file = tmp_path / "node.yaml"
+
+    with open(job_file, "w") as job, open(node_file, "w") as node:
+        yaml.safe_dump(
+            {
+                "submit_time": "2026-01-01T12:00:00Z",
+                "owner": "owner",
+                "group": "lhcb_user",
+                "job_type": "User",
+                "matching_specs": [_base_job_matching_spec()],
+            },
+            job,
+        )
+        yaml.safe_dump(_base_node_spec(), node)
+
+    matching_jobs, _node = match_jobs_with_node(str(job_file), str(node_file))
+
+    assert len(matching_jobs) == 1
+    assert matching_jobs[0].job_id == "job_without_id"
+
+
 def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"

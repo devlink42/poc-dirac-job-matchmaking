@@ -236,6 +236,46 @@ def test_select_job_default_config_not_found(load_job, load_node):
             select_job(node)
 
 
+def test_select_job_default_config_load_error(load_job, load_node):
+    node = load_node("node_01_cern_typical")
+
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
+
+    with (
+        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
+        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load,
+    ):
+        mock_glob.return_value = [Path("job.yaml")]
+        mock_load.side_effect = RuntimeError("invalid config")
+
+        with pytest.raises(ValueError, match="Failed to load default scheduling config: invalid config"):
+            select_job(node)
+
+
+def test_select_job_skips_weighted_priority_without_relevant_types(load_job, load_node):
+    node = load_node("node_01_cern_typical")
+
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
+
+    mock_config = SchedulingConfig(
+        job_type_priorities=[{Type.USER: 1}, Type.MCSIMULATION], by_site={node.site: Site(name=node.site)}
+    )
+
+    with (
+        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
+        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
+    ):
+        mock_glob.return_value = [Path("job.yaml")]
+
+        selected = select_job(node)
+
+    assert selected == job
+
+
 def test_select_job_weighted_priority(load_job, load_node):
     node = load_node("node_01_cern_typical")
 
