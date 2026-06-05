@@ -2,86 +2,143 @@
 
 from __future__ import annotations
 
+import random
 from collections import Counter
+from pathlib import Path
 
 from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
+from matchmaking.models.utils import JobStatus
 
-DEFAULT_CONFIG_PATH = "matchmaking/config/scheduling.yaml"
+CONFIG_PATH = "matchmaking/config/scheduling.yaml"
+JOB_PATH = "tests/examples/jobs/"
 
 
 def select_job(
     node: Node,
-    candidate_jobs: list[Job],
-    config: SchedulingConfig | None = None,
 ) -> Job | None:
     """Select a job from the matching jobs based on scheduling criteria.
 
     Args:
         node (Node): The node on which the job will be executed.
-        candidate_jobs (list[Job]): List of jobs that match the scheduling criteria.
-        config (SchedulingConfig | None): Scheduling configuration parameters.
-        If None, the default config is loaded.
 
     Returns:
         Job | None: The selected job or None if no suitable job is found.
     """
-    if not candidate_jobs or not node:
+    if not node:
         return None
 
-    if not config:
-        try:
-            config = SchedulingConfig.load_from_yaml(DEFAULT_CONFIG_PATH)
-        except FileNotFoundError as e:
-            raise ValueError(f"Default scheduling config not found at: '{DEFAULT_CONFIG_PATH}'") from e
-        except Exception as e:
-            raise ValueError(f"Failed to load default scheduling config: {e}") from e
-        else:
-            logger.info("Loaded default scheduling config from: '%s'", DEFAULT_CONFIG_PATH)
+    try:
+        jobs = []
 
-    default_limits = config.running_limits.get("default", {})
-    site_limits = config.running_limits.get(node.site, {})
+        for job_file in Path(JOB_PATH).glob("*.yaml"):
+            if job_file.stem.startswith("invalid"):
+                continue
 
-    # Calculate counts using Counter for efficiency
-    running_by_owner = Counter(job.owner for job in candidate_jobs)
-    running_by_group = Counter(job.group for job in candidate_jobs)
-    type_counts = Counter(job.job_type for job in candidate_jobs)
+            jobs.append(Job.load_from_yaml(job_file))
+    except FileNotFoundError as e:
+        raise ValueError(f"Job examples not found at: '{JOB_PATH}'") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load job examples: {e}") from e
+    else:
+        logger.info("Loaded job examples from: '%s'", JOB_PATH)
+
+    running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
+    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING]
+
+    if not waiting_jobs:
+        return None
+
+    try:
+        config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
+    except FileNotFoundError as e:
+        raise ValueError(f"Default scheduling config not found at: '{CONFIG_PATH}'") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load default scheduling config: {e}") from e
+    else:
+        logger.info("Loaded default scheduling config from: '%s'", CONFIG_PATH)
+
+    site_config = config.by_site.get(node.site)
+    site_limits = site_config.running_limits if site_config else {}
+
+    # For the moment running jobs are only those that have "running" in their config
+    # and don't get all the jobs running in the site. Have to change this later!
+    running_job_type_counts = Counter(job.job_type for job in running_jobs)
+    running_by_job_group = Counter(job.group for job in running_jobs)
+    running_by_job_owner = Counter(job.owner for job in running_jobs)
 
     allowed_jobs = [
         job
-        for job in candidate_jobs
-        if type_counts[job.job_type] < site_limits.get(job.job_type, default_limits.get(job.job_type, float("inf")))
+        for job in waiting_jobs
+        if running_job_type_counts[job.job_type] < site_limits.get(job.job_type, float("inf"))
     ]
 
     if not allowed_jobs:
         return None
 
-    # Pre-calculate priority map to avoid repeated .index() calls during sorting
-    priority_map = {jtype: i for i, jtype in enumerate(config.job_type_priorities)}
+    # Step 1: Filter by job type priority
+    selected_job_type = None
 
-    def sorting_key(job: Job) -> tuple[int | float, int, int, float]:
-        """Sort by job type priority, then by group, then by owner, then by FIFO timestamp.
+    for priority_entry in config.job_type_priorities:
+        if isinstance(priority_entry, dict):
+            # Weighted random selection between JobTypes in this priority level
+            relevant_types = {
+                jt: weight for jt, weight in priority_entry.items() if any(job.job_type == jt for job in allowed_jobs)
+            }
+            if not relevant_types:
+                continue
+
+            total_weight = sum(relevant_types.values())
+            rand_val = random.uniform(0, total_weight)  # noqa: S311
+            cumulative_weight = 0
+
+            # Sort types to ensure deterministic behavior for a given random seed
+            for jt in sorted(relevant_types.keys()):
+                cumulative_weight += relevant_types[jt]
+                if rand_val <= cumulative_weight:
+                    selected_job_type = jt
+                    break
+        else:
+            # Single JobType priority level
+            if any(job.job_type == priority_entry for job in allowed_jobs):
+                selected_job_type = priority_entry
+
+        if selected_job_type:
+            break
+
+    # If no job type from priorities is found in allowed_jobs, we might want to fallback
+    # or just return None if we strictly follow the priorities.
+    # The issue says "prendre les jobs qui sont de ce type la un par un, puis si il y en a plus prendre le 2eme..."
+    # implying we only consider what's in the list.
+
+    if not selected_job_type:
+        # Fallback for jobs whose type is not in the priority list.
+        # If we didn't find a selected_job_type, it means none of the allowed_jobs types
+        # are in the priority list.
+        # In that case, we can still pick from allowed_jobs.
+        candidates = allowed_jobs
+    else:
+        candidates = [job for job in allowed_jobs if job.job_type == selected_job_type]
+
+    # Step 2: Round-robin style sharing for job owner and job group
+    # We sort the candidates by running counts of group and owner, then FIFO.
+    def sorting_key(job: Job) -> tuple[int, int, float]:
+        """Sort by job group running count, then owner running count, then FIFO timestamp.
 
         Args:
             job (Job): The job to generate the sorting key for.
 
         Returns:
-            tuple[int, int, int, float]: Sorting key tuple for job comparison.
+            tuple[int, int, float]: Sorting key tuple for job comparison.
         """
-        # Job type priority
-        type_priority = priority_map.get(job.job_type, float("inf"))
+        job_group_running_count = running_by_job_group[job.group]
+        owner_running_count = running_by_job_owner[job.owner]
+        fifo_timestamp = job.submit_time.timestamp()
 
-        # Group and owner round-robin / fair share
-        group_running_count = running_by_group[job.group]
-        owner_running_count = running_by_owner[job.owner]
+        return job_group_running_count, owner_running_count, fifo_timestamp
 
-        # Tie-breaker (FIFO)
-        fifo_timestamp = job.submission_time.timestamp() if job.submission_time else float("inf")
+    candidates.sort(key=sorting_key)
 
-        return type_priority, group_running_count, owner_running_count, fifo_timestamp
-
-    allowed_jobs.sort(key=sorting_key)
-
-    return allowed_jobs[0]
+    return candidates[0]

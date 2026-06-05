@@ -137,7 +137,7 @@ def _base_node_spec() -> dict:
     }
 
 
-def _base_job_spec() -> dict:
+def _base_job_matching_spec() -> dict:
     return {
         "job_id": "edge-job",
         "site": "LCG.CERN.cern",
@@ -195,7 +195,7 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
 
 def test_valid_job_with_node_accepts_boundary_equal_values():
     try:
-        job = MatchingSpecs.model_validate(_base_job_spec())
+        job = MatchingSpecs.model_validate(_base_job_matching_spec())
         node = Node.model_validate(_base_node_spec())
     except ValidationError:
         raise
@@ -208,7 +208,7 @@ def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
     node_file = tmp_path / "node_invalid.yaml"
 
     with open(job_file, "w") as f:
-        yaml.safe_dump({"matching_specs": [_base_job_spec()]}, f)
+        yaml.safe_dump({"matching_specs": [_base_job_matching_spec()]}, f)
 
     invalid_node = _base_node_spec()
     invalid_node.pop("site")
@@ -219,19 +219,43 @@ def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
         match_jobs_with_node(str(job_file), str(node_file))
 
 
+def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
+    job_file = tmp_path / "job_without_id.yaml"
+    node_file = tmp_path / "node.yaml"
+
+    with open(job_file, "w") as job, open(node_file, "w") as node:
+        yaml.safe_dump(
+            {
+                "submit_time": "2026-01-01T12:00:00Z",
+                "owner": "owner",
+                "group": "lhcb_user",
+                "job_type": "User",
+                "matching_specs": [_base_job_matching_spec()],
+            },
+            job,
+        )
+        yaml.safe_dump(_base_node_spec(), node)
+
+    matching_jobs, _node = match_jobs_with_node(str(job_file), str(node_file))
+
+    assert len(matching_jobs) == 1
+    assert matching_jobs[0].job_id == "job_without_id"
+
+
 def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
     job_file = tmp_path / "job_mixed.yaml"
     node_file = tmp_path / "node.yaml"
 
-    valid_job_spec = _base_job_spec()
-    invalid_job_spec = _base_job_spec()
+    valid_job_spec = _base_job_matching_spec()
+    invalid_job_spec = _base_job_matching_spec()
     invalid_job_spec["cpu"]["num-cores"] = {"min": 2, "max": 1}
 
     with open(job_file, "w") as job, open(node_file, "w") as node:
         yaml.safe_dump({"job_id": "mixed-job", "matching_specs": [invalid_job_spec, valid_job_spec]}, job)
         yaml.safe_dump(_base_node_spec(), node)
 
-    assert match_jobs_with_node(str(job_file), str(node_file))[0] == []
+    with pytest.raises(ValidationError):
+        match_jobs_with_node(str(job_file), str(node_file))
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
@@ -243,11 +267,13 @@ def test_match_jobs_with_node_handles_missing_or_empty_matching_specs(tmp_path, 
         yaml.safe_dump({"job_id": "edge-empty-job", **job_content}, job)
         yaml.safe_dump(_base_node_spec(), node)
 
-    assert match_jobs_with_node(str(job_file), str(node_file))[0] == []
+    with pytest.raises(ValidationError):
+        match_jobs_with_node(str(job_file), str(node_file))
 
 
 def test_match_jobs_returns_empty_when_job_specs_are_invalid():
     invalid_job = "tests/examples/jobs/invalid_01_job_min_gt_max.yaml"
     node_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
-    assert match_jobs_with_node(invalid_job, node_01)[0] == []
+    with pytest.raises(ValidationError):
+        match_jobs_with_node(invalid_job, node_01)

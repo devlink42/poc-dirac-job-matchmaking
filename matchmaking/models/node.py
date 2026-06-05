@@ -7,10 +7,12 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, model_validator
 
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName, get_current_schema_version
 
 
 class System(BaseModel):
+    """System information of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: SystemName
@@ -19,6 +21,8 @@ class System(BaseModel):
 
 
 class Architecture(BaseModel):
+    """CPU architecture of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: ArchitectureName
@@ -26,6 +30,8 @@ class Architecture(BaseModel):
 
 
 class Cpu(BaseModel):
+    """CPU resources of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     num_cores: PositiveInt = Field(validation_alias="num-cores")
@@ -34,6 +40,8 @@ class Cpu(BaseModel):
 
 
 class Gpu(BaseModel):
+    """GPU resources of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: NonNegativeInt
@@ -62,9 +70,13 @@ class Gpu(BaseModel):
 
 
 class Node(BaseModel):
+    """Data model representing a compute node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     node_id: str | None = None
+    version: CustomVersion = Field(default_factory=get_current_schema_version)
+
     site: str
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
