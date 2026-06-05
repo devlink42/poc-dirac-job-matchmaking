@@ -14,16 +14,19 @@ from matchmaking.models.utils import (
     CustomVersion,
     Io,
     JobGroup,
-    JobOwner,
-    JobType,
+    JobStatus,
     Range,
     ResourceSpec,
     StrictRange,
     SystemName,
+    Type,
+    get_current_schema_version,
 )
 
 
 class System(BaseModel):
+    """System requirements for a job."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: SystemName
@@ -32,11 +35,18 @@ class System(BaseModel):
 
 
 class ComputeMemory(BaseModel):
+    """Memory requirements for computation."""
+
+    # TODO: .
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     request: ResourceSpec
     limit: ResourceSpec
 
 
 class Architecture(BaseModel):
+    """CPU architecture requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: ArchitectureName
@@ -44,6 +54,8 @@ class Architecture(BaseModel):
 
 
 class Cpu(BaseModel):
+    """CPU core and RAM requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
@@ -52,6 +64,8 @@ class Cpu(BaseModel):
 
 
 class Gpu(BaseModel):
+    """GPU requirements for a job."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: StrictRange[NonNegativeInt]
@@ -62,6 +76,8 @@ class Gpu(BaseModel):
 
 
 class MatchingSpecs(BaseModel):
+    """Specification of requirements for matching a job with a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     site: str | None = None
@@ -95,13 +111,17 @@ class MatchingSpecs(BaseModel):
 
 
 class Job(BaseModel):
+    """Data model representing a job in the matchmaking system."""
+
+    version: CustomVersion = Field(default_factory=get_current_schema_version)
     job_id: str | None = None
+    submit_time: datetime
 
     # Job information
-    owner: JobOwner | str
-    group: JobGroup
-    job_type: JobType
-    submission_time: datetime
+    owner: str
+    group: JobGroup | str
+    job_type: Type
+    status: JobStatus | str = JobStatus.WAITING
 
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)

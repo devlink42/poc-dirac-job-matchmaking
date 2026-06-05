@@ -30,7 +30,7 @@ packaging = ">=26.2,<26.3"
 [feature.dev.tasks]
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
-pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
+pc-run-all = "pre-commit run --all-files"
 
 # ---------------------------------------------------------
 # FEATURE: TESTING

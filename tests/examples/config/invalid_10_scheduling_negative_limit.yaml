@@ -1,6 +1,7 @@
 job_type_priorities:
   - MCSimulation
 
-running_limits:
-  default:
-    MCSimulation: -1
+by_site:
+  LCG.CERN.cern:
+    running_limits:
+      MCSimulation: -1

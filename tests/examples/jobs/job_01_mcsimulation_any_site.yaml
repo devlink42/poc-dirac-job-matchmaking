@@ -4,10 +4,14 @@
 # Based on production: 3-day CPU time, x86_64-v4, no GPU
 # No site restriction — this job can run anywhere
 
+version: 0.1.0
+job_id: '76025716'
+submit_time: '2026-03-28T10:00:00Z'
+
 owner: lbprods
 group: lhcb_mc
 job_type: MCSimulation
-submission_time: "2026-03-28T10:00:00Z"
+status: waiting
 
 matching_specs:
   - system:
@@ -15,7 +19,7 @@ matching_specs:
     wall-time: 259200  # 3 days in seconds
     cpu-work: 500000   # DB12 seconds
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536  # 1.5 GB base for 1 thread
@@ -25,5 +29,5 @@ matching_specs:
           per-core: 0
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 4, "max": null}
-    tags: "cvmfs:lhcb"
+        microarchitecture-level: {min: 4, max: null}
+    tags: cvmfs:lhcb

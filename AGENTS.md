@@ -58,7 +58,7 @@ You are autonomous and expected to verify your own work using the terminal.
 
 * **Typing & Validation**: Rely on strong static typing. Use `pydantic` heavily for data structures within
   `matchmaking/models/`.
-* **Docstrings**: MUST use Google Docstring format for EVERY public class and function.
+* **Docstrings**: MUST use Google Docstring format for EVERY file, public class and function.
 
 ### Lua & Redis Rules
 
@@ -85,7 +85,11 @@ specific constraints:
 
 ## Anti-Patterns (NEVER DO THESE)
 
+* NEVER place `import ...` or `from ... import ...` statements inside the body of functions, methods, or classes. ALL imports MUST be declared at the
+  top of the file.
 * NEVER mix database queries directly inside configuration or base Python business logic without using the designated
   model/repository implementation subdirectories.
 * NEVER leave `print()` statements for debugging; use the appropriate logging module.
-* NEVER invent the Redis schema without consulting existing architecture rules (schema documentation to be defined).
+* NEVER invent the Redis schema without consulting existing architecture rules (schema documentation to be defined,
+  `docs/`).
+* NEVER add emoji in the comment and avoid unnecessary comments (must be clear and concise)
