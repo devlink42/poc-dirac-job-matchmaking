@@ -251,8 +251,9 @@ def check_pipeline(
         sqlite_candidates = [sqlite_jobs_map[j] for j in candidate_ids if j in sqlite_jobs_map]
         redis_candidates = [redis_jobs_map[j] for j in candidate_ids if j in redis_jobs_map]
 
-        sqlite_selected = select_job(sqlite_node, sqlite_candidates, config)
-        redis_selected = select_job(redis_node, redis_candidates, config)
+        # TODO: check how to get the right job for the right test without the job's arg
+        sqlite_selected = select_job(sqlite_node, sqlite_candidates)
+        redis_selected = select_job(redis_node, redis_candidates)
 
         sqlite_id = sqlite_selected.job_id if sqlite_selected else None
         redis_id = redis_selected.job_id if redis_selected else None

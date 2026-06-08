@@ -30,6 +30,7 @@ def select_job(
     if not node:
         return None
 
+    # TODO: Rename JOB_PATH and ensure that you can check different types of JOB_PATH, such as Path/list[Job]/etc.
     try:
         jobs = []
 
