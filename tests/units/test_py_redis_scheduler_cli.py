@@ -10,6 +10,7 @@ import redis
 import yaml
 
 from matchmaking.cli.py_redis import scheduler
+from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
@@ -36,7 +37,7 @@ def test_main_redis_connection_error(monkeypatch, capsys):
     monkeypatch.setattr(redis.Redis, "ping", _raise)
 
     with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, [NODE_01, CONFIG_01])
+        _run_main(monkeypatch, [NODE_01])
 
     captured = capsys.readouterr()
 
@@ -45,13 +46,11 @@ def test_main_redis_connection_error(monkeypatch, capsys):
 
 
 def test_main_config_load_error(monkeypatch, capsys):
-    from matchmaking.models.config import SchedulingConfig
-
     monkeypatch.setattr(SchedulingConfig, "load_from_yaml", MagicMock(side_effect=RuntimeError("err")))
     monkeypatch.setattr("redis.Redis.ping", MagicMock())
 
     with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, [NODE_01, CONFIG_01])
+        _run_main(monkeypatch, [NODE_01])
 
     captured = capsys.readouterr()
 
@@ -64,7 +63,7 @@ def test_main_matchmaking_error(monkeypatch, capsys):
     monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(side_effect=RuntimeError("err")))
 
     with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, [NODE_01, CONFIG_01])
+        _run_main(monkeypatch, [NODE_01])
 
     captured = capsys.readouterr()
 
@@ -80,7 +79,7 @@ def test_main_success_branch(monkeypatch, capsys):
 
     monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(return_value=[job]))
 
-    _run_main(monkeypatch, [NODE_01, CONFIG_01])
+    _run_main(monkeypatch, [NODE_01])
 
     captured = capsys.readouterr()
 
@@ -96,7 +95,7 @@ def test_main_no_allowed_job_branch(monkeypatch, capsys):
     monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(return_value=[job]))
     monkeypatch.setattr(scheduler, "select_job", MagicMock(return_value=None))
 
-    _run_main(monkeypatch, [NODE_01, CONFIG_01])
+    _run_main(monkeypatch, [NODE_01])
 
     captured = capsys.readouterr()
 
@@ -107,6 +106,6 @@ def test_main_no_valid_jobs(monkeypatch, capsys):
     monkeypatch.setattr("redis.Redis.ping", MagicMock())
     monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(return_value=[]))
 
-    _run_main(monkeypatch, [NODE_01, CONFIG_01])
+    _run_main(monkeypatch, [NODE_01])
 
     assert "No valid jobs" not in capsys.readouterr().err

@@ -23,7 +23,8 @@ from matchmaking.config.logger import configure_logger, logger
 from matchmaking.core.py_redis.match_making import match_jobs_with_node_redis
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.scheduler import select_job
-from matchmaking.models.config import SchedulingConfig
+
+# from matchmaking.models.config import SchedulingConfig
 
 
 def main() -> None:
@@ -31,7 +32,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Select a job from Redis for a given node.")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file.")
     # TODO: remove config arg
-    parser.add_argument("config", nargs="?", help="Path to the scheduling configuration YAML file.")
+    # parser.add_argument("config", nargs="?", help="Path to the scheduling configuration YAML file.")
     parser.add_argument("--redis-host", default="localhost", help="Redis host (default: localhost).")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port (default: 6379).")
     parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index (default: 0).")
@@ -52,7 +53,7 @@ def main() -> None:
 
     configure_logger(args.log_level)
 
-    if not args.node or not args.config:
+    if not args.node:
         parser.print_help()
         return
 
@@ -63,11 +64,11 @@ def main() -> None:
         logger.error("Could not connect to Redis at %s:%s — %s", args.redis_host, args.redis_port, exc)
         sys.exit(1)
 
-    try:
-        SchedulingConfig.load_from_yaml(args.config)
-    except Exception as exc:
-        logger.error("Failed to load scheduling config: %s", exc)
-        sys.exit(1)
+    # try:
+    #     SchedulingConfig.load_from_yaml(args.config)
+    # except Exception as exc:
+    #     logger.error("Failed to load scheduling config: %s", exc)
+    #     sys.exit(1)
 
     try:
         candidates = fetch_candidate_jobs(r, args.candidate_jobs_count)

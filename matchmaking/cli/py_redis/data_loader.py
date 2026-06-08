@@ -117,9 +117,18 @@ def main() -> None:
         logger.error("Could not connect to Redis: %s", exc)
         raise SystemExit(1) from exc
 
+    logger.info(
+        "Wiping stale data from Redis at %s:%s/%s",
+        args.redis_host,
+        args.redis_port,
+        args.redis_db,
+    )
+
     # Wipe any stale data before loading a fresh dataset.
     r.delete(PY_REDIS_JOB_KEY)
     r.delete(PY_REDIS_NODES_KEY)
+
+    logger.info("Loading %d jobs and %d nodes into Redis", args.num_jobs, args.num_nodes)
 
     load_data(r, args.num_jobs, args.num_nodes)
 
