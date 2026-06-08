@@ -46,8 +46,14 @@ def test_main_redis_connection_error(monkeypatch, capsys):
 
 
 def test_main_config_load_error(monkeypatch, capsys):
-    monkeypatch.setattr(SchedulingConfig, "load_from_yaml", MagicMock(side_effect=RuntimeError("err")))
     monkeypatch.setattr("redis.Redis.ping", MagicMock())
+    monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(return_value=[]))
+    monkeypatch.setattr(
+        scheduler,
+        "match_jobs_with_node_redis",
+        MagicMock(return_value=([MagicMock()], MagicMock(site="LCG.CERN.cern", node_id="node-01"))),
+    )
+    monkeypatch.setattr(SchedulingConfig, "load_from_yaml", MagicMock(side_effect=RuntimeError("err")))
 
     with pytest.raises(SystemExit) as exc:
         _run_main(monkeypatch, [NODE_01])
