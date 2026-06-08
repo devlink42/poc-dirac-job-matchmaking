@@ -56,6 +56,7 @@ locust = ">=2.44.0,<2.45"
 m2-bash = ">=5.2.37.2,<5.3"
 
 [feature.benchmark.tasks]
+# Linux
 benchmark = "sh ./benchmark/run_benchmark.sh --headless"
 benchmark-ui = "sh ./benchmark/run_benchmark.sh --ui"
 benchmark-dist = "sh ./benchmark/run_benchmark.sh --distributed --headless"

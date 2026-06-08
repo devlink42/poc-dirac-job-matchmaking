@@ -14,11 +14,11 @@ the storage layer differs. Equivalence therefore reduces to:
 
 Workflow:
     1. Populate both stores from the same generator seed:
-           pixi run generate_db --num-jobs 100000 --num-nodes 1000
-           pixi run data_loader --num-jobs 100000 --num-nodes 1000
+           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+           pixi run data_loader --num-jobs 10000000 --num-nodes 50000
 
     2. Run the check:
-           pixi run python -m benchmark.verify_consistency --sample-jobs 5000 --sample-nodes 1000 --pipeline-rounds 200
+           pixi run verify_consistency --sample-jobs 5000 --sample-nodes 1000 --pipeline-rounds 200
 """
 
 from __future__ import annotations
