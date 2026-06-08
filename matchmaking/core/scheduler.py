@@ -54,11 +54,11 @@ def select_job(
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
     except FileNotFoundError as e:
-        raise ValueError(f"Default scheduling config not found at: '{CONFIG_PATH}'") from e
+        raise ValueError(f"Scheduling config not found at: '{CONFIG_PATH}'") from e
     except Exception as e:
-        raise ValueError(f"Failed to load default scheduling config: {e}") from e
+        raise ValueError(f"Failed to load scheduling config: {e}") from e
     else:
-        logger.info("Loaded default scheduling config from: '%s'", CONFIG_PATH)
+        logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
     site_config = config.by_site.get(node.site)
     site_limits = site_config.running_limits if site_config else {}

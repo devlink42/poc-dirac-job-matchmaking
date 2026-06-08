@@ -31,8 +31,6 @@ def main() -> None:
     """Entry point for the Redis-backed scheduler CLI."""
     parser = argparse.ArgumentParser(description="Select a job from Redis for a given node.")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file.")
-    # TODO: remove config arg
-    # parser.add_argument("config", nargs="?", help="Path to the scheduling configuration YAML file.")
     parser.add_argument("--redis-host", default="localhost", help="Redis host (default: localhost).")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port (default: 6379).")
     parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index (default: 0).")
@@ -63,12 +61,6 @@ def main() -> None:
     except redis.ConnectionError as exc:
         logger.error("Could not connect to Redis at %s:%s — %s", args.redis_host, args.redis_port, exc)
         sys.exit(1)
-
-    # try:
-    #     SchedulingConfig.load_from_yaml(args.config)
-    # except Exception as exc:
-    #     logger.error("Failed to load scheduling config: %s", exc)
-    #     sys.exit(1)
 
     try:
         candidates = fetch_candidate_jobs(r, args.candidate_jobs_count)

@@ -232,7 +232,7 @@ def test_select_job_default_config_not_found(load_job, load_node):
     with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
         mock_load.side_effect = FileNotFoundError("File not found")
 
-        with pytest.raises(ValueError, match=f"Default scheduling config not found at: '{CONFIG_PATH}'"):
+        with pytest.raises(ValueError, match=f"Scheduling config not found at: '{CONFIG_PATH}'"):
             select_job(node)
 
 
@@ -250,7 +250,7 @@ def test_select_job_default_config_load_error(load_job, load_node):
         mock_glob.return_value = [Path("job.yaml")]
         mock_load.side_effect = RuntimeError("invalid config")
 
-        with pytest.raises(ValueError, match="Failed to load default scheduling config: invalid config"):
+        with pytest.raises(ValueError, match="Failed to load scheduling config: invalid config"):
             select_job(node)
 
 
