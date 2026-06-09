@@ -93,6 +93,7 @@ def _fetch_sqlite_jobs(conn: sqlite3.Connection, job_ids: list[str]) -> dict[str
 def _fetch_redis_jobs(r: redis.Redis, job_ids: list[str]) -> dict[str, Job]:
     """Fetch jobs from Redis indexed by ``job_id``."""
     out: dict[str, Job] = {}
+
     for chunk in _chunked(job_ids, _REDIS_BATCH):
         raw = r.hmget(PY_REDIS_JOB_KEY, chunk)
         for job_id, data in zip(chunk, raw, strict=False):

@@ -44,7 +44,7 @@ def select_job(
         except Exception as e:
             raise ValueError(f"Failed to load job examples: {e}") from e
         else:
-            logger.info("Loaded job examples from: '%s'", JOBS)
+            logger.debug("Loaded job examples from: '%s'", JOBS)
     else:
         jobs = JOBS
 
@@ -61,7 +61,7 @@ def select_job(
     except Exception as e:
         raise ValueError(f"Failed to load scheduling config: {e}") from e
     else:
-        logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
+        logger.debug("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
     site_config = config.by_site.get(node.site)
     site_limits = site_config.running_limits if site_config else {}

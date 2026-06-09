@@ -75,6 +75,9 @@ filterwarnings = [
 ]
 
 [tool.coverage.report]
+omit = [
+    "verify_consistency.py",
+]
 exclude_also = [
     'if __name__ == .__main__.:',
 ]

@@ -4,17 +4,21 @@ set -e
 
 NUM_JOBS=10000000
 NUM_NODES=50000
-TIME="10m"
+TIME="15m"
 
 declare -a scenarios=(
-    "Scenario_1_Baseline_NonDistrib             50     10    100   python         no"
-    "Scenario_2_Baseline_Distrib                100    20    100   python         yes"
-    "Scenario_3_HighCandidate_NonDistrib        50     10    500   python         no"
-    "Scenario_4_ExtremeLoad_Distrib             1000   100   50    python         yes"
-    "Scenario_1_redis_Baseline_NonDistrib       50     10    100   python_redis   no"
-    "Scenario_2_redis_Baseline_Distrib          100    20    100   python_redis   yes"
-    "Scenario_3_redis_HighCandidate_NonDistrib  50     10    500   python_redis   no"
-    "Scenario_4_redis_ExtremeLoad_Distrib       1000   100   50    python_redis   yes"
+    "Scenario_1_Baseline_NonDistrib             50     10   100  python        no"
+    "Scenario_2_Baseline_Distrib                100    20   100  python        yes"
+    "Scenario_3_HighCandidate_NonDistrib        50     10   500  python        no"
+    "Scenario_4_HighCandidate_Distrib           50     10   500  python        yes"
+    "Scenario_5_ExtremeLoad_Distrib             1000   100  50   python        yes"
+    "Scenario_6_LikeReal_Distrib                10000  500  250   python       yes"
+    "Scenario_1_redis_Baseline_NonDistrib       50     10   100  python_redis  no"
+    "Scenario_2_redis_Baseline_Distrib          100    20   100  python_redis  yes"
+    "Scenario_3_redis_HighCandidate_NonDistrib  50     10   500  python_redis  no"
+    "Scenario_4_redis_HighCandidate_Distrib     50     10   500  python_redis  yes"
+    "Scenario_5_redis_ExtremeLoad_Distrib       1000   100  50   python_redis  yes"
+    "Scenario_6_redis_LikeReal_Distrib          10000  500  250  python_redis  yes"
 )
 
 echo "============================================================"
