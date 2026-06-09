@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import redis
 
-from matchmaking.cli.py_redis import data_loader
+from benchmark.py_redis import data_loader
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 
 

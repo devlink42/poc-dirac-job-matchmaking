@@ -12,8 +12,8 @@ from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 from matchmaking.models.utils import JobStatus
 
-CONFIG_PATH = "matchmaking/config/scheduling.yaml"
-JOB_PATH = "tests/examples/jobs/"
+CONFIG_PATH: Path | str = "matchmaking/config/scheduling.yaml"
+JOBS: Path | str | list[Job] = "tests/examples/jobs/"
 
 
 def select_job(
@@ -30,21 +30,23 @@ def select_job(
     if not node:
         return None
 
-    # TODO: Rename JOB_PATH and ensure that you can check different types of JOB_PATH, such as Path/list[Job]/etc.
-    try:
-        jobs = []
+    if isinstance(JOBS, str | Path):
+        try:
+            jobs = []
 
-        for job_file in Path(JOB_PATH).glob("*.yaml"):
-            if job_file.stem.startswith("invalid"):
-                continue
+            for job_file in Path(JOBS).glob("*.yaml"):
+                if job_file.stem.startswith("invalid"):
+                    continue
 
-            jobs.append(Job.load_from_yaml(job_file))
-    except FileNotFoundError as e:
-        raise ValueError(f"Job examples not found at: '{JOB_PATH}'") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load job examples: {e}") from e
+                jobs.append(Job.load_from_yaml(job_file))
+        except FileNotFoundError as e:
+            raise ValueError(f"Job examples not found at: '{JOBS}'") from e
+        except Exception as e:
+            raise ValueError(f"Failed to load job examples: {e}") from e
+        else:
+            logger.info("Loaded job examples from: '%s'", JOBS)
     else:
-        logger.info("Loaded job examples from: '%s'", JOB_PATH)
+        jobs = JOBS
 
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
     waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING]

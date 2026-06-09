@@ -33,8 +33,8 @@ import redis
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.core import scheduler
 from matchmaking.core.scheduler import select_job
-from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
@@ -212,7 +212,6 @@ def check_nodes(conn: sqlite3.Connection, r: redis.Redis, sample_size: int, rng:
 def check_pipeline(
     conn: sqlite3.Connection,
     r: redis.Redis,
-    config: SchedulingConfig,
     rounds: int,
     candidate_jobs_count: int,
     rng: random.Random,
@@ -251,9 +250,10 @@ def check_pipeline(
         sqlite_candidates = [sqlite_jobs_map[j] for j in candidate_ids if j in sqlite_jobs_map]
         redis_candidates = [redis_jobs_map[j] for j in candidate_ids if j in redis_jobs_map]
 
-        # TODO: check how to get the right job for the right test without the job's arg
-        sqlite_selected = select_job(sqlite_node, sqlite_candidates)
-        redis_selected = select_job(redis_node, redis_candidates)
+        scheduler.JOBS = sqlite_candidates
+        sqlite_selected = select_job(sqlite_node)
+        scheduler.JOBS = redis_candidates
+        redis_selected = select_job(redis_node)
 
         sqlite_id = sqlite_selected.job_id if sqlite_selected else None
         redis_id = redis_selected.job_id if redis_selected else None
@@ -272,11 +272,6 @@ def main() -> int:
     parser.add_argument("--redis-host", default="localhost", help="Redis host.")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port.")
     parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index.")
-    parser.add_argument(
-        "--config-path",
-        default="matchmaking/config/scheduling.yaml",
-        help="Scheduling configuration YAML.",
-    )
     parser.add_argument("--sample-jobs", type=int, default=2000, help="Number of jobs to compare by id.")
     parser.add_argument("--sample-nodes", type=int, default=500, help="Number of nodes to compare by id.")
     parser.add_argument("--pipeline-rounds", type=int, default=100, help="Number of select_job rounds to compare.")
@@ -319,14 +314,6 @@ def main() -> int:
 
         return 1
 
-    try:
-        config = SchedulingConfig.load_from_yaml(args.config_path)
-    except Exception as exc:
-        logger.error("Failed to load scheduling config: %s", exc)
-        conn.close()
-
-        return 1
-
     reports: list[CheckReport] = []
     try:
         reports.append(check_population(conn, r))
@@ -336,7 +323,6 @@ def main() -> int:
             check_pipeline(
                 conn,
                 r,
-                config,
                 rounds=args.pipeline_rounds,
                 candidate_jobs_count=args.candidate_jobs_count,
                 rng=rng,
