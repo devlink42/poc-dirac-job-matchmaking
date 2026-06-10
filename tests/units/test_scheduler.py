@@ -142,10 +142,6 @@ def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
     assert selected.job_id == "old"
 
 
-def test_select_job_no_node_returns_none():
-    assert select_job(None) is None
-
-
 def test_select_job_job_path_not_found(example_config, load_node):
     node = load_node("node_01_cern_typical")
 

@@ -27,23 +27,7 @@ def select_job(
     Returns:
         Job | None: The selected job or None if no suitable job is found.
     """
-    if not node:
-        return None
-
-    try:
-        jobs = []
-
-        for job_file in Path(JOB_PATH).glob("*.yaml"):
-            if job_file.stem.startswith("invalid"):
-                continue
-
-            jobs.append(Job.load_from_yaml(job_file))
-    except FileNotFoundError as e:
-        raise ValueError(f"Job examples not found at: '{JOB_PATH}'") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load job examples: {e}") from e
-    else:
-        logger.info(f"Loaded job examples from: '{JOB_PATH}'")
+    jobs = get_jobs()
 
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
     waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING]
@@ -51,14 +35,7 @@ def select_job(
     if not waiting_jobs:
         return None
 
-    try:
-        config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
-    except FileNotFoundError as e:
-        raise ValueError(f"Default scheduling config not found at: '{CONFIG_PATH}'") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load default scheduling config: {e}") from e
-    else:
-        logger.info(f"Loaded default scheduling config from: '{CONFIG_PATH}'")
+    config = get_selection_configuration()
 
     site_config = config.by_site.get(node.site)
     site_limits = site_config.running_limits if site_config else {}
@@ -91,10 +68,10 @@ def select_job(
                 continue
 
             total_weight = sum(relevant_types.values())
+            # TODO: Use a seed for the `random.uniform` to ensure the same result each time it's run
             rand_val = random.uniform(0, total_weight)  # noqa: S311
             cumulative_weight = 0
 
-            # Sort types to ensure deterministic behavior for a given random seed
             for jt in sorted(relevant_types.keys()):
                 cumulative_weight += relevant_types[jt]
                 if rand_val <= cumulative_weight:
@@ -110,9 +87,6 @@ def select_job(
 
     # If no job type from priorities is found in allowed_jobs, we might want to fallback
     # or just return None if we strictly follow the priorities.
-    # The issue says "prendre les jobs qui sont de ce type la un par un, puis si il y en a plus prendre le 2eme..."
-    # implying we only consider what's in the list.
-
     if not selected_job_type:
         # Fallback for jobs whose type is not in the priority list.
         # If we didn't find a selected_job_type, it means none of the allowed_jobs types
@@ -142,3 +116,35 @@ def select_job(
     candidates.sort(key=sorting_key)
 
     return candidates[0]
+
+
+def get_jobs() -> list[Job]:
+    try:
+        jobs = []
+
+        for job_file in Path(JOB_PATH).glob("*.yaml"):
+            if job_file.stem.startswith("invalid"):
+                continue
+
+            jobs.append(Job.load_from_yaml(job_file))
+    except FileNotFoundError as e:
+        raise ValueError(f"Job examples not found at: '{JOB_PATH}'") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load job examples: {e}") from e
+    else:
+        logger.info(f"Loaded job examples from: '{JOB_PATH}'")
+
+    return jobs
+
+
+def get_selection_configuration() -> SchedulingConfig:
+    try:
+        config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
+    except FileNotFoundError as e:
+        raise ValueError(f"Default scheduling config not found at: '{CONFIG_PATH}'") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load default scheduling config: {e}") from e
+    else:
+        logger.info(f"Loaded default scheduling config from: '{CONFIG_PATH}'")
+
+    return config

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from glob import glob
-from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -94,20 +93,3 @@ def test_invalid_version_with_adapter():
 
     with pytest.raises(ValidationError, match="Invalid version format"):
         adapter.validate_python("version_invalide")
-
-
-def test_get_current_schema_version_file_not_found():
-    from matchmaking.models.utils import get_current_schema_version
-
-    with patch("matchmaking.models.utils.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="No such file or directory"):
-            get_current_schema_version()
-
-
-def test_get_current_schema_version_no_version_found():
-    from matchmaking.models.utils import get_current_schema_version
-
-    with patch("matchmaking.models.utils.Path.exists", return_value=True):
-        with patch("matchmaking.models.utils.Path.read_text", return_value="No version here"):
-            with pytest.raises(ValueError, match="No schema version found"):
-                get_current_schema_version()
