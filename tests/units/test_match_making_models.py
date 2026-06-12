@@ -62,13 +62,23 @@ def test_all_node_examples(node_file):
         Node.model_validate(data)
 
 
-def test_valid_job_failure_paths():
+def test_some_valid_job_success_paths():
+    assert valid_job("tests/examples/jobs/job_01_mcsimulation_any_site.yaml")
+    assert valid_job("tests/examples/jobs/job_02_mcsimulation_multi_site.yaml")
+
+
+def test_some_valid_job_failure_paths():
     assert not valid_job("tests/examples/jobs/does_not_exist.yaml")
     assert not valid_job("tests/examples/jobs/invalid_01_job_min_gt_max.yaml")
     assert not valid_job("tests/examples/jobs/invalid_05_job_empty_specs.yaml")
 
 
-def test_valid_node_failure_paths():
+def test_some_valid_node_success_paths():
+    assert valid_node("tests/examples/nodes/node_01_cern_typical.yaml")
+    assert valid_node("tests/examples/nodes/node_02_tier2_older.yaml")
+
+
+def test_some_valid_node_failure_paths():
     assert not valid_node("tests/examples/nodes/does_not_exist.yaml")
     assert not valid_node("tests/examples/nodes/invalid_07_node_negative_cores.yaml")
 
