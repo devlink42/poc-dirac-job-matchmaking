@@ -236,10 +236,9 @@ def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
         )
         yaml.safe_dump(_base_node_spec(), node)
 
-    matching_jobs, _node = match_jobs_with_node(str(job_file), str(node_file))
+    matching_job, _ = match_jobs_with_node(str(job_file), str(node_file))
 
-    assert len(matching_jobs) == 1
-    assert matching_jobs[0].job_id == "job_without_id"
+    assert matching_job.job_id == "job_without_id"
 
 
 def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):

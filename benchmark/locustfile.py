@@ -23,7 +23,7 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import valid_job_specs_with_node
+from matchmaking.core import scheduler
 from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
@@ -157,19 +157,14 @@ class MatchmakingUser(User):
         placeholders = ",".join("?" * len(candidate_ids))
         cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 
-        candidates = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
+        scheduler.JOBS = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
 
         start_time = time.perf_counter()
         selected_job = None
         error = None
 
         try:
-            compatible = [
-                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
-            ]
-            if compatible:
-                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
-
+            selected_job = select_job(node)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)

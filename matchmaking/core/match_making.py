@@ -244,7 +244,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
-def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
+def match_jobs_with_node(job: str | Job, node: str | Node) -> tuple[Job, Node] | None:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
@@ -252,8 +252,25 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
         node (str): Path to the node YAML file.
 
     Returns:
-        tuple[list[Job], Node]: A tuple containing a list of matching jobs and the node object.
+        tuple[Job, Node]: A tuple containing a matching job and the node object.
     """
+    node_obj = load_node(node)
+
+    job_obj = load_job(job)
+
+    for i, job_spec in enumerate(job_obj.matching_specs):
+        if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
+            logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
+
+            return job_obj, node_obj
+
+    return None
+
+
+def load_node(node: str | Node) -> Node:
+    if isinstance(node, Node):
+        return node
+
     try:
         node_obj = Node.load_from_yaml(node)
         logger.info("Node file %s is VALID.", node)
@@ -266,7 +283,12 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
         node_obj.node_id = Path(node).stem
         logger.warning("Node ID not specified in %s, using filename as default: %s", node, node_obj.node_id)
 
-    jobs_match = []
+    return node_obj
+
+
+def load_job(job: str | Job) -> Job:
+    if isinstance(job, Job):
+        return job
 
     try:
         job_obj = Job.load_from_yaml(job)
@@ -280,9 +302,4 @@ def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
         job_obj.job_id = Path(job).stem
         logger.warning("Job ID not specified in %s, using filename as default: %s", job, job_obj.job_id)
 
-    for i, job_spec in enumerate(job_obj.matching_specs):
-        if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
-            jobs_match.append(job_obj)
-            logger.info("Job %s-%s matches node %s.", job_obj.job_id, i, node_obj.node_id)
-
-    return jobs_match, node_obj
+    return job_obj

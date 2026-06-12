@@ -13,14 +13,12 @@ from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
     Io,
-    JobGroup,
     JobStatus,
     Range,
     ResourceSpec,
     StrictRange,
     SystemName,
     Type,
-    get_current_schema_version,
 )
 
 
@@ -113,15 +111,15 @@ class MatchingSpecs(BaseModel):
 class Job(BaseModel):
     """Data model representing a job in the matchmaking system."""
 
-    version: CustomVersion = Field(default_factory=get_current_schema_version)
+    version: CustomVersion = Field(default=CustomVersion("0.1"))
     job_id: str | None = None
     submit_time: datetime
 
     # Job information
     owner: str
-    group: JobGroup | str
+    group: str
     job_type: Type
-    status: JobStatus | str = JobStatus.WAITING
+    status: JobStatus = JobStatus.WAITING
 
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)

@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, model_validator
 
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName, get_current_schema_version
+from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
 
 
 class System(BaseModel):
@@ -75,7 +75,7 @@ class Node(BaseModel):
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     node_id: str | None = None
-    version: CustomVersion = Field(default_factory=get_current_schema_version)
+    version: CustomVersion = Field(default=CustomVersion("0.1"))
 
     site: str
     system: System
