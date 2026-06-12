@@ -14,15 +14,15 @@ from matchmaking.models.utils import JobStatus, Type
 
 
 def test_select_job_respects_site_limits(example_config, load_job, load_node):
-    node = load_node("node_01_cern_typical")
+    node = load_node("node_03_gpu")
 
-    job = load_job("job_04_wgproduction_with_ram")
+    job = load_job("job_06_gpu")
 
     job.status = JobStatus.WAITING
 
     running_job = job.model_copy()
     running_job.status = JobStatus.RUNNING
-    candidate_jobs = [running_job] * 1000 + [job]
+    candidate_jobs = [running_job] * 500 + [job]
 
     with (
         patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
@@ -36,7 +36,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
 
     assert selected is None
 
-    candidate_jobs = [running_job] * 999 + [job]
+    candidate_jobs = [running_job] * 499 + [job]
 
     with (
         patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
@@ -94,7 +94,7 @@ def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node)
     job_mc.job_id = "mc"
     job_mc.status = JobStatus.WAITING
 
-    job_wg = load_job("job_04_wgproduction_with_ram")
+    job_wg = load_job("job_01_mcsimulation_any_site")
     job_wg.job_id = "wg"
     job_wg.status = JobStatus.WAITING
 
@@ -111,6 +111,9 @@ def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node)
         mock_load_job.side_effect = candidate_jobs
 
         selected = select_job(node)
+
+    if selected is None:
+        pytest.fail("No job selected")
 
     assert selected.job_id == "wg"
 

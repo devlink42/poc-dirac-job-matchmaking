@@ -47,15 +47,12 @@ def main():
         valid_node(node_path)
     elif args.job and args.node:
         try:
-            matched_jobs, _ = match_jobs_with_node(args.job, args.node)
+            matched_job_and_node = match_jobs_with_node(args.job, args.node)
 
-            if matched_jobs:
-                logger.info(f"Match found! {len(matched_jobs)} job(s) can run on this node:")
-
-                for job in matched_jobs:
-                    logger.info(f"  - Job ID: {job.job_id}")
-            else:
+            if matched_job_and_node is None:
                 logger.info("No jobs from the job file can run on this node.")
+            else:
+                logger.info(f"Match found! Job {matched_job_and_node[0].job_id} can run on this node:")
         except Exception as e:
             logger.error(f"Error during matchmaking: {e}")
             sys.exit(1)

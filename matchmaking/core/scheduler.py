@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 from matchmaking.config.logger import logger
+from matchmaking.core.match_making import match_jobs_with_node
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -30,7 +31,9 @@ def select_job(
     jobs = get_jobs()
 
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
-    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING]
+    waiting_jobs = [
+        job for job in jobs if job.status == JobStatus.WAITING and match_jobs_with_node(job, node) is not None
+    ]
 
     if not waiting_jobs:
         return None
@@ -55,6 +58,9 @@ def select_job(
     if not allowed_jobs:
         return None
 
+    # Initialize a local random number generator to ensure determinism in the selection process.
+    rng = random.Random(42)  # noqa: S311
+
     # Step 1: Filter by job type priority
     selected_job_type = None
 
@@ -68,8 +74,7 @@ def select_job(
                 continue
 
             total_weight = sum(relevant_types.values())
-            # TODO: Use a seed for the `random.uniform` to ensure the same result each time it's run
-            rand_val = random.uniform(0, total_weight)  # noqa: S311
+            rand_val = rng.uniform(0, total_weight)  # noqa: S311
             cumulative_weight = 0
 
             for jt in sorted(relevant_types.keys()):
