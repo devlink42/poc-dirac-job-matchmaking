@@ -15,7 +15,7 @@ by_site:
   LCG.CERN.cern:
     running_limits:
       WGProduction: 1000
-      MCSimulation: 5000
+      MCSimulation: 500
       User: 20
 
   LCG.IN2P3.fr:

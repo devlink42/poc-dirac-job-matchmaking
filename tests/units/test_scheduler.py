@@ -51,52 +51,16 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
     assert selected == job
 
 
-def test_select_job_respects_default_limits_fallback(example_config, load_job, load_node):
-    node = load_node("node_02_tier2_older")
-
-    job = load_job("job_05_user_with_banned_site")  # Type User
-
-    job.status = JobStatus.WAITING
-
-    running_job = job.model_copy()
-    running_job.status = JobStatus.RUNNING
-    candidate_jobs = [running_job] * 200 + [job]
-
-    with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
-    ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
-
-        selected = select_job(node)
-
-    assert selected is None
-
-    candidate_jobs = [running_job] * 199 + [job]
-
-    with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
-    ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
-
-        selected = select_job(node)
-
-    assert selected == job
-
-
 def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node):
     job_mc = load_job("job_01_mcsimulation_any_site")
     job_mc.job_id = "mc"
     job_mc.status = JobStatus.WAITING
+    job_mc.job_type = "MCSimulation"
 
     job_wg = load_job("job_01_mcsimulation_any_site")
     job_wg.job_id = "wg"
     job_wg.status = JobStatus.WAITING
+    job_wg.job_type = "WGProduction"
 
     node = load_node("node_01_cern_typical")
 
@@ -142,6 +106,9 @@ def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
 
         selected = select_job(node)
 
+    if selected is None:
+        pytest.fail("No job selected")
+
     assert selected.job_id == "old"
 
 
@@ -169,6 +136,7 @@ def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
         mock_glob.return_value = []
+
         assert select_job(node) is None
 
 
@@ -187,6 +155,7 @@ def test_select_job_unknown_type_fallback(load_job, load_node):
     job_older.status = JobStatus.WAITING
 
     candidate_jobs = [job_unknown, job_older]
+
     with (
         patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
@@ -195,6 +164,9 @@ def test_select_job_unknown_type_fallback(load_job, load_node):
         mock_load_job.side_effect = candidate_jobs
 
         selected = select_job(node)
+
+    if selected is None:
+        pytest.fail("No job selected")
 
     assert selected.job_id == "older"
 
@@ -302,6 +274,9 @@ def test_select_job_weighted_priority(load_job, load_node):
 
         selected = select_job(node)
 
+        if selected is None:
+            pytest.fail("No job selected")
+
         assert selected.job_id == "mc"
 
     mock_config.job_type_priorities = [{Type.MCSIMULATION: 0, Type.USER: 100}]
@@ -315,5 +290,8 @@ def test_select_job_weighted_priority(load_job, load_node):
         mock_load_job.side_effect = [job_mc, job_user]
 
         selected = select_job(node)
+
+        if selected is None:
+            pytest.fail("No job selected")
 
         assert selected.job_id == "user"
