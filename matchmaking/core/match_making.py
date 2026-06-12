@@ -234,7 +234,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
-def match_jobs_with_node(job: str | Job, node: str | Node) -> tuple[Job, Node] | None:
+def match(job: str | Job, node: str | Node) -> bool:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
@@ -242,7 +242,7 @@ def match_jobs_with_node(job: str | Job, node: str | Node) -> tuple[Job, Node] |
         node (str): Path to the node YAML file.
 
     Returns:
-        tuple[Job, Node]: A tuple containing a matching job and the node object.
+        bool: True if a matching job and node are found, False otherwise.
     """
     node_obj = load_node(node)
 
@@ -252,9 +252,9 @@ def match_jobs_with_node(job: str | Job, node: str | Node) -> tuple[Job, Node] |
         if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
             logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
 
-            return job_obj, node_obj
+            return True
 
-    return None
+    return False
 
 
 def load_node(node: str | Node) -> Node:

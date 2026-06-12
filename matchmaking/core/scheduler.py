@@ -7,7 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 from matchmaking.config.logger import logger
-from matchmaking.core.match_making import match_jobs_with_node
+from matchmaking.core.match_making import match
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -32,9 +32,7 @@ def select_job(
 
     # Match-making: Filter jobs that are compatible with the node's resources
     # and requirements, only in WAITING status jobs.
-    waiting_jobs = [
-        job for job in jobs if job.status == JobStatus.WAITING and match_jobs_with_node(job, node) is not None
-    ]
+    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING and match(job, node) is not None]
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
 
     if not waiting_jobs:

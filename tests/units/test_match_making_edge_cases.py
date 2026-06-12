@@ -8,7 +8,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from matchmaking.core.match_making import match_jobs_with_node, valid_job_specs_with_node
+from matchmaking.core.match_making import match, valid_job_specs_with_node
 from matchmaking.models.job import MatchingSpecs
 from matchmaking.models.node import Node
 
@@ -216,7 +216,7 @@ def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
         yaml.safe_dump(invalid_node, f)
 
     with pytest.raises(ValidationError):
-        match_jobs_with_node(str(job_file), str(node_file))
+        match(str(job_file), str(node_file))
 
 
 def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
@@ -236,7 +236,7 @@ def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
         )
         yaml.safe_dump(_base_node_spec(), node)
 
-    matching_job, _ = match_jobs_with_node(str(job_file), str(node_file))
+    matching_job, _ = match(str(job_file), str(node_file))
 
     assert matching_job.job_id == "job_without_id"
 
@@ -254,7 +254,7 @@ def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
         yaml.safe_dump(_base_node_spec(), node)
 
     with pytest.raises(ValidationError):
-        match_jobs_with_node(str(job_file), str(node_file))
+        match(str(job_file), str(node_file))
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
@@ -267,7 +267,7 @@ def test_match_jobs_with_node_handles_missing_or_empty_matching_specs(tmp_path, 
         yaml.safe_dump(_base_node_spec(), node)
 
     with pytest.raises(ValidationError):
-        match_jobs_with_node(str(job_file), str(node_file))
+        match(str(job_file), str(node_file))
 
 
 def test_match_jobs_returns_empty_when_job_specs_are_invalid():
@@ -275,4 +275,4 @@ def test_match_jobs_returns_empty_when_job_specs_are_invalid():
     node_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
     with pytest.raises(ValidationError):
-        match_jobs_with_node(invalid_job, node_01)
+        match(invalid_job, node_01)
