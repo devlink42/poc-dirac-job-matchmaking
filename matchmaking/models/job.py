@@ -13,7 +13,6 @@ from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
     Io,
-    JobGroup,
     JobStatus,
     Range,
     ResourceSpec,
@@ -105,7 +104,7 @@ class Job(BaseModel):
 
     # Job information
     owner: str
-    group: JobGroup | str
+    group: str
     job_type: Type
     status: JobStatus = JobStatus.WAITING
 
