@@ -32,7 +32,7 @@ def select_job(
 
     # Match-making: Filter jobs that are compatible with the node's resources
     # and requirements, only in WAITING status jobs.
-    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING and match(job, node) is not None]
+    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING and match(job, node)]
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
 
     if not waiting_jobs:

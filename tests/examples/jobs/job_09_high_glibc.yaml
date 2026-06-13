@@ -7,7 +7,7 @@ submit_time: '2026-03-28T10:00:00Z'
 owner: lbprods
 group: lhcb_mc
 job_type: MCSimulation
-status: waiting
+status: Waiting
 
 matching_specs:
   - system:

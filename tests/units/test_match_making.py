@@ -118,15 +118,12 @@ def test_matchmaking_logic(load_job, load_node, job_id, node_id, expected_match)
     core_matches = [valid_job_specs_with_node(job_id, job_specs, node_obj) for job_specs in job_objs.matching_specs]
 
     # Level 2: Higher-level API verification
-    job_match_and_node = match(job_file, node_file)
+    is_matching = match(job_file, node_file)
 
     if expected_match:
         assert any(core_matches), f"Core: Expected {job_id} to match {node_id} ({job_file})"
 
-        if job_match_and_node:
-            assert job_match_and_node[0], f"API: Expected {job_id} to match {node_id} ({job_file})"
-        else:
-            pytest.fail(f"API: Expected {job_id} to match {node_id} ({job_file}), but got no match")
+        assert is_matching, f"API: Expected {job_id} to match {node_id} ({job_file})"
     else:
         assert not any(core_matches), f"Core: Expected {job_id} NOT to match {node_id} ({job_file})"
-        assert not job_match_and_node, f"API: Expected {job_id} NOT to match {node_id} ({job_file})"
+        assert not is_matching, f"API: Expected {job_id} NOT to match {node_id} ({job_file})"
