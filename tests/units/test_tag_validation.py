@@ -17,7 +17,7 @@ BASE_JOB_DATA = {
     "job_id": "test-job",
     "owner": "test-owner",
     "group": "lhcb_mc",
-    "job_type": Type.USER,
+    "type": Type.USER,
     "submit_time": datetime.now(tz=UTC),
     "matching_specs": [
         {

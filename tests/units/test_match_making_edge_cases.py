@@ -8,7 +8,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from matchmaking.core.match_making import match, valid_job_specs_with_node
+from matchmaking.core.match import is_matching, is_valid_job_specs_with_node
 from matchmaking.models.job import MatchingSpecs
 from matchmaking.models.node import Node
 
@@ -190,7 +190,7 @@ def test_valid_job_with_node_failure_branches(job_path, node_path, mutator):
 
     job_id = Path(job_path).stem
 
-    assert not valid_job_specs_with_node(job_id, job_specs, node)
+    assert not is_valid_job_specs_with_node(job_id, job_specs, node)
 
 
 def test_valid_job_with_node_accepts_boundary_equal_values():
@@ -200,7 +200,7 @@ def test_valid_job_with_node_accepts_boundary_equal_values():
     except ValidationError:
         raise
 
-    assert valid_job_specs_with_node("edge-job-0", job, node)
+    assert is_valid_job_specs_with_node("edge-job-0", job, node)
 
 
 def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
@@ -216,7 +216,7 @@ def test_match_jobs_with_node_raises_for_invalid_node(tmp_path):
         yaml.safe_dump(invalid_node, f)
 
     with pytest.raises(ValidationError):
-        match(str(job_file), str(node_file))
+        is_matching(str(job_file), str(node_file))
 
 
 def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
@@ -229,16 +229,16 @@ def test_match_jobs_with_node_uses_filename_when_job_id_is_missing(tmp_path):
                 "submit_time": "2026-01-01T12:00:00Z",
                 "owner": "owner",
                 "group": "lhcb_user",
-                "job_type": "User",
+                "type": "User",
                 "matching_specs": [_base_job_matching_spec()],
             },
             job,
         )
         yaml.safe_dump(_base_node_spec(), node)
 
-    is_matching = match(str(job_file), str(node_file))
+    matching = is_matching(str(job_file), str(node_file))
 
-    assert is_matching
+    assert matching
 
 
 def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
@@ -254,7 +254,7 @@ def test_match_jobs_with_node_returns_empty_even_with_mixed_specs(tmp_path):
         yaml.safe_dump(_base_node_spec(), node)
 
     with pytest.raises(ValidationError):
-        match(str(job_file), str(node_file))
+        is_matching(str(job_file), str(node_file))
 
 
 @pytest.mark.parametrize("job_content", [{}, {"matching_specs": []}])
@@ -267,7 +267,7 @@ def test_match_jobs_with_node_handles_missing_or_empty_matching_specs(tmp_path, 
         yaml.safe_dump(_base_node_spec(), node)
 
     with pytest.raises(ValidationError):
-        match(str(job_file), str(node_file))
+        is_matching(str(job_file), str(node_file))
 
 
 def test_match_jobs_returns_empty_when_job_specs_are_invalid():
@@ -275,4 +275,4 @@ def test_match_jobs_returns_empty_when_job_specs_are_invalid():
     node_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
     with pytest.raises(ValidationError):
-        match(invalid_job, node_01)
+        is_matching(invalid_job, node_01)

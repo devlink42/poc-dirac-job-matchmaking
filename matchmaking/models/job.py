@@ -105,7 +105,7 @@ class Job(BaseModel):
     # Job information
     owner: str
     group: str
-    job_type: Type
+    type: Type
     status: JobStatus = JobStatus.WAITING
 
     # Matching specs

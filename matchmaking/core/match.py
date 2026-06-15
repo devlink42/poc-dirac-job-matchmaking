@@ -5,15 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
-
 from matchmaking.config.logger import logger
+from matchmaking.core.loader import load_job, load_node
 from matchmaking.logic.tags import evaluate_tag_expression
 from matchmaking.models.job import Job, MatchingSpecs
 from matchmaking.models.node import Node
 
 
-def valid_job(job: str) -> bool:
+def is_valid_job(job: str) -> bool:
     """Validate a job against a set of requirements.
 
     Args:
@@ -34,7 +33,7 @@ def valid_job(job: str) -> bool:
         return False
 
 
-def valid_node(node: str) -> bool:
+def is_valid_node(node: str) -> bool:
     """Validate a node against a set of requirements.
 
     Args:
@@ -54,7 +53,7 @@ def valid_node(node: str) -> bool:
         return False
 
 
-def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node: Node) -> bool:
+def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node: Node) -> bool:
     """Determine whether a given job is compatible with a specific node based on
     various requirements and constraints.
 
@@ -234,7 +233,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
-def match(job: str | Job, node: str | Node) -> bool:
+def is_matching(job: str | Job, node: str | Node) -> bool:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
@@ -249,47 +248,9 @@ def match(job: str | Job, node: str | Node) -> bool:
     job_obj = load_job(job)
 
     for i, job_spec in enumerate(job_obj.matching_specs):
-        if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
+        if is_valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
             logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
 
             return True
 
     return False
-
-
-def load_node(node: str | Node) -> Node:
-    if isinstance(node, Node):
-        return node
-
-    try:
-        node_obj = Node.load_from_yaml(node)
-        logger.info(f"Node file {node} is VALID.")
-    except ValidationError as e:
-        logger.error(f"Invalid node specification: {e}")
-
-        raise
-
-    if not node_obj.node_id:
-        node_obj.node_id = Path(node).stem
-        logger.warning(f"Node ID not specified in {node}, using filename as default: {node_obj.node_id}")
-
-    return node_obj
-
-
-def load_job(job: str | Job) -> Job:
-    if isinstance(job, Job):
-        return job
-
-    try:
-        job_obj = Job.load_from_yaml(job)
-        logger.info(f"Job file {job} is VALID.")
-    except ValidationError as e:
-        logger.error(f"Invalid job specification: {e}")
-
-        raise
-
-    if not job_obj.job_id:
-        job_obj.job_id = Path(job).stem
-        logger.warning(f"Job ID not specified in {job}, using filename as default: {job_obj.job_id}")
-
-    return job_obj

@@ -11,7 +11,7 @@ submit_time: '2026-03-28T16:30:00Z'
 
 owner: sharmar
 group: lhcb_user
-job_type: User
+type: User
 status: Waiting
 
 matching_specs:

@@ -15,7 +15,7 @@ NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str] | None = None) -> None:
-    monkeypatch.setattr(sys, "argv", ["match_making.py", *(args or [])])
+    monkeypatch.setattr(sys, "argv", ["match.py", *(args or [])])
     match_making.main()
 
 

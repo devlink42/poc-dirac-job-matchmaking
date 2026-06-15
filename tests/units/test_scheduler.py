@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from matchmaking.core.scheduler import CONFIG_PATH, select_job
+from matchmaking.core.main import select_job
+from matchmaking.core.utils import CONFIG_PATH
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
 
@@ -25,7 +26,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
     candidate_jobs = [running_job] * 500 + [job]
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -39,7 +40,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
     candidate_jobs = [running_job] * 499 + [job]
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -55,19 +56,19 @@ def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node)
     job_mc = load_job("job_01_mcsimulation_any_site")
     job_mc.job_id = "mc"
     job_mc.status = JobStatus.WAITING
-    job_mc.job_type = "MCSimulation"
+    job_mc.type = Type.MCSIMULATION
 
     job_wg = load_job("job_01_mcsimulation_any_site")
     job_wg.job_id = "wg"
     job_wg.status = JobStatus.WAITING
-    job_wg.job_type = "WGProduction"
+    job_wg.type = Type.WGPRODUCTION
 
     node = load_node("node_01_cern_typical")
 
     candidate_jobs = [job_mc, job_wg]
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -97,7 +98,7 @@ def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
     candidate_jobs = [job_new, job_old]
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -115,7 +116,7 @@ def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
 def test_select_job_job_path_not_found(example_config, load_node):
     node = load_node("node_01_cern_typical")
 
-    with patch("matchmaking.core.scheduler.Path.exists", return_value=False):
+    with patch("matchmaking.core.loader.Path.exists", return_value=False):
         with pytest.raises(ValueError, match="Job examples not found at:"):
             select_job(node)
 
@@ -123,7 +124,7 @@ def test_select_job_job_path_not_found(example_config, load_node):
 def test_select_job_load_jobs_exception(example_config, load_node):
     node = load_node("node_01_cern_typical")
 
-    with patch("matchmaking.core.scheduler.Path.glob", side_effect=Exception("Unexpected error")):
+    with patch("matchmaking.core.loader.Path.glob", side_effect=Exception("Unexpected error")):
         with pytest.raises(ValueError, match="Failed to load job examples: Unexpected error"):
             select_job(node)
 
@@ -132,7 +133,7 @@ def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
     node = load_node("node_01_cern_typical")
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
         mock_glob.return_value = []
@@ -144,12 +145,12 @@ def test_select_job_unknown_type_fallback(load_job, load_node):
     node = load_node("node_01_cern_typical")
 
     job_unknown = load_job("job_01_mcsimulation_any_site")
-    job_unknown.job_type = "UNKNOWN"
+    job_unknown.type = "UNKNOWN"
     job_unknown.job_id = "unknown"
     job_unknown.status = JobStatus.WAITING
 
     job_older = load_job("job_01_mcsimulation_any_site")
-    job_older.job_type = "OTHER"
+    job_older.type = "OTHER"
     job_older.job_id = "older"
     job_older.submit_time = job_unknown.submit_time - timedelta(days=1)
     job_older.status = JobStatus.WAITING
@@ -157,7 +158,7 @@ def test_select_job_unknown_type_fallback(load_job, load_node):
     candidate_jobs = [job_unknown, job_older]
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
     ):
         mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
@@ -178,12 +179,12 @@ def test_select_job_loads_default_config(load_job, load_node):
     job.status = JobStatus.WAITING
 
     mock_config = SchedulingConfig(
-        job_type_priorities=[job.job_type], by_site={node.site: Site(running_limits={job.job_type: 10}, name=node.site)}
+        job_type_priorities=[job.type], by_site={node.site: Site(running_limits={job.type: 10}, name=node.site)}
     )
 
     with (
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load,
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
     ):
         mock_load.return_value = mock_config
@@ -214,7 +215,7 @@ def test_select_job_default_config_load_error(load_job, load_node):
     job.status = JobStatus.WAITING
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load,
     ):
@@ -237,7 +238,7 @@ def test_select_job_skips_weighted_priority_without_relevant_types(load_job, loa
 
     with (
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
     ):
         mock_glob.return_value = [Path("job.yaml")]
@@ -253,12 +254,12 @@ def test_select_job_weighted_priority(load_job, load_node):
     job_mc = load_job("job_01_mcsimulation_any_site")
     job_mc.job_id = "mc"
     job_mc.status = JobStatus.WAITING
-    job_mc.job_type = "MCSimulation"
+    job_mc.type = Type.MCSIMULATION
 
     job_user = load_job("job_01_mcsimulation_any_site")
     job_user.job_id = "user"
     job_user.status = JobStatus.WAITING
-    job_user.job_type = "User"
+    job_user.type = Type.USER
 
     mock_config = SchedulingConfig(
         job_type_priorities=[{Type.MCSIMULATION: 100, Type.USER: 0}], by_site={node.site: Site(name=node.site)}
@@ -266,7 +267,7 @@ def test_select_job_weighted_priority(load_job, load_node):
 
     with (
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
     ):
         mock_glob.return_value = [Path("job1.yaml"), Path("job2.yaml")]
@@ -283,7 +284,7 @@ def test_select_job_weighted_priority(load_job, load_node):
 
     with (
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.loader.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
     ):
         mock_glob.return_value = [Path("job1.yaml"), Path("job2.yaml")]

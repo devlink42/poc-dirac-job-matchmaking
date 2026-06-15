@@ -10,7 +10,7 @@ submit_time: '2026-03-28T08:00:00Z'
 
 owner: lbprods
 group: lhcb_mc
-job_type: MCFastSimulation
+type: MCFastSimulation
 status: Waiting
 
 matching_specs:
