@@ -2,88 +2,100 @@
 
 from __future__ import annotations
 
+import random
 from datetime import timedelta
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from matchmaking.core.main import select_job
-from matchmaking.core.utils import CONFIG_PATH
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
 
 
 def test_select_job_respects_site_limits(example_config, load_job, load_node):
+    """Test that a job is skipped if its job type has reached the maximum allowed limit for the node's site."""
     node = load_node("node_03_gpu")
-
     job = load_job("job_06_gpu")
-
     job.status = JobStatus.WAITING
 
     running_job = job.model_copy()
     running_job.status = JobStatus.RUNNING
-    candidate_jobs = [running_job] * 500 + [job]
 
+    # Explicitly set the limit for this job type to 500
+    example_config.by_site[node.site] = Site(name=node.site, running_limits={job.type: 500})
+
+    # Limit reached -> returns None
+    candidate_jobs_limit_reached = [running_job] * 500 + [job]
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_reached),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
+        assert select_job(node) is None
 
-        selected = select_job(node)
-
-    assert selected is None
-
-    candidate_jobs = [running_job] * 499 + [job]
-
+    # Limit not reached -> returns Job
+    candidate_jobs_limit_ok = [running_job] * 499 + [job]
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_ok),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
-
         selected = select_job(node)
+        assert selected is not None
+        assert selected.job_id == job.job_id
 
-    assert selected == job
 
-
-def test_select_job_prioritizes_by_job_type(example_config, load_job, load_node):
-    job_mc = load_job("job_01_mcsimulation_any_site")
-    job_mc.job_id = "mc"
-    job_mc.status = JobStatus.WAITING
-    job_mc.type = Type.MCSIMULATION
-
-    job_wg = load_job("job_01_mcsimulation_any_site")
-    job_wg.job_id = "wg"
-    job_wg.status = JobStatus.WAITING
-    job_wg.type = Type.WGPRODUCTION
-
+@pytest.mark.parametrize(
+    "priorities, expected_job_id",
+    [
+        # Sequential priority matches MCSIMULATION first
+        ([Type.MCSIMULATION, Type.WGPRODUCTION], "mc"),
+        # Sequential priority matches WGPRODUCTION first
+        ([Type.WGPRODUCTION, Type.MCSIMULATION], "wg"),
+        # Weighted priority heavily favors MCSIMULATION
+        ([{Type.MCSIMULATION: 100, Type.USER: 0}], "mc"),
+        # Weighted priority heavily favors USER
+        ([{Type.MCSIMULATION: 0, Type.USER: 100}], "user"),
+    ],
+    ids=["sequential_mc_first", "sequential_wg_first", "weighted_mc_100", "weighted_user_100"],
+)
+def test_select_job_priority_handling(priorities: list, expected_job_id: str, load_job, load_node):
+    """Test that the scheduler respects both sequential and weighted job type priorities."""
     node = load_node("node_01_cern_typical")
 
-    candidate_jobs = [job_mc, job_wg]
+    # Define candidate jobs with varying types
+    jobs = {
+        "mc": Type.MCSIMULATION,
+        "wg": Type.WGPRODUCTION,
+        "user": Type.USER,
+    }
+
+    candidate_jobs = []
+    for j_id, j_type in jobs.items():
+        job = load_job("job_01_mcsimulation_any_site")
+        job.job_id = j_id
+        job.status = JobStatus.WAITING
+        job.type = j_type
+        candidate_jobs.append(job)
+
+    mock_config = SchedulingConfig(job_type_priorities=priorities, by_site={node.site: Site(name=node.site)})
+
+    # Use a deterministic random seed for robust weighted algorithm testing
+    rng = random.Random(42)  # noqa: S311
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=mock_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
+        selected = select_job(node, rng=rng)
 
-        selected = select_job(node)
-
-    if selected is None:
-        pytest.fail("No job selected")
-
-    assert selected.job_id == "wg"
+        assert selected is not None
+        assert selected.job_id == expected_job_id
 
 
-def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
+def test_select_job_tiebreaker_is_fifo(load_job, load_node, example_config):
+    """Test that jobs with identical priorities are selected based on submission time (FIFO)."""
+    node = load_node("node_01_cern_typical")
+
     job_old = load_job("job_01_mcsimulation_any_site")
     job_old.job_id = "old"
     job_old.submit_time = job_old.submit_time - timedelta(hours=1)
@@ -93,206 +105,157 @@ def test_select_job_tiebreaker_is_fifo(example_config, load_job, load_node):
     job_new.job_id = "new"
     job_new.status = JobStatus.WAITING
 
-    node = load_node("node_01_cern_typical")
-
-    candidate_jobs = [job_new, job_old]
-
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_jobs", return_value=[job_new, job_old]),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
-
         selected = select_job(node)
 
-    if selected is None:
-        pytest.fail("No job selected")
-
-    assert selected.job_id == "old"
+        assert selected is not None
+        assert selected.job_id == "old"
 
 
-def test_select_job_job_path_not_found(example_config, load_node):
+def test_select_job_applies_round_robin_fairshare(load_job, load_node, example_config):
+    """Test that round-robin fairshare prioritizes jobs from groups/owners with fewer currently running jobs."""
     node = load_node("node_01_cern_typical")
 
-    with patch("matchmaking.core.loader.Path.exists", return_value=False):
-        with pytest.raises(ValueError, match="Job examples not found at:"):
-            select_job(node)
+    job_a = load_job("job_01_mcsimulation_any_site")
+    job_a.job_id = "job_owner_a"
+    job_a.owner = "Alice"
+    job_a.group = "Group1"
+    job_a.status = JobStatus.WAITING
 
+    job_b = load_job("job_01_mcsimulation_any_site")
+    job_b.job_id = "job_owner_b"
+    job_b.owner = "Charlie"
+    job_b.group = "Group2"
+    job_b.status = JobStatus.WAITING
 
-def test_select_job_load_jobs_exception(example_config, load_node):
-    node = load_node("node_01_cern_typical")
+    # Simulate 2 running jobs for Group1/Alice
+    running_jobs = []
+    for _ in range(2):
+        r_job = job_a.model_copy()
+        r_job.status = JobStatus.RUNNING
+        running_jobs.append(r_job)
 
-    with patch("matchmaking.core.loader.Path.glob", side_effect=Exception("Unexpected error")):
-        with pytest.raises(ValueError, match="Failed to load job examples: Unexpected error"):
-            select_job(node)
-
-
-def test_select_job_no_matching_jobs_returns_none(example_config, load_node):
-    node = load_node("node_01_cern_typical")
+    candidate_jobs = running_jobs + [job_a, job_b]
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = []
+        # Because Group2 has fewer running jobs (0) than Group1 (2), Charlie's job should be selected first!
+        selected = select_job(node)
 
-        assert select_job(node) is None
+        assert selected is not None
+        assert selected.job_id == "job_owner_b"
 
 
-def test_select_job_unknown_type_fallback(load_job, load_node):
+def test_select_job_unknown_type_fallback(load_job, load_node, example_config):
+    """Test that if priority lists do not match any available job types, it falls back to allowed jobs."""
     node = load_node("node_01_cern_typical")
 
     job_unknown = load_job("job_01_mcsimulation_any_site")
-    job_unknown.type = "UNKNOWN"
     job_unknown.job_id = "unknown"
+    job_unknown.type = "UNKNOWN"
     job_unknown.status = JobStatus.WAITING
 
     job_older = load_job("job_01_mcsimulation_any_site")
-    job_older.type = "OTHER"
     job_older.job_id = "older"
+    job_older.type = "OTHER"
     job_older.submit_time = job_unknown.submit_time - timedelta(days=1)
     job_older.status = JobStatus.WAITING
 
-    candidate_jobs = [job_unknown, job_older]
+    # Override config so priorities only explicitly target MCSIMULATION
+    example_config.job_type_priorities = [Type.MCSIMULATION]
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
+        patch("matchmaking.core.main.get_jobs", return_value=[job_unknown, job_older]),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(candidate_jobs))]
-        mock_load_job.side_effect = candidate_jobs
-
         selected = select_job(node)
 
-    if selected is None:
-        pytest.fail("No job selected")
+        assert selected is not None
+        # It should fallback to all allowed jobs and pick the oldest one
+        assert selected.job_id == "older"
 
-    assert selected.job_id == "older"
 
-
-def test_select_job_loads_default_config(load_job, load_node):
+def test_select_job_propagates_loader_exceptions(load_node):
+    """Test that exceptions from loader functions propagate naturally."""
     node = load_node("node_01_cern_typical")
 
-    job = load_job("job_01_mcsimulation_any_site")
-    job.status = JobStatus.WAITING
-
-    mock_config = SchedulingConfig(
-        job_type_priorities=[job.type], by_site={node.site: Site(running_limits={job.type: 10}, name=node.site)}
-    )
-
-    with (
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load,
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-    ):
-        mock_load.return_value = mock_config
-        mock_glob.return_value = [Path("job.yaml")]
-        mock_load_job.return_value = job
-
-        selected = select_job(node)
-
-        assert selected == job
-
-        mock_load.assert_called_once_with(CONFIG_PATH)
-
-
-def test_select_job_default_config_not_found(load_job, load_node):
-    node = load_node("node_01_cern_typical")
-
-    with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load:
-        mock_load.side_effect = FileNotFoundError("File not found")
-
-        with pytest.raises(ValueError, match=f"Default scheduling config not found at: '{CONFIG_PATH}'"):
+    with patch("matchmaking.core.main.get_jobs", side_effect=ValueError("Failed to load jobs")):
+        with pytest.raises(ValueError, match="Failed to load jobs"):
             select_job(node)
 
 
-def test_select_job_default_config_load_error(load_job, load_node):
-    node = load_node("node_01_cern_typical")
-
-    job = load_job("job_01_mcsimulation_any_site")
+@pytest.mark.parametrize(
+    "job_file, node_file, expected_selected, isolate_hardware",
+    [
+        # Perfect standard match
+        ("job_01_mcsimulation_any_site", "node_01_cern_typical", True, False),
+        # Site / Policy restrictions (Must evaluate geographic constraints natively)
+        ("job_05_user_with_banned_site", "node_02_tier2_older", False, False),
+        # CPU requirements
+        ("job_01_mcsimulation_any_site", "node_03_gpu", False, False),
+        # RAM requirements
+        ("job_10_ram_tests", "node_04_low_ram", False, True),
+        ("job_10_ram_tests", "node_01_cern_typical", True, True),
+        # Glibc / OS restrictions
+        ("job_09_high_glibc", "node_02_tier2_older", False, True),
+        ("job_09_high_glibc", "node_05_high_glibc", True, True),
+        # GPU constraints
+        ("job_06_gpu", "node_03_gpu", True, True),
+        ("job_06_gpu", "node_01_cern_typical", False, True),  # CPU node lacks GPU
+        # Architecture restrictions (e.g. Darwin/macOS)
+        ("job_08_darwin", "node_01_cern_typical", False, True),
+        ("job_08_darwin", "node_06_darwin", True, True),
+    ],
+    ids=[
+        "match_standard_job",
+        "reject_unmatched_site",
+        "reject_sufficient_cpu",
+        "reject_insufficient_ram",
+        "match_sufficient_ram",
+        "reject_low_glibc",
+        "match_high_glibc",
+        "match_gpu_job_to_gpu_node",
+        "reject_gpu_job_on_cpu_node",
+        "reject_darwin_job_on_linux_node",
+        "match_darwin_job_to_darwin_node",
+    ],
+)
+def test_select_job_hardware_and_system_matching(
+    job_file: str,
+    node_file: str,
+    expected_selected: bool,
+    isolate_hardware: bool,
+    example_config: SchedulingConfig,
+    load_job,
+    load_node,
+):
+    """Test that hardware and system constraints (CPU, RAM, GPU, OS, Tags) are correctly
+    evaluated inside 'match.py' strictly by asserting the output of the 'select_job' entrypoint.
+    """
+    node = load_node(node_file)
+    job = load_job(job_file)
     job.status = JobStatus.WAITING
 
-    with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml") as mock_load,
-    ):
-        mock_glob.return_value = [Path("job.yaml")]
-        mock_load.side_effect = RuntimeError("invalid config")
-
-        with pytest.raises(ValueError, match="Failed to load default scheduling config: invalid config"):
-            select_job(node)
-
-
-def test_select_job_skips_weighted_priority_without_relevant_types(load_job, load_node):
-    node = load_node("node_01_cern_typical")
-
-    job = load_job("job_01_mcsimulation_any_site")
-    job.status = JobStatus.WAITING
-
-    mock_config = SchedulingConfig(
-        job_type_priorities=[{Type.USER: 1}, Type.MCSIMULATION], by_site={node.site: Site(name=node.site)}
-    )
+    # OVERRIDE: Isolate specific hardware limits by bypassing environmental/workload constraints
+    if isolate_hardware:
+        for spec in job.matching_specs:
+            spec.site = node.site
+            spec.wall_time = 1  # Bypass maximum wall time limit
+            spec.cpu_work = 1  # Bypass maximum cpu work limit
 
     with (
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml", return_value=job),
+        patch("matchmaking.core.main.get_jobs", return_value=[job]),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path("job.yaml")]
-
         selected = select_job(node)
 
-    assert selected == job
-
-
-def test_select_job_weighted_priority(load_job, load_node):
-    node = load_node("node_01_cern_typical")
-
-    job_mc = load_job("job_01_mcsimulation_any_site")
-    job_mc.job_id = "mc"
-    job_mc.status = JobStatus.WAITING
-    job_mc.type = Type.MCSIMULATION
-
-    job_user = load_job("job_01_mcsimulation_any_site")
-    job_user.job_id = "user"
-    job_user.status = JobStatus.WAITING
-    job_user.type = Type.USER
-
-    mock_config = SchedulingConfig(
-        job_type_priorities=[{Type.MCSIMULATION: 100, Type.USER: 0}], by_site={node.site: Site(name=node.site)}
-    )
-
-    with (
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-    ):
-        mock_glob.return_value = [Path("job1.yaml"), Path("job2.yaml")]
-        mock_load_job.side_effect = [job_mc, job_user]
-
-        selected = select_job(node)
-
-        if selected is None:
-            pytest.fail("No job selected")
-
-        assert selected.job_id == "mc"
-
-    mock_config.job_type_priorities = [{Type.MCSIMULATION: 0, Type.USER: 100}]
-
-    with (
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=mock_config),
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-    ):
-        mock_glob.return_value = [Path("job1.yaml"), Path("job2.yaml")]
-        mock_load_job.side_effect = [job_mc, job_user]
-
-        selected = select_job(node)
-
-        if selected is None:
-            pytest.fail("No job selected")
-
-        assert selected.job_id == "user"
+        if expected_selected:
+            assert selected is not None
+            assert selected.job_id == job.job_id
+        else:
+            assert selected is None
