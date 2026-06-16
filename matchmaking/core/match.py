@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from matchmaking.config.logger import logger
-from matchmaking.core.loader import load_job, load_node
 from matchmaking.logic.tags import evaluate_tag_expression
 from matchmaking.models.job import Job, MatchingSpecs
 from matchmaking.models.node import Node
@@ -161,7 +160,7 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
 
             return False
 
-        if job_specs.gpu.count.max and node.gpu.count > job_specs.gpu.count.max:
+        if job_specs.gpu.count.max is not None and node.gpu.count > job_specs.gpu.count.max:
             logger.warning(f"Job {job_id} requires at most {job_specs.gpu.count.max} GPUs, skipping...")
 
             return False
@@ -233,23 +232,19 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     return True
 
 
-def is_matching(job: str | Job, node: str | Node) -> bool:
+def is_matching(job: Job, node: Node) -> bool:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
-        job (str): Path to the job YAML file.
-        node (str): Path to the node YAML file.
+        job (Job): The job object containing the requirements for execution.
+        node (Node): The node object representing the computational resource.
 
     Returns:
         bool: True if a matching job and node are found, False otherwise.
     """
-    node_obj = load_node(node)
-
-    job_obj = load_job(job)
-
-    for i, job_spec in enumerate(job_obj.matching_specs):
-        if is_valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
-            logger.info(f"Job {job_obj.job_id}-{i} matches node {node_obj.node_id}.")
+    for i, job_spec in enumerate(job.matching_specs):
+        if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node):
+            logger.info(f"Job {job.job_id}-{i} matches node {node.node_id}.")
 
             return True
 

@@ -2,7 +2,7 @@
 # Expected: validation error
 
 version: 0.1.0
-job_id: '40882401'
+job_id: 'invalid_01_job_min_gt_max'
 submit_time: '2026-03-28T10:00:00Z'
 
 owner: lbprods

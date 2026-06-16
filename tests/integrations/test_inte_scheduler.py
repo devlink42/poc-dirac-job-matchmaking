@@ -56,7 +56,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
 
     while queue:
         with (
-            patch("matchmaking.core.loader.Path.glob") as mock_glob,
+            patch("matchmaking.core.utils.Path.glob") as mock_glob,
             patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         ):
             all_jobs = running_jobs + queue
@@ -108,7 +108,7 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
     job1 = None
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -140,7 +140,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
     job = None
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -157,7 +157,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
     job = None
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -199,7 +199,7 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
     job = None
 
     with (
-        patch("matchmaking.core.loader.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):

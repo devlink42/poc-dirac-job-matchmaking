@@ -5,7 +5,7 @@
 # Tests that niche job types get matched despite being rare
 
 version: 0.1.0
-job_id: '22796188'
+job_id: 'job_07_sprucing_niche'
 submit_time: '2026-03-28T06:00:00Z'
 
 owner: lbprods

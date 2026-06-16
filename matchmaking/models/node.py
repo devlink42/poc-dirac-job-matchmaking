@@ -64,8 +64,8 @@ class Gpu(BaseModel):
 class Node(BaseModel):
     """Data model representing a compute node."""
 
-    node_id: str | None = None
     version: CustomVersion = Field(default=CustomVersion("0.1"))
+    node_id: str | None = None
 
     site: str
     system: System

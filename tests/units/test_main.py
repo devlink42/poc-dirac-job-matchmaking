@@ -196,8 +196,6 @@ def test_select_job_propagates_loader_exceptions(load_node):
         ("job_01_mcsimulation_any_site", "node_01_cern_typical", True, False),
         # Site / Policy restrictions (Must evaluate geographic constraints natively)
         ("job_05_user_with_banned_site", "node_02_tier2_older", False, False),
-        # CPU requirements
-        ("job_01_mcsimulation_any_site", "node_03_gpu", False, False),
         # RAM requirements
         ("job_10_ram_tests", "node_04_low_ram", False, True),
         ("job_10_ram_tests", "node_01_cern_typical", True, True),
@@ -208,13 +206,30 @@ def test_select_job_propagates_loader_exceptions(load_node):
         ("job_06_gpu", "node_03_gpu", True, True),
         ("job_06_gpu", "node_01_cern_typical", False, True),  # CPU node lacks GPU
         # Architecture restrictions (e.g. Darwin/macOS)
+        # Note: Darwin jobs inherently test the empty tags bypass if configured without tags
         ("job_08_darwin", "node_01_cern_typical", False, True),
         ("job_08_darwin", "node_06_darwin", True, True),
+        # Edge Case: Extreme I/O requirement mismatched with low I/O node
+        ("job_11_high_io", "node_07_low_io", False, True),
+        # Coverage edges for match.py conditional skips
+        ("job_12_cov_user_namespaces", "node_02_tier2_older", False, False),
+        ("job_13_cov_wall_time", "node_01_cern_typical", False, False),
+        ("job_14_cov_cpu_work", "node_01_cern_typical", False, False),
+        ("job_15_cov_num_cores", "node_01_cern_typical", False, False),
+        ("job_16_cov_arch_name", "node_01_cern_typical", False, False),
+        ("job_17_cov_microarch_min", "node_01_cern_typical", False, False),
+        ("job_18_cov_microarch_max", "node_01_cern_typical", False, False),
+        ("job_19_cov_gpu_count", "node_03_gpu", False, False),
+        ("job_20_cov_gpu_ram", "node_03_gpu", False, False),
+        ("job_21_cov_gpu_vendor", "node_03_gpu", False, False),
+        ("job_22_cov_gpu_compute_min", "node_03_gpu", False, False),
+        ("job_23_cov_gpu_compute_max", "node_03_gpu", False, False),
+        ("job_24_cov_gpu_driver", "node_03_gpu", False, False),
+        ("job_25_cov_tags", "node_01_cern_typical", False, False),
     ],
     ids=[
         "match_standard_job",
         "reject_unmatched_site",
-        "reject_sufficient_cpu",
         "reject_insufficient_ram",
         "match_sufficient_ram",
         "reject_low_glibc",
@@ -223,6 +238,21 @@ def test_select_job_propagates_loader_exceptions(load_node):
         "reject_gpu_job_on_cpu_node",
         "reject_darwin_job_on_linux_node",
         "match_darwin_job_to_darwin_node",
+        "reject_insufficient_io_scratch",
+        "reject_user_namespaces",
+        "reject_wall_time",
+        "reject_cpu_work",
+        "reject_num_cores",
+        "reject_arch_name",
+        "reject_microarch_min",
+        "reject_microarch_max",
+        "reject_gpu_count_max",
+        "reject_gpu_ram",
+        "reject_gpu_vendor",
+        "reject_gpu_compute_min",
+        "reject_gpu_compute_max",
+        "reject_gpu_driver",
+        "reject_tags",
     ],
 )
 def test_select_job_hardware_and_system_matching(
@@ -234,8 +264,8 @@ def test_select_job_hardware_and_system_matching(
     load_job,
     load_node,
 ):
-    """Test that hardware and system constraints (CPU, RAM, GPU, OS, Tags) are correctly
-    evaluated inside 'match.py' strictly by asserting the output of the 'select_job' entrypoint.
+    """Test that hardware and system constraints (CPU, RAM, GPU, OS, Tags) and their edge cases
+    are correctly evaluated strictly by asserting the output of the 'select_job' entrypoint.
     """
     node = load_node(node_file)
     job = load_job(job_file)

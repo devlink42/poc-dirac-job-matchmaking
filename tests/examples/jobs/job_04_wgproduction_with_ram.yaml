@@ -6,7 +6,7 @@
 # Demonstrates the computed RAM model: overhead + per-core * N
 
 version: 0.1.0
-job_id: '21463776'
+job_id: 'job_04_wgproduction_with_ram'
 submit_time: '2026-03-27T14:00:00Z'
 
 owner: lbprods
