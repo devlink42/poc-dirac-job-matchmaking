@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import re
 from enum import StrEnum
-from pathlib import Path
 from typing import Annotated, Any, Generic, Self, TypeVar
 
 from packaging.version import InvalidVersion, Version
@@ -19,13 +17,6 @@ from pydantic import (
     model_validator,
 )
 from pydantic_core import core_schema
-
-
-class JobGroup(StrEnum):
-    LHCB_MC = "lhcb_mc"
-    LHCB_DATA = "lhcb_data"
-    LHCB_MCPROC = "lhcb_mproc"
-    LHCB_USER = "lhcb_user"
 
 
 class Type(StrEnum):
@@ -43,12 +34,21 @@ class Type(StrEnum):
 
 
 class JobStatus(StrEnum):
-    WAITING = "waiting"
-    STAGING = "staging"
-    HOLD = "hold"
-    FAIL = "fail"
-    RUNNING = "running"
-    DONE = "done"
+    SUBMITTING = "Submitting"
+    RECEIVED = "Received"
+    CHECKING = "Checking"
+    STAGING = "Staging"
+    SCOUTING = "Scouting"
+    WAITING = "Waiting"
+    MATCHED = "Matched"
+    RUNNING = "Running"
+    STALLED = "Stalled"
+    COMPLETING = "Completing"
+    DONE = "Done"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    DELETED = "Deleted"
+    KILLED = "Killed"
 
 
 class SystemName(StrEnum):
@@ -76,24 +76,6 @@ class VersionPydanticAnnotation:
 
 
 CustomVersion = Annotated[Version, VersionPydanticAnnotation, PlainSerializer(lambda v: str(v), return_type=str)]
-
-
-def get_current_schema_version() -> CustomVersion:
-    schema_path = Path(__file__).parents[2] / "docs" / "schema_design.md"
-
-    if not schema_path.exists():
-        raise FileNotFoundError(f"No such file or directory: '{schema_path}'")
-
-    content = schema_path.read_text(encoding="utf-8")
-    versions = [CustomVersion(match) for match in re.findall(r"\bv?(\d+\.\d+(?:\.\d+)?)\b", content)]
-
-    if not versions:
-        raise ValueError(f"No schema version found in '{schema_path}'")
-
-    latest = max(versions)
-    current = (*latest.release, 0, 0)[:3]
-
-    return CustomVersion(".".join(str(part) for part in current))
 
 
 T = TypeVar("T")

@@ -5,13 +5,13 @@
 # No site restriction — this job can run anywhere
 
 version: 0.1.0
-job_id: '76025716'
+job_id: 'job_01_mcsimulation_any_site'
 submit_time: '2026-03-28T10:00:00Z'
 
 owner: lbprods
 group: lhcb_mc
-job_type: MCSimulation
-status: waiting
+type: MCSimulation
+status: Waiting
 
 matching_specs:
   - system:
@@ -30,4 +30,4 @@ matching_specs:
       architecture:
         name: x86_64
         microarchitecture-level: {min: 4, max: null}
-    tags: cvmfs:lhcb
+    tags: cvmfs:lhcb & ~test

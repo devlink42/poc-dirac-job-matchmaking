@@ -6,20 +6,18 @@ import argparse
 import sys
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import match_jobs_with_node, valid_job, valid_node
+from matchmaking.core.main import select_job
+from matchmaking.models.node import Node
 
 
 def main():
-    """Run the matchmaking CLI.
+    """Run the scheduler CLI.
 
-    This function parses command line arguments and performs job/node validation
-    or matchmaking based on the provided inputs.
+    This function parses command line arguments and invokes the job selection
+    logic for a given node.
     """
-    parser = argparse.ArgumentParser(description="Matchmaking and validation for DIRAC jobs and nodes.")
-    parser.add_argument("job", nargs="?", help="Path to the job YAML file")
+    parser = argparse.ArgumentParser(description="Job scheduler for the cluster.")
     parser.add_argument("node", nargs="?", help="Path to the node YAML file")
-    parser.add_argument("--validate-job", "-VJ", action="store_true", help="Only validate the job file")
-    parser.add_argument("--validate-node", "-VN", action="store_true", help="Only validate the node file")
     parser.add_argument(
         "--log-level",
         default="INFO",
@@ -31,36 +29,21 @@ def main():
 
     configure_logger(args.log_level)
 
-    if args.validate_job:
-        if not args.job:
-            logger.error("Error: --validate-job requires a job file path.")
-            sys.exit(1)
-
-        valid_job(args.job)
-    elif args.validate_node:
-        # If node_path is not provided, check if job_path was used instead
-        node_path = args.node or args.job
-        if not node_path:
-            logger.error("Error: --validate-node requires a node file path.")
-            sys.exit(1)
-
-        valid_node(node_path)
-    elif args.job and args.node:
-        try:
-            matched_jobs, _ = match_jobs_with_node(args.job, args.node)
-
-            if matched_jobs:
-                logger.info("Match found! %s job(s) can run on this node:", len(matched_jobs))
-
-                for job in matched_jobs:
-                    logger.info("  - Job ID: %s", job.job_id)
-            else:
-                logger.info("No jobs from the job file can run on this node.")
-        except Exception as e:
-            logger.error("Error during matchmaking: %s", e)
-            sys.exit(1)
-    else:
+    if not args.node:
         parser.print_help()
+        return
+
+    try:
+        node_obj = Node.load_from_yaml(args.node)
+        allowed_job = select_job(node_obj)
+
+        if allowed_job:
+            logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
+        else:
+            logger.info("No allowed job can run on this node.")
+    except Exception as e:
+        logger.error("Error during matchmaking: %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

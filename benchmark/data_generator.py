@@ -16,7 +16,6 @@ from matchmaking.models.node import System as NodeSystem
 from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
-    JobGroup,
     Range,
     ResourceSpec,
     StrictRange,
@@ -66,11 +65,11 @@ def generate_mock_job(job_id: str) -> Job:
 
     roll = _rng.random()
     if roll < 0.80:
-        owner, group = "lbprods", JobGroup.LHCB_MC
+        owner, group = "lbprods", "lhcb_mc"
     elif roll < 0.98:
-        owner, group = "lbprods", JobGroup.LHCB_DATA
+        owner, group = "lbprods", "lhcb_data"
     else:
-        owner, group = _rng.choice(_RARE_OWNERS), JobGroup.LHCB_USER
+        owner, group = _rng.choice(_RARE_OWNERS), "lhcb_user"
 
     tags = ["cvmfs:lhcb", "os:el9"]
     if _rng.random() < 0.3:
@@ -83,10 +82,10 @@ def generate_mock_job(job_id: str) -> Job:
 
     return Job(
         job_id=job_id,
+        submit_time=datetime.now(tz=UTC),
         owner=owner,
         group=group,
         job_type=job_type,
-        submit_time=datetime.now(tz=UTC),
         matching_specs=[
             MatchingSpecs(
                 **{

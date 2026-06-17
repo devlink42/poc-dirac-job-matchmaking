@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import os
 from glob import glob
-from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 from yaml import safe_load
 
-from matchmaking.core.match_making import valid_job, valid_node
+from matchmaking.core.match import is_valid_job, is_valid_node
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 from matchmaking.models.utils import CustomVersion
@@ -63,15 +62,25 @@ def test_all_node_examples(node_file):
         Node.model_validate(data)
 
 
-def test_valid_job_failure_paths():
-    assert not valid_job("tests/examples/jobs/does_not_exist.yaml")
-    assert not valid_job("tests/examples/jobs/invalid_01_job_min_gt_max.yaml")
-    assert not valid_job("tests/examples/jobs/invalid_05_job_empty_specs.yaml")
+def test_some_valid_job_success_paths():
+    assert is_valid_job("tests/examples/jobs/job_01_mcsimulation_any_site.yaml")
+    assert is_valid_job("tests/examples/jobs/job_02_mcsimulation_multi_site.yaml")
 
 
-def test_valid_node_failure_paths():
-    assert not valid_node("tests/examples/nodes/does_not_exist.yaml")
-    assert not valid_node("tests/examples/nodes/invalid_07_node_negative_cores.yaml")
+def test_some_valid_job_failure_paths():
+    assert not is_valid_job("tests/examples/jobs/does_not_exist.yaml")
+    assert not is_valid_job("tests/examples/jobs/invalid_01_job_min_gt_max.yaml")
+    assert not is_valid_job("tests/examples/jobs/invalid_05_job_empty_specs.yaml")
+
+
+def test_some_valid_node_success_paths():
+    assert is_valid_node("tests/examples/nodes/node_01_cern_typical.yaml")
+    assert is_valid_node("tests/examples/nodes/node_02_tier2_older.yaml")
+
+
+def test_some_valid_node_failure_paths():
+    assert not is_valid_node("tests/examples/nodes/does_not_exist.yaml")
+    assert not is_valid_node("tests/examples/nodes/invalid_07_node_negative_cores.yaml")
 
 
 def test_job_model_validation_no_time_or_work():
@@ -94,20 +103,3 @@ def test_invalid_version_with_adapter():
 
     with pytest.raises(ValidationError, match="Invalid version format"):
         adapter.validate_python("version_invalide")
-
-
-def test_get_current_schema_version_file_not_found():
-    from matchmaking.models.utils import get_current_schema_version
-
-    with patch("matchmaking.models.utils.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="No such file or directory"):
-            get_current_schema_version()
-
-
-def test_get_current_schema_version_no_version_found():
-    from matchmaking.models.utils import get_current_schema_version
-
-    with patch("matchmaking.models.utils.Path.exists", return_value=True):
-        with patch("matchmaking.models.utils.Path.read_text", return_value="No version here"):
-            with pytest.raises(ValueError, match="No schema version found"):
-                get_current_schema_version()

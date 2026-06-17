@@ -5,13 +5,13 @@
 # Can run at many sites, accepts older x86_64 microarchitectures
 
 version: 0.1.0
-job_id: '57243160'
+job_id: 'job_03_mcfastsimulation'
 submit_time: '2026-03-28T08:00:00Z'
 
 owner: lbprods
 group: lhcb_mc
-job_type: MCFastSimulation
-status: waiting
+type: MCFastSimulation
+status: Waiting
 
 matching_specs:
   - site: LCG.CERN.cern

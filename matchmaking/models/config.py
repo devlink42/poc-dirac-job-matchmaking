@@ -22,7 +22,7 @@ class Site(BaseModel):
     running_limits: dict[Type, NonNegativeInt] = Field(
         default_factory=dict, description="Limits on the number of concurrent jobs per site and per job type."
     )
-    name: str = Field(default=None, description="The name of the site.")
+    name: str | None = Field(default=None, description="The name of the site.")
 
 
 class SchedulingConfig(BaseModel):

@@ -6,16 +6,16 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from matchmaking.core.scheduler import select_job
-from matchmaking.models.utils import JobGroup, JobStatus, Type
+from matchmaking.core.main import select_job
+from matchmaking.models.utils import JobStatus, Type
 
 
-def create_mock_job(load_job, job_id, owner, group, job_type, submit_time, status=JobStatus.WAITING):
+def create_mock_job(load_job, job_id, owner, group, type, submit_time, status=JobStatus.WAITING):
     job = load_job("job_01_mcsimulation_any_site")
     job.job_id = job_id
     job.owner = owner
     job.group = group
-    job.job_type = job_type
+    job.type = type
     job.submit_time = submit_time
     job.status = status
 
@@ -33,8 +33,8 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
                 load_job,
                 job_id=f"lbprods-{i}",
                 owner="lbprods",
-                group=JobGroup.LHCB_MC,
-                job_type=Type.MCSIMULATION,
+                group="lhcb_mc",
+                type=Type.MCSIMULATION,
                 submit_time=base_time,
             )
         )
@@ -45,8 +45,8 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
                 load_job,
                 job_id=f"jdoe-{i}",
                 owner="jdoe",
-                group=JobGroup.LHCB_USER,
-                job_type=Type.MCSIMULATION,
+                group="lhcb_mc",
+                type=Type.MCSIMULATION,
                 submit_time=base_time,
             )
         )
@@ -56,7 +56,7 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
 
     while queue:
         with (
-            patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+            patch("matchmaking.core.utils.Path.glob") as mock_glob,
             patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         ):
             all_jobs = running_jobs + queue
@@ -91,16 +91,16 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
             load_job,
             job_id="high-prio-lbprods",
             owner="lbprods",
-            group=JobGroup.LHCB_MC,
-            job_type=Type.WGPRODUCTION,  # Highest priority
+            group="lhcb_mc",
+            type=Type.WGPRODUCTION,  # Highest priority
             submit_time=base_time,
         ),
         create_mock_job(
             load_job,
             job_id="low-prio-jdoe",
             owner="jdoe",
-            group=JobGroup.LHCB_USER,
-            job_type=Type.MCSIMULATION,
+            group="lhcb_user",
+            type=Type.MCSIMULATION,
             submit_time=base_time,
         ),
     ]
@@ -108,7 +108,7 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
     job1 = None
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -131,8 +131,8 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
                 load_job,
                 job_id=f"user-job-{i}",
                 owner="lbprods",
-                group=JobGroup.LHCB_USER,
-                job_type=Type.USER,
+                group="lhcb_user",
+                type=Type.USER,
                 submit_time=base_time,
             )
         )
@@ -140,7 +140,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
     job = None
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -157,7 +157,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
     job = None
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):
@@ -182,16 +182,16 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
             load_job,
             job_id="new-job",
             owner="alice",
-            group=JobGroup.LHCB_USER,
-            job_type=Type.USER,
+            group="lhcb_user",
+            type=Type.USER,
             submit_time=base_time,
         ),
         create_mock_job(
             load_job,
             job_id="old-job",
             owner="bob",
-            group=JobGroup.LHCB_USER,
-            job_type=Type.USER,
+            group="lhcb_user",
+            type=Type.USER,
             submit_time=base_time - timedelta(hours=2),
         ),
     ]
@@ -199,7 +199,7 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
     job = None
 
     with (
-        patch("matchmaking.core.scheduler.Path.glob") as mock_glob,
+        patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
         patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
     ):

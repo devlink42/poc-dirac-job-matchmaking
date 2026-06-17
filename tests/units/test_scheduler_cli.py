@@ -8,15 +8,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from matchmaking.cli import scheduler
+from matchmaking.cli import match_making
 from matchmaking.models.node import Node
 
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str] | None = None) -> None:
-    monkeypatch.setattr(sys, "argv", ["scheduler.py", *(args or [])])
-    scheduler.main()
+    monkeypatch.setattr(sys, "argv", ["match.py", *(args or [])])
+    match_making.main()
 
 
 def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
@@ -31,7 +31,7 @@ def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: 
     selected_job.job_id = "job_01"
     selected_job.submit_time = datetime(2024, 1, 1, tzinfo=UTC)
 
-    monkeypatch.setattr(scheduler, "select_job", lambda _node: selected_job)
+    monkeypatch.setattr(match_making, "select_job", lambda _node: selected_job)
 
     _run_main(monkeypatch, [NODE_01])
     captured = capsys.readouterr()
@@ -42,7 +42,7 @@ def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 
 def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    monkeypatch.setattr(scheduler, "select_job", lambda _node: None)
+    monkeypatch.setattr(match_making, "select_job", lambda _node: None)
 
     _run_main(monkeypatch, [NODE_01])
     captured = capsys.readouterr()
@@ -56,7 +56,7 @@ def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys
     def _raise_error(*_args, **_kwargs):
         raise RuntimeError("forced error")
 
-    monkeypatch.setattr(scheduler, "select_job", _raise_error)
+    monkeypatch.setattr(match_making, "select_job", _raise_error)
 
     with pytest.raises(SystemExit) as exc:
         _run_main(monkeypatch, [NODE_01])

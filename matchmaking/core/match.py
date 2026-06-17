@@ -5,15 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
-
 from matchmaking.config.logger import logger
 from matchmaking.logic.tags import evaluate_tag_expression
 from matchmaking.models.job import Job, MatchingSpecs
 from matchmaking.models.node import Node
 
 
-def valid_job(job: str) -> bool:
+def is_valid_job(job: str) -> bool:
     """Validate a job against a set of requirements.
 
     Args:
@@ -34,7 +32,7 @@ def valid_job(job: str) -> bool:
         return False
 
 
-def valid_node(node: str) -> bool:
+def is_valid_node(node: str) -> bool:
     """Validate a node against a set of requirements.
 
     Args:
@@ -54,7 +52,7 @@ def valid_node(node: str) -> bool:
         return False
 
 
-def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node: Node) -> bool:
+def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node: Node) -> bool:
     """Determine whether a given job is compatible with a specific node based on
     various requirements and constraints.
 
@@ -168,7 +166,7 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
 
             return False
 
-        if job_specs.gpu.count.max and node.gpu.count > job_specs.gpu.count.max:
+        if job_specs.gpu.count.max is not None and node.gpu.count > job_specs.gpu.count.max:
             logger.info("Job %s requires at most %s GPUs, skipping...", job_id, job_specs.gpu.count.max)
 
             return False
@@ -244,45 +242,20 @@ def valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, node:
     return True
 
 
-def match_jobs_with_node(job: str, node: str) -> tuple[list[Job], Node]:
+def is_matching(job: Job, node: Node) -> bool:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
-        job (str): Path to the job YAML file.
-        node (str): Path to the node YAML file.
+        job (Job): The job object containing the requirements for execution.
+        node (Node): The node object representing the computational resource.
 
     Returns:
-        tuple[list[Job], Node]: A tuple containing a list of matching jobs and the node object.
+        bool: True if a matching job and node are found, False otherwise.
     """
-    try:
-        node_obj = Node.load_from_yaml(node)
-        logger.info("Node file %s is VALID.", node)
-    except ValidationError as e:
-        logger.error("Invalid node specification: %s", e)
+    for i, job_spec in enumerate(job.matching_specs):
+        if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node):
+            logger.info("Job %s-%s matches node %s.", job.job_id, i, node.node_id)
 
-        raise
+            return True
 
-    if not node_obj.node_id:
-        node_obj.node_id = Path(node).stem
-        logger.warning("Node ID not specified in %s, using filename as default: %s", node, node_obj.node_id)
-
-    jobs_match = []
-
-    try:
-        job_obj = Job.load_from_yaml(job)
-        logger.info("Job file %s is VALID.", job)
-    except ValidationError as e:
-        logger.error(f"Invalid job specification: {e}")
-
-        raise
-
-    if not job_obj.job_id:
-        job_obj.job_id = Path(job).stem
-        logger.warning("Job ID not specified in %s, using filename as default: %s", job, job_obj.job_id)
-
-    for i, job_spec in enumerate(job_obj.matching_specs):
-        if valid_job_specs_with_node(f"{job_obj.job_id}-{i}", job_spec, node_obj):
-            jobs_match.append(job_obj)
-            logger.info("Job %s-%s matches node %s.", job_obj.job_id, i, node_obj.node_id)
-
-    return jobs_match, node_obj
+    return False

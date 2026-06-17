@@ -25,10 +25,10 @@ from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
-from matchmaking.core import scheduler
+from matchmaking.core import utils
+from matchmaking.core.main import select_job
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.router import MatchMode
-from matchmaking.core.scheduler import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -193,7 +193,7 @@ class MatchmakingUser(User):
         placeholders = ",".join("?" * len(candidate_ids))
         cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 
-        scheduler.JOBS = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
+        utils.JOBS = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
 
         start_time = time.perf_counter()
         selected_job = None
@@ -222,7 +222,7 @@ class MatchmakingUser(User):
 
         node = _rng.choice(NODES_POOL)
 
-        scheduler.JOBS = fetch_candidate_jobs(redis_client, self._candidate_jobs_count)
+        utils.JOBS = fetch_candidate_jobs(redis_client, self._candidate_jobs_count)
 
         start_time = time.perf_counter()
         selected_job = None
