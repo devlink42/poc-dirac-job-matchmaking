@@ -55,10 +55,16 @@ locust = ">=2.44.0,<2.45"
 m2-bash = ">=5.2.37.2,<5.3"
 
 [feature.benchmark.tasks]
+# Benchmark Linux
 benchmark = "sh ./benchmark/run_benchmark.sh --headless"
 benchmark-ui = "sh ./benchmark/run_benchmark.sh --ui"
 benchmark-dist = "sh ./benchmark/run_benchmark.sh --distributed --headless"
 benchmark-dist-ui = "sh ./benchmark/run_benchmark.sh --distributed --ui"
+# Benchmark Windows
+win-benchmark = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --headless"
+win-benchmark-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --ui"
+win-benchmark-dist = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --headless"
+win-benchmark-dist-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --ui"
 
 # ---------------------------------------------------------
 # FEATURE: ANALYSIS

@@ -3,10 +3,13 @@
 # Should match GPU jobs AND regular CPU-only jobs
 # Tests that GPU pilots can still serve the non-GPU majority
 
-site: "LCG.CERN.cern"
+version: 0.1.0
+node_id: 'node_03_cern_gpu'
+
+site: LCG.CERN.cern
 system:
   name: Linux
-  glibc: "2.28"
+  glibc: 2.28
   user-namespaces: true
 wall-time: 172800  # 2 days
 cpu-work: 400000
@@ -21,7 +24,7 @@ gpu:
   count: 1
   ram-mb: 40960  # 40 GB (A100)
   vendor: nvidia
-  compute-capability: "8.0"
+  compute-capability: 8.0
   driver-version: 510.47.03
 tags:
   - cvmfs:lhcb

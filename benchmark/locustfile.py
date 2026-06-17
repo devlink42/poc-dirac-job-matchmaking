@@ -6,10 +6,10 @@ by directly firing events to Locust's metric system.
 
 Workflow:
     1. Generate the benchmark database once:
-           pixi run generate_db --num-jobs 10000000 --num-nodes 20000
+           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 5m --num-jobs 10000000 --num-nodes 20000
+           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from locust import User, between, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import valid_job_specs_with_node
-from matchmaking.core.scheduler import select_job
+from matchmaking.core import utils
+from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -157,19 +157,14 @@ class MatchmakingUser(User):
         placeholders = ",".join("?" * len(candidate_ids))
         cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 
-        candidates = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
+        utils.JOBS = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
 
         start_time = time.perf_counter()
         selected_job = None
         error = None
 
         try:
-            compatible = [
-                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
-            ]
-            if compatible:
-                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
-
+            selected_job = select_job(node)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)

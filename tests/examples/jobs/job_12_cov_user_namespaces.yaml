@@ -1,0 +1,21 @@
+version: 0.1.0
+job_id: 'job_12_cov_user_namespaces'
+submit_time: '2026-03-28T10:00:00Z'
+
+owner: tester
+group: tests
+type: User
+status: Waiting
+
+matching_specs:
+  - system:
+      name: Linux
+      user-namespaces: true
+    wall-time: 3600
+    cpu-work: 3600
+    cpu:
+      num-cores: {min: 1, max: 1}
+      architecture:
+        name: x86_64
+        microarchitecture-level: {min: 1, max: null}
+    tags: ''

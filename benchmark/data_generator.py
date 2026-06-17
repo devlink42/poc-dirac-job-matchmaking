@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
 from matchmaking.models.job import Architecture, ComputeMemory, Cpu, Job, MatchingSpecs, System
 from matchmaking.models.node import Architecture as NodeArchitecture
@@ -16,12 +16,11 @@ from matchmaking.models.node import System as NodeSystem
 from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
-    JobGroup,
-    JobType,
     Range,
     ResourceSpec,
     StrictRange,
     SystemName,
+    Type,
 )
 
 # Standard RNG is sufficient for benchmark data; SystemRandom (os.urandom) is
@@ -41,7 +40,7 @@ _SITES = [
 ]
 _TAG_POOL = [f"tag:{i:03d}" for i in range(200)]
 _CPU_WORK_OPTIONS = [259200, 345600, 1080000, 21600]
-_RARE_JOB_TYPES = [JobType.USER, JobType.SPRUCING, JobType.MERGE, JobType.LBAPI]
+_RARE_JOB_TYPES = [Type.USER, Type.SPRUCING, Type.MERGE, Type.LBAPI]
 _RARE_OWNERS = ["sharmar", "jdoe", "asmith"]
 
 
@@ -56,21 +55,21 @@ def generate_mock_job(job_id: str) -> Job:
     """
     roll = _rng.random()
     if roll < 0.60:
-        job_type = JobType.MCSIMULATION
+        job_type = Type.MCSIMULATION
     elif roll < 0.81:
-        job_type = JobType.MCFASTSIMULATION
+        job_type = Type.MCFASTSIMULATION
     elif roll < 0.97:
-        job_type = JobType.WGPRODUCTION
+        job_type = Type.WGPRODUCTION
     else:
         job_type = _rng.choice(_RARE_JOB_TYPES)
 
     roll = _rng.random()
     if roll < 0.80:
-        owner, group = "lbprods", JobGroup.LHCB_MC
+        owner, group = "lbprods", "lhcb_mc"
     elif roll < 0.98:
-        owner, group = "lbprods", JobGroup.LHCB_DATA
+        owner, group = "lbprods", "lhcb_data"
     else:
-        owner, group = _rng.choice(_RARE_OWNERS), JobGroup.LHCB_USER
+        owner, group = _rng.choice(_RARE_OWNERS), "lhcb_user"
 
     tags = ["cvmfs:lhcb", "os:el9"]
     if _rng.random() < 0.3:
@@ -83,10 +82,10 @@ def generate_mock_job(job_id: str) -> Job:
 
     return Job(
         job_id=job_id,
+        submit_time=datetime.now(tz=UTC),
         owner=owner,
         group=group,
         job_type=job_type,
-        submission_time=datetime.now(tz=timezone.utc),
         matching_specs=[
             MatchingSpecs(
                 **{

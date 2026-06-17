@@ -1,20 +1,24 @@
 # INVALID: min > max in cpu.num-cores range
 # Expected: validation error
 
+version: 0.1.0
+job_id: 'invalid_01_job_min_gt_max'
+submit_time: '2026-03-28T10:00:00Z'
+
 owner: lbprods
 group: lhcb_mc
-job_type: MCSimulation
-submission_time: "2026-03-28T10:00:00Z"
+type: MCSimulation
+status: Waiting
 
 matching_specs:
-  - site: "LCG.CERN.cern"
+  - site: LCG.CERN.cern
     system:
       name: Linux
     wall-time: 259200
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 8, "max": 2}  # ERROR: min > max
+      num-cores: {min: 8, max: 2}  # ERROR: min > max
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb

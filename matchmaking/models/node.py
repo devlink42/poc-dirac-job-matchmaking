@@ -11,6 +11,8 @@ from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, System
 
 
 class System(BaseModel):
+    """System information of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: SystemName
@@ -19,6 +21,8 @@ class System(BaseModel):
 
 
 class Architecture(BaseModel):
+    """CPU architecture of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: ArchitectureName
@@ -26,6 +30,8 @@ class Architecture(BaseModel):
 
 
 class Cpu(BaseModel):
+    """CPU resources of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     num_cores: PositiveInt = Field(validation_alias="num-cores")
@@ -34,6 +40,8 @@ class Cpu(BaseModel):
 
 
 class Gpu(BaseModel):
+    """GPU resources of a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: NonNegativeInt
@@ -43,7 +51,7 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
     @model_validator(mode="after")
-    def check_gpu_fields(self) -> "Gpu":
+    def check_gpu_fields(self) -> Gpu:
         if self.count > 0:
             missing = []
             if self.ram_mb is None:
@@ -62,9 +70,13 @@ class Gpu(BaseModel):
 
 
 class Node(BaseModel):
+    """Data model representing a compute node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
+    version: CustomVersion = Field(default=CustomVersion("0.1"))
     node_id: str | None = None
+
     site: str
     system: System
     wall_time: PositiveInt = Field(validation_alias="wall-time")
@@ -81,7 +93,7 @@ class Node(BaseModel):
         if not file_path.exists():
             raise FileNotFoundError(f"No such file or directory: '{file_path}'")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return cls.model_validate(data or {})

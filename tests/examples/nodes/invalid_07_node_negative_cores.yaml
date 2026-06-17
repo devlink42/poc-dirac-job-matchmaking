@@ -1,10 +1,13 @@
 # INVALID: negative core count on a pilot
 # Expected: validation error
 
-site: "LCG.CERN.cern"
+version: 0.1.0
+node_id: 'invalid_07_node_negative_cores'
+
+site: LCG.CERN.cern
 system:
   name: Linux
-  glibc: "2.28"
+  glibc: 2.28
 wall-time: 259200
 cpu-work: 600000
 cpu:
