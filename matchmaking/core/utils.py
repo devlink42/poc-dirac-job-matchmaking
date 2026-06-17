@@ -9,7 +9,7 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
 CONFIG_PATH = "matchmaking/config/scheduling.yaml"
-JOB_PATH = "tests/examples/jobs/"
+JOBS = "tests/examples/jobs/"
 
 
 def get_jobs() -> list[Job]:
@@ -21,17 +21,17 @@ def get_jobs() -> list[Job]:
     try:
         jobs = []
 
-        for job_file in Path(JOB_PATH).glob("*.yaml"):
+        for job_file in Path(JOBS).glob("*.yaml"):
             if job_file.stem.startswith("invalid"):
                 continue
 
             jobs.append(Job.load_from_yaml(job_file))
     except FileNotFoundError as e:
-        raise ValueError(f"Job examples not found at: '{JOB_PATH}'") from e
+        raise ValueError(f"Job examples not found at: '{JOBS}'") from e
     except Exception as e:
         raise ValueError(f"Failed to load job examples: {e}") from e
     else:
-        logger.info(f"Loaded job examples from: '{JOB_PATH}'")
+        logger.info(f"Loaded job examples from: '{JOBS}'")
 
     return jobs
 
