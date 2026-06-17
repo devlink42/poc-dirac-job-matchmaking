@@ -34,12 +34,21 @@ class Type(StrEnum):
 
 
 class JobStatus(StrEnum):
-    WAITING = "waiting"
-    STAGING = "staging"
-    HOLD = "hold"
-    FAIL = "fail"
-    RUNNING = "running"
-    DONE = "done"
+    SUBMITTING = "Submitting"
+    RECEIVED = "Received"
+    CHECKING = "Checking"
+    STAGING = "Staging"
+    SCOUTING = "Scouting"
+    WAITING = "Waiting"
+    MATCHED = "Matched"
+    RUNNING = "Running"
+    STALLED = "Stalled"
+    COMPLETING = "Completing"
+    DONE = "Done"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    DELETED = "Deleted"
+    KILLED = "Killed"
 
 
 class SystemName(StrEnum):

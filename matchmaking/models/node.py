@@ -74,8 +74,8 @@ class Node(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
-    node_id: str | None = None
     version: CustomVersion = Field(default=CustomVersion("0.1"))
+    node_id: str | None = None
 
     site: str
     system: System

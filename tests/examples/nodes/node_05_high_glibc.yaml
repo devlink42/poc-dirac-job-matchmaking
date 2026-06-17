@@ -1,9 +1,12 @@
 # Node: High version of GLIBC + GPU
 
-site: "LCG.CERN.cern"
+version: 0.1.0
+node_id: 'node_05_high_glibc'
+
+site: LCG.CERN.cern
 system:
   name: Linux
-  glibc: "2.37"
+  glibc: 2.37
   user-namespaces: true
 wall-time: 172800
 cpu-work: 300000
@@ -18,7 +21,7 @@ gpu:
   count: 1
   ram-mb: 40960  # 40 GB (A100)
   vendor: nvidia
-  compute-capability: "9.0"
+  compute-capability: 9.0
   driver-version: 486.35.27
 tags:
   - cvmfs:lhcb

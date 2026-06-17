@@ -1,17 +1,16 @@
-# Job: Darwin-only job (example for failure test)
-
 version: 0.1.0
-job_id: 'job_08_darwin'
+job_id: 'job_12_cov_user_namespaces'
 submit_time: '2026-03-28T10:00:00Z'
 
-owner: lbprods
-group: lhcb_mc
-type: MCSimulation
+owner: tester
+group: tests
+type: User
 status: Waiting
 
 matching_specs:
   - system:
-      name: Darwin
+      name: Linux
+      user-namespaces: true
     wall-time: 3600
     cpu-work: 3600
     cpu:

@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.scheduler import select_job
+from matchmaking.core.main import select_job
 from matchmaking.models.node import Node
 
 

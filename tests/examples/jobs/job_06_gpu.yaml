@@ -5,13 +5,13 @@
 # Requires NVIDIA GPU with compute capability >= 8.0 (Ampere+)
 
 version: 0.1.0
-job_id: '67534462'
+job_id: 'job_06_gpu'
 submit_time: '2026-03-28T12:00:00Z'
 
 owner: lbprods
 group: lhcb_mc
-job_type: MCSimulation
-status: waiting
+type: MCSimulation
+status: Waiting
 
 matching_specs:
   - site: LCG.CERN.cern

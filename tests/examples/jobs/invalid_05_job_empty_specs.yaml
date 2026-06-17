@@ -3,12 +3,12 @@
 # Expected: validation error
 
 version: 0.1.0
-job_id: '25849903'
+job_id: 'invalid_05_job_empty_specs'
 submit_time: '2026-03-28T10:00:00Z'
 
 owner: lbprods
 group: lhcb_mc
-job_type: MCSimulation
-status: waiting
+type: MCSimulation
+status: Waiting
 
 matching_specs: []  # ERROR: no specs
