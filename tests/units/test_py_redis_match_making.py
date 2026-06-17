@@ -59,7 +59,7 @@ def test_match_jobs_with_node_redis_invalid_job_spec(sample_job, monkeypatch, ca
     def mock_valid_job_specs(*args, **kwargs):
         raise ValidationError.from_exception_data(title="Job", line_errors=[], input_type="python")
 
-    monkeypatch.setattr(match_making_module, "valid_job_specs_with_node", mock_valid_job_specs)
+    monkeypatch.setattr(match_making_module, "is_valid_job_specs_with_node", mock_valid_job_specs)
 
     jobs, node = match_jobs_with_node_redis([sample_job], NODE_01_PATH)
 

@@ -20,11 +20,9 @@ import sys
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core.main import select_job
 from matchmaking.core.py_redis.match_making import match_jobs_with_node_redis
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
-from matchmaking.core.scheduler import select_job
-
-# from matchmaking.models.config import SchedulingConfig
 
 
 def main() -> None:

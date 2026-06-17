@@ -85,7 +85,7 @@ def generate_mock_job(job_id: str) -> Job:
         submit_time=datetime.now(tz=UTC),
         owner=owner,
         group=group,
-        job_type=job_type,
+        type=job_type,
         matching_specs=[
             MatchingSpecs(
                 **{

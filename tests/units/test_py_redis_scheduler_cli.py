@@ -12,6 +12,7 @@ import yaml
 from matchmaking.cli.py_redis import scheduler
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
+from matchmaking.models.node import Node
 
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 CONFIG_01 = "tests/examples/config/config_01_scheduling_valid.yaml"
@@ -51,7 +52,7 @@ def test_main_config_load_error(monkeypatch, capsys):
     monkeypatch.setattr(
         scheduler,
         "match_jobs_with_node_redis",
-        MagicMock(return_value=([MagicMock()], MagicMock(site="LCG.CERN.cern", node_id="node-01"))),
+        MagicMock(return_value=([MagicMock()], Node.load_from_yaml(NODE_01))),
     )
     monkeypatch.setattr(SchedulingConfig, "load_from_yaml", MagicMock(side_effect=RuntimeError("err")))
 

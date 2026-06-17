@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from matchmaking.config.logger import logger
-from matchmaking.core.match_making import valid_job_specs_with_node
+from matchmaking.core.match import is_valid_job_specs_with_node
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
@@ -38,7 +38,7 @@ def match_jobs_with_node_redis(jobs: list[Job], node: str) -> tuple[list[Job], N
     try:
         for job in jobs:
             for i, job_spec in enumerate(job.matching_specs):
-                if valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node_obj):
+                if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node_obj):
                     jobs_match.append(job)
                     logger.info("Job %s-%s matches node %s.", job.job_id, i, node_obj.node_id)
     except ValidationError as e:

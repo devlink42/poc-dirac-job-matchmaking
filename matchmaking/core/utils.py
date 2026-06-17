@@ -29,7 +29,7 @@ def get_jobs() -> list[Job]:
     except FileNotFoundError as e:
         raise ValueError(f"Job examples not found at: '{JOBS}'") from e
     except Exception as e:
-        raise ValueError(f"Failed to load job examples: {e}") from e
+        raise ValueError(f"Failed to load job examples from: '{JOBS}': {e}") from e
     else:
         logger.info(f"Loaded job examples from: '{JOBS}'")
 
@@ -37,18 +37,18 @@ def get_jobs() -> list[Job]:
 
 
 def get_selection_configuration() -> SchedulingConfig:
-    """Load default scheduling config from the specified path.
+    """Load scheduling configuration from the specified path.
 
     Returns:
-        SchedulingConfig: Default scheduling config.
+        SchedulingConfig: Scheduling configuration.
     """
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
     except FileNotFoundError as e:
-        raise ValueError(f"Default scheduling config not found at: '{CONFIG_PATH}'") from e
+        raise ValueError(f"Scheduling config not found at: '{CONFIG_PATH}'") from e
     except Exception as e:
-        raise ValueError(f"Failed to load default scheduling config: {e}") from e
+        raise ValueError(f"Failed to load scheduling config from: '{CONFIG_PATH}': {e}") from e
     else:
-        logger.info(f"Loaded default scheduling config from: '{CONFIG_PATH}'")
+        logger.info(f"Loaded scheduling config from: '{CONFIG_PATH}'")
 
     return config
