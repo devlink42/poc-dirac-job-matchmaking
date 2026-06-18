@@ -29,6 +29,10 @@ while [[ $# -gt 0 ]]; do
       DISTRIBUTED=true
       shift
       ;;
+    -w|--workers)
+      WORKERS="$2"
+      shift 2
+      ;;
     -u|--users)
       U_VAL="$2"
       LOCUST_ARGS="$LOCUST_ARGS -u $2"
@@ -42,10 +46,6 @@ while [[ $# -gt 0 ]]; do
     -t|--run-time)
       T_VAL="$2"
       LOCUST_ARGS="$LOCUST_ARGS -t $2"
-      shift 2
-      ;;
-    -w|--workers)
-      WORKERS="$2"
       shift 2
       ;;
     --num-jobs)

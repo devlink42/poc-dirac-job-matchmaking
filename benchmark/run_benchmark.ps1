@@ -12,15 +12,24 @@ param(
     [switch]$Headless,
     [switch]$Ui,
     [switch]$Distributed,
-    [int]$Users = 100,
-    [int]$SpawnRate = 50,
-    [int]$RunTime = 900,
+
+    [Alias("w")]
     [int]$Workers = 5,
+
+    [Alias("u")]
+    [int]$Users = 100,
+    [Alias("r", "spawn-rate")]
+    [int]$SpawnRate = 50,
+    [Alias("t", "run-time")]
+    [string]$RunTime = "900",
+
+    [Alias("num-jobs")]
     [long]$NumJobs = 10000000,
+    [Alias("num-nodes")]
     [long]$NumNodes = 50000,
+    [Alias("candidates-count")]
     [int]$CandidatesCount = 500,
 
-    # Captures any additional unknown arguments to pass them directly to Locust
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$RemainingArgs
 )

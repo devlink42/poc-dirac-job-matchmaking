@@ -25,7 +25,7 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 #### Generate data
 
 ```bash
-pixi run python -m benchmark.generate_db --num-jobs 10000000 --num-nodes 50000
+pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 #### Headless Mode (Quick Baseline)
@@ -34,6 +34,10 @@ To run a 15 minutes benchmark directly in your terminal with 100 concurrent user
 
 ```bash
 pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+```
+
+```powershell
+pixi run win-benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
@@ -46,6 +50,10 @@ To run the benchmark in a distributed environment with multiple nodes:
 pixi run benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
+```powershell
+pixi run win-benchmark-dist -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+```
+
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
 
 #### Web UI Mode (Interactive Exploration)
@@ -56,6 +64,10 @@ To explore latency graphs, throughput curves, and easily tweak the user load:
 pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
+```powershell
+pixi run win-benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+```
+
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
 
 #### Distributed Web UI Mode (High Load Testing)
@@ -64,6 +76,10 @@ To run the benchmark in a distributed environment with multiple nodes:
 
 ```bash
 pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+```
+
+```powershell
+pixi run win-benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
 ```
 
 `--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.

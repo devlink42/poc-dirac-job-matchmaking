@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+import time
 from pathlib import Path
 
 from benchmark.data_generator import job_generator, node_generator
@@ -88,9 +89,15 @@ def main() -> None:
 
     conn = sqlite3.connect(db_path)
     try:
+        start_time = time.perf_counter()
+
         _create_schema(conn)
         _populate(conn, args.num_jobs, args.num_nodes)
         conn.commit()
+
+        total_time = time.perf_counter() - start_time
+        logger.info("Database generation completed in %.2f seconds.", total_time)
+
         size_kb = db_path.stat().st_size / 1024
         if size_kb >= 1048576:
             logger.info("Done! Database written to %s (%.2f GB).", db_path, size_kb / 1048576)
