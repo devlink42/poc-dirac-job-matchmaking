@@ -269,7 +269,6 @@ def test_select_job_hardware_and_system_matching(
     """
     node = load_node(node_file)
     job = load_job(job_file)
-    job.status = JobStatus.WAITING
 
     # OVERRIDE: Isolate specific hardware limits by bypassing environmental/workload constraints
     if isolate_hardware:
