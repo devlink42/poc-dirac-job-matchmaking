@@ -29,8 +29,6 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
-configure_logger("INFO")
-
 _rng = random.Random()  # noqa: S311
 
 MAX_JOB_ID_IN_DB = 0
@@ -82,6 +80,12 @@ def _(parser):
         default="benchmark/benchmark.db",
         help="Path to the SQLite benchmark database (generate with benchmark/generate_db.py)",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
+    )
 
 
 @events.test_start.add_listener
@@ -92,6 +96,8 @@ def on_test_start(environment, **kwargs):
 
     opts = environment.parsed_options
     global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
+
+    configure_logger(opts.log_level)
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
