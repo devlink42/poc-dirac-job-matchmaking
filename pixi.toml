@@ -21,6 +21,7 @@ ruff = ">=0.15.9,<0.16"
 pytest-cov = ">=7.1.0,<8"
 packaging = ">=26.0,<27"
 pre-commit = ">=4.1.0,<5"
+"ruamel.yaml" = ">=0.19.1,<0.20"
 
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }

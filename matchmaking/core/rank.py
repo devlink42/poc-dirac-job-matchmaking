@@ -21,7 +21,7 @@ def _calculate_score(job: Job, running_by_job_group: Counter, running_by_job_own
     return running_by_job_group.get(job.group, 0), running_by_job_owner.get(job.owner, 0), job.submit_time
 
 
-def rank(candidates: list[Job], running_by_job_group: Counter, running_by_job_owner: Counter) -> Job:
+def rank(candidates: list[Job], running_by_job_group: Counter, running_by_job_owner: Counter) -> None:
     """Rank the candidate jobs and return the best match.
 
     Args:
@@ -34,6 +34,3 @@ def rank(candidates: list[Job], running_by_job_group: Counter, running_by_job_ow
     """
     # Sort the candidates in-place using the private scoring function
     candidates.sort(key=lambda job: _calculate_score(job, running_by_job_group, running_by_job_owner))
-
-    # Return the top candidate (FIFO / Fairshare winner)
-    return candidates[0]

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ruamel.yaml import YAML
+
 from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
@@ -52,3 +54,11 @@ def get_selection_configuration() -> SchedulingConfig:
         logger.info(f"Loaded scheduling config from: '{CONFIG_PATH}'")
 
     return config
+
+
+def assign_job_to_site(job: Job, node_site: str):
+    job_yaml = YAML()
+    job_yaml.preserve_quotes = True
+    job_yaml.default_flow_style = False
+    job_yaml.indent(mapping=2, sequence=4, offset=2)
+    # TODO: check how to retrieve the job file path
