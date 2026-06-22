@@ -189,6 +189,36 @@ def test_select_job_propagates_loader_exceptions(load_node):
             select_job(node)
 
 
+def test_select_job_ignores_running_limits_from_other_sites(example_config, load_job, load_node):
+    """Test that running jobs on Site B do not affect the job limits of Site A."""
+    node_site_a = load_node("node_01_cern_typical")
+
+    waiting_job = load_job("job_01_mcsimulation_any_site")
+    waiting_job.status = JobStatus.WAITING
+
+    # Create a running job on a DIFFERENT site
+    running_job_other_site = waiting_job.model_copy(deep=True)
+    running_job_other_site.status = JobStatus.RUNNING
+    running_job_other_site.matching_specs[0].site = "LCG.CSCS.ch"
+
+    # Explicitly set the limit for this job type to 1 for the requesting node's site
+    example_config.by_site[node_site_a.site] = Site(name=node_site_a.site, running_limits={waiting_job.type: 1})
+
+    # We mock 10 running jobs on "LCG.CSCS.ch".
+    # If the limit was global, the limit of 1 for node_site_a would be falsely triggered.
+    candidate_jobs = [running_job_other_site] * 10 + [waiting_job]
+
+    with (
+        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
+    ):
+        selected = select_job(node_site_a)
+
+        # The job should be selected because the 10 running jobs are on another site.
+        assert selected is not None
+        assert selected.job_id == waiting_job.job_id
+
+
 @pytest.mark.parametrize(
     "job_file, node_file, expected_selected, isolate_hardware",
     [

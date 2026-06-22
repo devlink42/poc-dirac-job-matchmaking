@@ -39,14 +39,8 @@ def filter(allowed_jobs: list[Job], config: SchedulingConfig, rng: Random | None
         if selected_job_type:
             break
 
-    # If no job type from priorities is found in allowed_jobs, we might want to fallback.
-    if not selected_job_type:
-        # Fallback for jobs whose type is not in the priority list.
-        # If we didn't find a selected_job_type, it means none of the allowed_jobs types
-        # are in the priority list.
-        # In that case, we can still pick from allowed_jobs.
-        candidates = allowed_jobs
-    else:
-        candidates = [job for job in allowed_jobs if job.type == selected_job_type]
+    if selected_job_type:
+        return [job for job in allowed_jobs if job.type == selected_job_type]
 
-    return candidates
+    # If no job type from priorities is found in allowed_jobs, we might want to fallback.
+    return allowed_jobs

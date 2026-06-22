@@ -39,7 +39,9 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     site_config = config.by_site.get(node.site)
     site_limits = site_config.running_limits if site_config else {}
 
-    running_job_type_counts = Counter(job.type for job in running_jobs)
+    running_jobs_at_site = [job for job in running_jobs if any(spec.site == node.site for spec in job.matching_specs)]
+
+    running_job_type_counts = Counter(job.type for job in running_jobs_at_site)
     running_by_job_group = Counter(job.group for job in running_jobs)
     running_by_job_owner = Counter(job.owner for job in running_jobs)
 

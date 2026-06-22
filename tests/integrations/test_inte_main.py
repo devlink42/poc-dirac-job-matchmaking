@@ -147,7 +147,11 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(queue))]
 
         for i, j in enumerate(queue):
-            j.status = JobStatus.RUNNING if i < 20 else JobStatus.WAITING
+            if i < 20:
+                j.status = JobStatus.RUNNING
+                j.matching_specs[0].site = node.site
+            else:
+                j.status = JobStatus.WAITING
 
         mock_load_job.side_effect = queue
         job = select_job(node)
