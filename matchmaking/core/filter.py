@@ -21,7 +21,7 @@ def filter(
     ]
 
     if not allowed_jobs:
-        raise ValueError("No jobs allowed after filtering")
+        return []
 
     selected_job_type = None
 

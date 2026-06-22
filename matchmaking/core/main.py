@@ -28,10 +28,10 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
 
     # Match-making: Filter jobs that are compatible with the node's resources
     # and requirements, only in WAITING status jobs.
-    waiting_jobs = [job for job in jobs if job.status == JobStatus.WAITING and is_matching(job, node)]
+    waiting_matching_jobs = [job for job in jobs if job.status == JobStatus.WAITING and is_matching(job, node)]
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
 
-    if not waiting_jobs:
+    if not waiting_matching_jobs:
         return None
 
     config = get_selection_configuration()
@@ -46,13 +46,11 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     running_by_job_owner = Counter(job.owner for job in running_jobs)
 
     # Filtering: Filter by job type priority
-    try:
-        candidates = filter(waiting_jobs, running_job_type_counts, site_limits, config, rng)
-    except ValueError as e:
-        raise ValueError(f"No jobs allowed after filtering: {e}") from e
+    candidates = filter(waiting_matching_jobs, running_job_type_counts, site_limits, config, rng)
+
+    if not candidates:
+        return None
 
     # Ranking: Round-robin style sharing for job owner and job group.
     # We sort the candidates by running counts of group and owner, then FIFO.
-    candidates.sort(key=lambda job: rank(job, running_by_job_group, running_by_job_owner))
-
-    return candidates[0]
+    return rank(candidates, running_by_job_group, running_by_job_owner)
