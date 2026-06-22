@@ -45,15 +45,11 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     running_by_job_group = Counter(job.group for job in running_jobs)
     running_by_job_owner = Counter(job.owner for job in running_jobs)
 
-    allowed_jobs = [
-        job for job in waiting_jobs if running_job_type_counts[job.type] < site_limits.get(job.type, float("inf"))
-    ]
-
-    if not allowed_jobs:
-        return None
-
     # Filtering: Filter by job type priority
-    candidates = filter(allowed_jobs, config, rng)
+    try:
+        candidates = filter(waiting_jobs, running_job_type_counts, site_limits, config, rng)
+    except ValueError as e:
+        raise ValueError(f"No jobs allowed after filtering: {e}") from e
 
     # Ranking: Round-robin style sharing for job owner and job group.
     # We sort the candidates by running counts of group and owner, then FIFO.

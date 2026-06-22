@@ -9,7 +9,20 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
 
-def filter(allowed_jobs: list[Job], config: SchedulingConfig, rng: Random | None) -> list[Job]:
+def filter(
+    waiting_jobs: list[Job],
+    running_job_type_counts: dict[str, int],
+    site_limits: dict[str, int],
+    config: SchedulingConfig,
+    rng: Random | None,
+) -> list[Job]:
+    allowed_jobs = [
+        job for job in waiting_jobs if running_job_type_counts[job.type] < site_limits.get(job.type, float("inf"))
+    ]
+
+    if not allowed_jobs:
+        raise ValueError("No jobs allowed after filtering")
+
     selected_job_type = None
 
     for priority_entry in config.job_type_priorities:
