@@ -31,5 +31,3 @@ matching_specs:
         name: x86_64
         microarchitecture-level: {min: 4, max: null}
     tags: cvmfs:lhcb & ~test
-
-assigned_site: LCG.cern.ch

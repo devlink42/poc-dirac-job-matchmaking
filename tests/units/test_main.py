@@ -21,17 +21,19 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
 
     running_job = job.model_copy()
     running_job.status = JobStatus.RUNNING
+    running_job.assigned_site = node.site
 
     # Explicitly set the limit for this job type to 500
     example_config.by_site[node.site] = Site(name=node.site, running_limits={job.type: 500})
 
-    # Limit reached -> returns None
+    # Limit reached -> raises ValueError
     candidate_jobs_limit_reached = [running_job] * 500 + [job]
     with (
         patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_reached),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        assert select_job(node) is None
+        with pytest.raises(ValueError):
+            select_job(node)
 
     # Limit not reached -> returns Job
     candidate_jobs_limit_ok = [running_job] * 499 + [job]
@@ -311,10 +313,11 @@ def test_select_job_hardware_and_system_matching(
         patch("matchmaking.core.main.get_jobs", return_value=[job]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        selected = select_job(node)
-
         if expected_selected:
+            selected = select_job(node)
+
             assert selected is not None
             assert selected.job_id == job.job_id
         else:
-            assert selected is None
+            with pytest.raises(ValueError):
+                select_job(node)

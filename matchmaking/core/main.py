@@ -32,11 +32,11 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     running_jobs = [job for job in jobs if job.status == JobStatus.RUNNING]
 
     if not waiting_matching_jobs:
-        raise ValueError("No matching jobs found")
+        raise ValueError("No waiting jobs match the node specifications.")
 
     config = get_selection_configuration()
 
-    site_config = config.by_site.get(node.site)
+    site_config = config.by_site.get(node.site, None)
     site_limits = site_config.running_limits if site_config else {}
 
     running_jobs_at_site = [job for job in running_jobs if job.assigned_site == node.site]
@@ -55,6 +55,7 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     # We sort the candidates by running counts of group and owner, then FIFO.
     rank(candidates, running_by_job_group, running_by_job_owner)
 
-    assign_job_to_site(candidates[0], node.site)
+    selected_job = candidates[0]
+    assign_job_to_site(selected_job, node.site)
 
-    return candidates[0]
+    return selected_job

@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ruamel.yaml import YAML
-
 from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
+from matchmaking.models.utils import JobStatus
 
 CONFIG_PATH = "matchmaking/config/scheduling.yaml"
 JOBS = "tests/examples/jobs/"
+
+_JOBS_CACHE: list[Job] | None = None
 
 
 def get_jobs() -> list[Job]:
@@ -20,6 +21,11 @@ def get_jobs() -> list[Job]:
     Returns:
         list[Job]: List of job examples.
     """
+    global _JOBS_CACHE
+
+    if _JOBS_CACHE is not None:
+        return _JOBS_CACHE
+
     try:
         jobs = []
 
@@ -33,7 +39,7 @@ def get_jobs() -> list[Job]:
     except Exception as e:
         raise ValueError(f"Failed to load job examples from: '{JOBS}': {e}") from e
     else:
-        logger.info(f"Loaded job examples from: '{JOBS}'")
+        logger.info("Loaded job examples from: '%s'", JOBS)
 
     return jobs
 
@@ -51,14 +57,13 @@ def get_selection_configuration() -> SchedulingConfig:
     except Exception as e:
         raise ValueError(f"Failed to load scheduling config from: '{CONFIG_PATH}': {e}") from e
     else:
-        logger.info(f"Loaded scheduling config from: '{CONFIG_PATH}'")
+        logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
     return config
 
 
 def assign_job_to_site(job: Job, node_site: str):
-    job_yaml = YAML()
-    job_yaml.preserve_quotes = True
-    job_yaml.default_flow_style = False
-    job_yaml.indent(mapping=2, sequence=4, offset=2)
-    # TODO: check how to retrieve the job file path
+    job.assigned_site = node_site
+    job.status = JobStatus.RUNNING
+
+    logger.debug("Assigned job '%s' to site '%s' in memory.", job.job_id, node_site)

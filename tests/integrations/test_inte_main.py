@@ -6,6 +6,8 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from matchmaking.core.main import select_job
 from matchmaking.models.utils import JobStatus, Type
 
@@ -137,8 +139,6 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
             )
         )
 
-    job = None
-
     with (
         patch("matchmaking.core.utils.Path.glob") as mock_glob,
         patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
@@ -149,16 +149,14 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         for i, j in enumerate(queue):
             if i < 20:
                 j.status = JobStatus.RUNNING
-                j.matching_specs[0].site = node.site
+                j.assigned_site = node.site
             else:
                 j.status = JobStatus.WAITING
 
         mock_load_job.side_effect = queue
-        job = select_job(node)
 
-    assert job is None
-
-    job = None
+        with pytest.raises(ValueError):
+            select_job(node)
 
     with (
         patch("matchmaking.core.utils.Path.glob") as mock_glob,
