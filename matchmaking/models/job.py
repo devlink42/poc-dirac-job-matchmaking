@@ -124,6 +124,8 @@ class Job(BaseModel):
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)
 
+    assigned_site: str | None = None
+
     @classmethod
     def load_from_yaml(cls, path: str | Path) -> Job:
         """Load and apply the configuration from a YAML file."""

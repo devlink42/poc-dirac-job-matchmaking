@@ -9,7 +9,35 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
 
-def filter(allowed_jobs: list[Job], config: SchedulingConfig, rng: Random | None) -> list[Job]:
+def filter(
+    waiting_jobs: list[Job],
+    running_job_type_counts: dict[str, int],
+    site_limits: dict[str, int],
+    config: SchedulingConfig,
+    rng: Random | None,
+) -> list[Job]:
+    """Filter waiting jobs based on running job type counts and site limits.
+
+    Args:
+        waiting_jobs (list[Job]): List of waiting jobs.
+        running_job_type_counts (dict[str, int]): Dict of running job type counts.
+        site_limits (dict[str, int]): Dict of site limits.
+        config (SchedulingConfig): Scheduling configuration.
+        rng (Random | None): Random number generator.
+
+    Returns:
+        list[Job]: List of filtered jobs.
+
+    Raises:
+        ValueError: If no allowed jobs are found.
+    """
+    allowed_jobs = [
+        job for job in waiting_jobs if running_job_type_counts[job.type] < site_limits.get(job.type, float("inf"))
+    ]
+
+    if not allowed_jobs:
+        raise ValueError("No allowed jobs found")
+
     selected_job_type = None
 
     for priority_entry in config.job_type_priorities:
@@ -39,14 +67,8 @@ def filter(allowed_jobs: list[Job], config: SchedulingConfig, rng: Random | None
         if selected_job_type:
             break
 
-    # If no job type from priorities is found in allowed_jobs, we might want to fallback.
-    if not selected_job_type:
-        # Fallback for jobs whose type is not in the priority list.
-        # If we didn't find a selected_job_type, it means none of the allowed_jobs types
-        # are in the priority list.
-        # In that case, we can still pick from allowed_jobs.
-        candidates = allowed_jobs
-    else:
-        candidates = [job for job in allowed_jobs if job.type == selected_job_type]
+    if selected_job_type:
+        return [job for job in allowed_jobs if job.type == selected_job_type]
 
-    return candidates
+    # If no job type from priorities is found in allowed_jobs, we might want to fallback.
+    return allowed_jobs

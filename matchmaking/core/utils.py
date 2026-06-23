@@ -7,9 +7,12 @@ from pathlib import Path
 from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
+from matchmaking.models.utils import JobStatus
 
 CONFIG_PATH: str = "matchmaking/config/scheduling.yaml"
 JOBS: str | list[Job] = "tests/examples/jobs/"
+
+_JOBS_CACHE: list[Job] | None = None
 
 
 def get_jobs() -> list[Job]:
@@ -17,12 +20,21 @@ def get_jobs() -> list[Job]:
 
     Returns:
         list[Job]: List of job examples.
+
+    Raises:
+        ValueError: If the job examples file is not found or fails to load.
     """
+    global _JOBS_CACHE
+
+    if _JOBS_CACHE is not None:
+        return _JOBS_CACHE
+
     if isinstance(JOBS, list) and isinstance(any(job for job in JOBS if isinstance(job, Job)), Job):
         logger.info("Using in-memory job examples")
-        return JOBS
+
+        _JOBS_CACHE = JOBS
     elif isinstance(JOBS, str) and Path(JOBS).exists():
-        logger.info(f"Loading job examples from: '{JOBS}'")
+        logger.info("Loading job examples from: '%s'", JOBS)
         try:
             jobs = []
 
@@ -36,11 +48,12 @@ def get_jobs() -> list[Job]:
         except Exception as e:
             raise ValueError(f"Failed to load job examples from: '{JOBS}': {e}") from e
         else:
-            logger.info(f"Loaded job examples from: '{JOBS}'")
+            logger.info("Loaded job examples from: '%s'", JOBS)
+            _JOBS_CACHE = jobs
     else:
         raise ValueError(f"Invalid JOBS path: '{JOBS}'")
 
-    return jobs
+    return _JOBS_CACHE
 
 
 def get_selection_configuration() -> SchedulingConfig:
@@ -48,6 +61,9 @@ def get_selection_configuration() -> SchedulingConfig:
 
     Returns:
         SchedulingConfig: Scheduling configuration.
+
+    Raises:
+        ValueError: If the scheduling config file is not found or fails to load.
     """
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
@@ -56,6 +72,13 @@ def get_selection_configuration() -> SchedulingConfig:
     except Exception as e:
         raise ValueError(f"Failed to load scheduling config from: '{CONFIG_PATH}': {e}") from e
     else:
-        logger.info(f"Loaded scheduling config from: '{CONFIG_PATH}'")
+        logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
     return config
+
+
+def assign_job_to_site(job: Job, node_site: str):
+    job.assigned_site = node_site
+    job.status = JobStatus.RUNNING
+
+    logger.debug("Assigned job '%s' to site '%s' in memory.", job.job_id, node_site)
