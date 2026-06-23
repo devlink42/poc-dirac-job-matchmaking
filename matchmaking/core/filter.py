@@ -16,6 +16,21 @@ def filter(
     config: SchedulingConfig,
     rng: Random | None,
 ) -> list[Job]:
+    """Filter waiting jobs based on running job type counts and site limits.
+
+    Args:
+        waiting_jobs (list[Job]): List of waiting jobs.
+        running_job_type_counts (dict[str, int]): Dict of running job type counts.
+        site_limits (dict[str, int]): Dict of site limits.
+        config (SchedulingConfig): Scheduling configuration.
+        rng (Random | None): Random number generator.
+
+    Returns:
+        list[Job]: List of filtered jobs.
+
+    Raises:
+        ValueError: If no allowed jobs are found.
+    """
     allowed_jobs = [
         job for job in waiting_jobs if running_job_type_counts[job.type] < site_limits.get(job.type, float("inf"))
     ]

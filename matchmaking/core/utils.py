@@ -20,6 +20,9 @@ def get_jobs() -> list[Job]:
 
     Returns:
         list[Job]: List of job examples.
+
+    Raises:
+        ValueError: If the job examples file is not found or fails to load.
     """
     global _JOBS_CACHE
 
@@ -41,6 +44,8 @@ def get_jobs() -> list[Job]:
     else:
         logger.info("Loaded job examples from: '%s'", JOBS)
 
+    _JOBS_CACHE = jobs
+
     return jobs
 
 
@@ -49,6 +54,9 @@ def get_selection_configuration() -> SchedulingConfig:
 
     Returns:
         SchedulingConfig: Scheduling configuration.
+
+    Raises:
+        ValueError: If the scheduling config file is not found or fails to load.
     """
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)

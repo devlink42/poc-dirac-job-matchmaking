@@ -8,17 +8,24 @@ from unittest.mock import patch
 
 import pytest
 
+from matchmaking.core import utils
 from matchmaking.core.main import select_job
 from matchmaking.models.utils import JobStatus, Type
 
 
-def create_mock_job(load_job, job_id, owner, group, type, submit_time, status=JobStatus.WAITING):
+@pytest.fixture(autouse=True)
+def clear_jobs_cache() -> None:
+    """Automatically clear the job cache before every test to prevent state leakage."""
+    utils._JOBS_CACHE = None
+
+
+def create_mock_job(load_job, job_id, submit_time, owner, group, type, status=JobStatus.WAITING):
     job = load_job("job_01_mcsimulation_any_site")
     job.job_id = job_id
+    job.submit_time = submit_time
     job.owner = owner
     job.group = group
     job.type = type
-    job.submit_time = submit_time
     job.status = status
 
     return job

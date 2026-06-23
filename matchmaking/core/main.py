@@ -14,7 +14,7 @@ from matchmaking.models.node import Node
 from matchmaking.models.utils import JobStatus
 
 
-def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
+def select_job(node: Node, rng: random.Random | None = None) -> Job:
     """Select a job from the matching jobs based on scheduling criteria.
 
     Args:
@@ -22,7 +22,10 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
         rng (random.Random | None, optional): The random number generator to use for selection. Defaults to None.
 
     Returns:
-        Job | None: The selected job or None if no suitable job is found.
+        Job: The selected job.
+
+    Raises:
+        ValueError: If no waiting jobs match the node specifications.
     """
     jobs = get_jobs()
 
