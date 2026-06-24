@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import yaml
 from pydantic import BaseModel, Field, NonNegativeInt
 
+from matchmaking.models.base import YamlLoadableModel
 from matchmaking.models.utils import Type
 
 
@@ -25,7 +23,7 @@ class Site(BaseModel):
     name: str | None = Field(default=None, description="The name of the site.")
 
 
-class SchedulingConfig(BaseModel):
+class SchedulingConfig(YamlLoadableModel):
     """Global scheduling configuration."""
 
     job_type_priorities: list[Type | dict[Type, NonNegativeInt]] = Field(
@@ -33,15 +31,3 @@ class SchedulingConfig(BaseModel):
         description="A sorted list of job types or weighted groups, from highest to lowest priority.",
     )
     by_site: dict[str, Site] = Field(default_factory=dict, description="Configuration per site.")
-
-    @classmethod
-    def load_from_yaml(cls, path: str | Path) -> SchedulingConfig:
-        """Load and apply the configuration from a YAML file."""
-        file_path = Path(path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
-
-        with open(file_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return cls.model_validate(data or {})

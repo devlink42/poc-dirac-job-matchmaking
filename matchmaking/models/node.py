@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import yaml
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
 
+from matchmaking.models.base import YamlLoadableModel
 from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
 
 
@@ -61,7 +59,7 @@ class Gpu(BaseModel):
         return self
 
 
-class Node(BaseModel):
+class Node(YamlLoadableModel):
     """Data model representing a compute node."""
 
     version: CustomVersion = Field(default=CustomVersion("0.1"))
@@ -75,15 +73,3 @@ class Node(BaseModel):
     gpu: Gpu
     io: Io | None = None
     tags: list[str]
-
-    @classmethod
-    def load_from_yaml(cls, path: str | Path) -> Node:
-        """Load and apply the configuration from a YAML file."""
-        file_path = Path(path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
-
-        with open(file_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return cls.model_validate(data or {})
