@@ -26,14 +26,16 @@ def get_jobs() -> list[Job]:
     """
     global _JOBS_CACHE
 
+    if isinstance(JOBS, list):
+        if not all(isinstance(job, Job) for job in JOBS):
+            raise ValueError("All elements in the dynamically injected JOBS list must be Job instances.")
+
+        return JOBS
+
     if _JOBS_CACHE is not None:
         return _JOBS_CACHE
 
-    if isinstance(JOBS, list) and isinstance(any(job for job in JOBS if isinstance(job, Job)), Job):
-        logger.info("Using in-memory job examples")
-
-        _JOBS_CACHE = JOBS
-    elif isinstance(JOBS, str) and Path(JOBS).exists():
+    if isinstance(JOBS, str) and Path(JOBS).exists():
         logger.info("Loading job examples from: '%s'", JOBS)
         try:
             jobs = []
@@ -50,10 +52,10 @@ def get_jobs() -> list[Job]:
         else:
             logger.info("Loaded job examples from: '%s'", JOBS)
             _JOBS_CACHE = jobs
-    else:
-        raise ValueError(f"Invalid JOBS path: '{JOBS}'")
 
-    return _JOBS_CACHE
+            return _JOBS_CACHE
+
+    raise ValueError(f"Invalid JOBS path: '{JOBS}'")
 
 
 def get_selection_configuration() -> SchedulingConfig:

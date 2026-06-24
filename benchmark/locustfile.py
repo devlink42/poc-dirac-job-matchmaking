@@ -9,7 +9,7 @@ Workflow:
            pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000 --log-level=ERROR
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ def on_test_start(environment, **kwargs):
         NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
     except Exception as e:
         logger.error("Failed to load pools from %s: %s", opts.db_path, e)
-        logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
+        logger.error("Generate the database first: pixi run generate_db")
         raise SystemExit(1) from e
 
     if MAX_JOB_ID_IN_DB < opts.candidates_count:
