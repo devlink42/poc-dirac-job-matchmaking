@@ -13,6 +13,7 @@ CONFIG_PATH: str = "matchmaking/config/scheduling.yaml"
 JOBS: str | list[Job] = "tests/examples/jobs/"
 
 _JOBS_CACHE: list[Job] | None = None
+_CONFIG_CACHE: SchedulingConfig | None = None
 
 
 def get_jobs() -> list[Job]:
@@ -67,6 +68,11 @@ def get_selection_configuration() -> SchedulingConfig:
     Raises:
         ValueError: If the scheduling config file is not found or fails to load.
     """
+    global _CONFIG_CACHE
+
+    if _CONFIG_CACHE is not None:
+        return _CONFIG_CACHE
+
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
     except FileNotFoundError as e:
@@ -76,7 +82,9 @@ def get_selection_configuration() -> SchedulingConfig:
     else:
         logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
-    return config
+    _CONFIG_CACHE = config
+
+    return _CONFIG_CACHE
 
 
 def assign_job_to_site(job: Job, node_site: str):

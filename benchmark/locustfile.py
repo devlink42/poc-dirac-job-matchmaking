@@ -9,7 +9,7 @@ Workflow:
            pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000 --log-level=ERROR
+           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
