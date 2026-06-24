@@ -28,9 +28,6 @@ def rank(candidates: list[Job], running_by_job_group: Counter, running_by_job_ow
         candidates (list[Job]): The list of filtered candidate jobs.
         running_by_job_group (Counter): Running jobs count grouped by job group.
         running_by_job_owner (Counter): Running jobs count grouped by job owner.
-
-    Returns:
-        Job: The highest ranked job.
     """
     # Sort the candidates in-place using the private scoring function
     candidates.sort(key=lambda job: _calculate_score(job, running_by_job_group, running_by_job_owner))
