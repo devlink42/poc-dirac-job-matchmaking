@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
 
 from matchmaking.models.job import Job
 
 
-def _calculate_score(job: Job, running_by_job_group: Counter, running_by_job_owner: Counter) -> tuple:
+def _calculate_score(
+    job: Job, running_by_job_group: Counter, running_by_job_owner: Counter
+) -> tuple[int, int, datetime]:
     """Calculate the sorting score for a single job based on fairshare and FIFO.
 
     Args:
@@ -16,7 +19,7 @@ def _calculate_score(job: Job, running_by_job_group: Counter, running_by_job_own
         running_by_job_owner (Counter): Running jobs count grouped by job owner.
 
     Returns:
-        tuple: A score tuple used for sorting.
+        tuple[int, int, datetime]: A score tuple used for sorting.
     """
     return running_by_job_group.get(job.group, 0), running_by_job_owner.get(job.owner, 0), job.submit_time
 
