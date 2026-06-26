@@ -42,14 +42,22 @@ def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 
 def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    monkeypatch.setattr(match_making, "select_job", lambda _node: None)
+    def _mock_no_waiting_jobs(*_args, **_kwargs):
+        raise ValueError("No waiting jobs match the node specifications.")
 
-    _run_main(monkeypatch, [NODE_01])
+    monkeypatch.setattr(match_making, "select_job", _mock_no_waiting_jobs)
+
+    # Expect the CLI to exit with status code 1
+    with pytest.raises(SystemExit) as exc_info:
+        _run_main(monkeypatch, [NODE_01])
+
+    assert exc_info.value.code == 1
+
+    # Verify that the specific domain error is logged
     captured = capsys.readouterr()
-
     output = captured.out + captured.err
 
-    assert "No allowed job can run on this node." in output
+    assert "Error during matchmaking: No waiting jobs match the node specifications." in output
 
 
 def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):

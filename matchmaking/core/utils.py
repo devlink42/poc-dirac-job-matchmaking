@@ -87,7 +87,7 @@ def get_selection_configuration() -> SchedulingConfig:
     return _CONFIG_CACHE
 
 
-def assign_job_to_site(job: Job, node_site: str):
+def assign_job_to_site(job: Job, node_site: str) -> None:
     job.assigned_site = node_site
     job.status = JobStatus.RUNNING
 
