@@ -35,7 +35,6 @@ class System(BaseModel):
 class ComputeMemory(BaseModel):
     """Memory requirements for computation."""
 
-    # TODO: .
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     request: ResourceSpec

@@ -96,6 +96,8 @@ You can pass custom arguments to adjust the scale of the pre-loaded data:
 - `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
 - `--db-path`: Path to the SQLite benchmark database (generate with `benchmark/generate_db.py`, default:
   `benchmark/benchmark.db`).
+- `--log-level`: Log level, it can be `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. To have better results, set it
+  to `ERROR` or `CRITICAL`. (Default: `INFO`).
 
 Locust core parameters:
 
