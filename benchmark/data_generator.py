@@ -40,8 +40,17 @@ _SITES = [
 ]
 _TAG_POOL = [f"tag:{i:03d}" for i in range(200)]
 _CPU_WORK_OPTIONS = [259200, 345600, 1080000, 21600]
-_RARE_JOB_TYPES = [Type.USER, Type.SPRUCING, Type.MERGE, Type.LBAPI]
-_RARE_OWNERS = ["sharmar", "jdoe", "asmith"]
+_RARE_JOB_TYPES = [
+    Type.USER,
+    Type.SPRUCING,
+    Type.MERGE,
+    Type.MCRECONSTRUCTION,
+    Type.APMERGE,
+    Type.APPOSTPROC,
+    Type.MCMERGE,
+    Type.LBAPI,
+]
+_OWNERS = ["sharmar", "jdoe", "asmith"]
 
 
 def generate_mock_job(job_id: str) -> Job:
@@ -69,7 +78,7 @@ def generate_mock_job(job_id: str) -> Job:
     elif roll < 0.98:
         owner, group = "lbprods", "lhcb_data"
     else:
-        owner, group = _rng.choice(_RARE_OWNERS), "lhcb_user"
+        owner, group = _rng.choice(_OWNERS), "lhcb_user"
 
     tags = ["cvmfs:lhcb", "os:el9"]
     if _rng.random() < 0.3:
@@ -85,7 +94,7 @@ def generate_mock_job(job_id: str) -> Job:
         submit_time=datetime.now(tz=UTC),
         owner=owner,
         group=group,
-        job_type=job_type,
+        type=job_type,
         matching_specs=[
             MatchingSpecs(
                 **{

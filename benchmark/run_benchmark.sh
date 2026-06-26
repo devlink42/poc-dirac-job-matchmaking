@@ -5,6 +5,7 @@
 WORKERS=5
 MODE="headless"
 DISTRIBUTED=false
+PROFILE=false
 
 LOCUST_ARGS=""
 U_VAL=100
@@ -29,6 +30,14 @@ while [[ $# -gt 0 ]]; do
       DISTRIBUTED=true
       shift
       ;;
+    --profile)
+      PROFILE=true
+      shift
+      ;;
+    -w|--workers)
+      WORKERS="$2"
+      shift 2
+      ;;
     -u|--users)
       U_VAL="$2"
       LOCUST_ARGS="$LOCUST_ARGS -u $2"
@@ -42,10 +51,6 @@ while [[ $# -gt 0 ]]; do
     -t|--run-time)
       T_VAL="$2"
       LOCUST_ARGS="$LOCUST_ARGS -t $2"
-      shift 2
-      ;;
-    -w|--workers)
-      WORKERS="$2"
       shift 2
       ;;
     --num-jobs)
@@ -76,10 +81,17 @@ fi
 
 CSV_PREFIX="benchmark/results/${PREFIX_BASE}"
 HTML_PREFIX="benchmark/results/html/${PREFIX_BASE}.html"
+FLAMEGRAPH_PATH="benchmark/results/html/svg/${PREFIX_BASE}_flamegraph.svg"
 
-mkdir -p benchmark/results/html
+mkdir -p benchmark/results/html/svg
 
 BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT}"
+
+if [[ "$PROFILE" == true ]]; then
+  echo "Profiling enabled. FlameGraph will be saved to: $FLAMEGRAPH_PATH"
+  # We use --subprocesses to catch Locust workers if needed, and --idle to exclude waiting times
+  BASE_LOCUST_CMD="py-spy record --format flamegraph -o ${FLAMEGRAPH_PATH} --subprocesses -- ${BASE_LOCUST_CMD}"
+fi
 
 if [[ ! "$LOCUST_ARGS" =~ "-u" ]]; then
   LOCUST_ARGS="$LOCUST_ARGS -u $U_VAL"

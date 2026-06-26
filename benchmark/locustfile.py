@@ -9,7 +9,7 @@ Workflow:
            pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
@@ -28,8 +28,6 @@ from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
-
-configure_logger("INFO")
 
 _rng = random.Random()  # noqa: S311
 
@@ -82,6 +80,12 @@ def _(parser):
         default="benchmark/benchmark.db",
         help="Path to the SQLite benchmark database (generate with benchmark/generate_db.py)",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
+    )
 
 
 @events.test_start.add_listener
@@ -92,6 +96,8 @@ def on_test_start(environment, **kwargs):
 
     opts = environment.parsed_options
     global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
+
+    configure_logger(opts.log_level)
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
@@ -105,7 +111,7 @@ def on_test_start(environment, **kwargs):
         NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
     except Exception as e:
         logger.error("Failed to load pools from %s: %s", opts.db_path, e)
-        logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
+        logger.error("Generate the database first: pixi run generate_db")
         raise SystemExit(1) from e
 
     if MAX_JOB_ID_IN_DB < opts.candidates_count:

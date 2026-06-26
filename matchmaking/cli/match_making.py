@@ -21,7 +21,7 @@ def main():
     parser.add_argument(
         "--log-level",
         default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
         help="Logging verbosity level.",
     )
 
@@ -36,14 +36,11 @@ def main():
     try:
         node_obj = Node.load_from_yaml(args.node)
         allowed_job = select_job(node_obj)
-
-        if allowed_job:
-            logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
-        else:
-            logger.info("No allowed job can run on this node.")
     except Exception as e:
         logger.error("Error during matchmaking: %s", e)
         sys.exit(1)
+    else:
+        logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
 
 
 if __name__ == "__main__":

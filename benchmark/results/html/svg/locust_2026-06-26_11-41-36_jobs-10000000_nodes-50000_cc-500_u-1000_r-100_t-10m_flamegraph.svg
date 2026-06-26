@@ -1,0 +1,491 @@
+<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg version="1.1" width="1200" height="346" onload="init(evt)" viewBox="0 0 1200 346" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:fg="http://github.com/jonhoo/inferno"><!--Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples.--><!--NOTES: --><defs><linearGradient id="background" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#eeeeee" offset="5%"/><stop stop-color="#eeeeb0" offset="95%"/></linearGradient></defs><style type="text/css">
+text { font-family:monospace; font-size:12px }
+#title { text-anchor:middle; font-size:17px; }
+#matched { text-anchor:end; }
+#search { text-anchor:end; opacity:0.1; cursor:pointer; }
+#search:hover, #search.show { opacity:1; }
+#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+#unzoom { cursor:pointer; }
+#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+.hide { display:none; }
+.parent { opacity:0.5; }
+</style><script type="text/ecmascript"><![CDATA[
+        var nametype = 'Function:';
+        var fontsize = 12;
+        var fontwidth = 0.59;
+        var xpad = 10;
+        var inverted = true;
+        var searchcolor = 'rgb(230,0,230)';
+        var fluiddrawing = true;
+        var truncate_text_right = false;
+    ]]><![CDATA["use strict";
+var details, searchbtn, unzoombtn, matchedtxt, svg, searching, frames, known_font_width;
+function init(evt) {
+    details = document.getElementById("details").firstChild;
+    searchbtn = document.getElementById("search");
+    unzoombtn = document.getElementById("unzoom");
+    matchedtxt = document.getElementById("matched");
+    svg = document.getElementsByTagName("svg")[0];
+    frames = document.getElementById("frames");
+    known_font_width = get_monospace_width(frames);
+    total_samples = parseInt(frames.attributes.total_samples.value);
+    searching = 0;
+
+    // Use GET parameters to restore a flamegraph's state.
+    var restore_state = function() {
+        var params = get_params();
+        if (params.x && params.y)
+            zoom(find_group(document.querySelector('[*|x="' + params.x + '"][y="' + params.y + '"]')));
+        if (params.s)
+            search(params.s);
+    };
+
+    if (fluiddrawing) {
+        // Make width dynamic so the SVG fits its parent's width.
+        svg.removeAttribute("width");
+        // Edge requires us to have a viewBox that gets updated with size changes.
+        var isEdge = /Edge\/\d./i.test(navigator.userAgent);
+        if (!isEdge) {
+            svg.removeAttribute("viewBox");
+        }
+        var update_for_width_change = function() {
+            if (isEdge) {
+                svg.attributes.viewBox.value = "0 0 " + svg.width.baseVal.value + " " + svg.height.baseVal.value;
+            }
+
+            // Keep consistent padding on left and right of frames container.
+            frames.attributes.width.value = svg.width.baseVal.value - xpad * 2;
+
+            // Text truncation needs to be adjusted for the current width.
+            update_text_for_elements(frames.children);
+
+            // Keep search elements at a fixed distance from right edge.
+            var svgWidth = svg.width.baseVal.value;
+            searchbtn.attributes.x.value = svgWidth - xpad;
+            matchedtxt.attributes.x.value = svgWidth - xpad;
+        };
+        window.addEventListener('resize', function() {
+            update_for_width_change();
+        });
+        // This needs to be done asynchronously for Safari to work.
+        setTimeout(function() {
+            unzoom();
+            update_for_width_change();
+            restore_state();
+        }, 0);
+    } else {
+        restore_state();
+    }
+}
+// event listeners
+window.addEventListener("click", function(e) {
+    var target = find_group(e.target);
+    if (target) {
+        if (target.nodeName == "a") {
+            if (e.ctrlKey === false) return;
+            e.preventDefault();
+        }
+        if (target.classList.contains("parent")) unzoom();
+        zoom(target);
+
+        // set parameters for zoom state
+        var el = target.querySelector("rect");
+        if (el && el.attributes && el.attributes.y && el.attributes["fg:x"]) {
+            var params = get_params()
+            params.x = el.attributes["fg:x"].value;
+            params.y = el.attributes.y.value;
+            history.replaceState(null, null, parse_params(params));
+        }
+    }
+    else if (e.target.id == "unzoom") {
+        unzoom();
+
+        // remove zoom state
+        var params = get_params();
+        if (params.x) delete params.x;
+        if (params.y) delete params.y;
+        history.replaceState(null, null, parse_params(params));
+    }
+    else if (e.target.id == "search") search_prompt();
+}, false)
+// mouse-over for info
+// show
+window.addEventListener("mouseover", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = nametype + " " + g_to_text(target);
+}, false)
+// clear
+window.addEventListener("mouseout", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = ' ';
+}, false)
+// ctrl-F for search
+window.addEventListener("keydown",function (e) {
+    if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+        e.preventDefault();
+        search_prompt();
+    }
+}, false)
+// functions
+function get_params() {
+    var params = {};
+    var paramsarr = window.location.search.substr(1).split('&');
+    for (var i = 0; i < paramsarr.length; ++i) {
+        var tmp = paramsarr[i].split("=");
+        if (!tmp[0] || !tmp[1]) continue;
+        params[tmp[0]]  = decodeURIComponent(tmp[1]);
+    }
+    return params;
+}
+function parse_params(params) {
+    var uri = "?";
+    for (var key in params) {
+        uri += key + '=' + encodeURIComponent(params[key]) + '&';
+    }
+    if (uri.slice(-1) == "&")
+        uri = uri.substring(0, uri.length - 1);
+    if (uri == '?')
+        uri = window.location.href.split('?')[0];
+    return uri;
+}
+function find_child(node, selector) {
+    var children = node.querySelectorAll(selector);
+    if (children.length) return children[0];
+    return;
+}
+function find_group(node) {
+    var parent = node.parentElement;
+    if (!parent) return;
+    if (parent.id == "frames") return node;
+    return find_group(parent);
+}
+function orig_save(e, attr, val) {
+    if (e.attributes["fg:orig_" + attr] != undefined) return;
+    if (e.attributes[attr] == undefined) return;
+    if (val == undefined) val = e.attributes[attr].value;
+    e.setAttribute("fg:orig_" + attr, val);
+}
+function orig_load(e, attr) {
+    if (e.attributes["fg:orig_"+attr] == undefined) return;
+    e.attributes[attr].value = e.attributes["fg:orig_" + attr].value;
+    e.removeAttribute("fg:orig_" + attr);
+}
+function g_to_text(e) {
+    var text = find_child(e, "title").firstChild.nodeValue;
+    return (text)
+}
+function g_to_func(e) {
+    var func = g_to_text(e);
+    // if there's any manipulation we want to do to the function
+    // name before it's searched, do it here before returning.
+    return (func);
+}
+function get_monospace_width(frames) {
+    // Given the id="frames" element, return the width of text characters if
+    // this is a monospace font, otherwise return 0.
+    text = find_child(frames.children[0], "text");
+    originalContent = text.textContent;
+    text.textContent = "!";
+    bangWidth = text.getComputedTextLength();
+    text.textContent = "W";
+    wWidth = text.getComputedTextLength();
+    text.textContent = originalContent;
+    if (bangWidth === wWidth) {
+        return bangWidth;
+    } else {
+        return 0;
+    }
+}
+function update_text_for_elements(elements) {
+    // In order to render quickly in the browser, you want to do one pass of
+    // reading attributes, and one pass of mutating attributes. See
+    // https://web.dev/avoid-large-complex-layouts-and-layout-thrashing/ for details.
+
+    // Fall back to inefficient calculation, if we're variable-width font.
+    // TODO This should be optimized somehow too.
+    if (known_font_width === 0) {
+        for (var i = 0; i < elements.length; i++) {
+            update_text(elements[i]);
+        }
+        return;
+    }
+
+    var textElemNewAttributes = [];
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var r = find_child(e, "rect");
+        var t = find_child(e, "text");
+        var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+        var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+        var newX = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+        // Smaller than this size won't fit anything
+        if (w < 2 * known_font_width) {
+            textElemNewAttributes.push([newX, ""]);
+            continue;
+        }
+
+        // Fit in full text width
+        if (txt.length * known_font_width < w) {
+            textElemNewAttributes.push([newX, txt]);
+            continue;
+        }
+
+        var substringLength = Math.floor(w / known_font_width) - 2;
+        if (truncate_text_right) {
+            // Truncate the right side of the text.
+            textElemNewAttributes.push([newX, txt.substring(0, substringLength) + ".."]);
+            continue;
+        } else {
+            // Truncate the left side of the text.
+            textElemNewAttributes.push([newX, ".." + txt.substring(txt.length - substringLength, txt.length)]);
+            continue;
+        }
+    }
+
+    console.assert(textElemNewAttributes.length === elements.length, "Resize failed, please file a bug at https://github.com/jonhoo/inferno/");
+
+    // Now that we know new textContent, set it all in one go so we don't refresh a bazillion times.
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var values = textElemNewAttributes[i];
+        var t = find_child(e, "text");
+        t.attributes.x.value = values[0];
+        t.textContent = values[1];
+    }
+}
+
+function update_text(e) {
+    var r = find_child(e, "rect");
+    var t = find_child(e, "text");
+    var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+    var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+    t.attributes.x.value = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+    // Smaller than this size won't fit anything
+    if (w < 2 * fontsize * fontwidth) {
+        t.textContent = "";
+        return;
+    }
+    t.textContent = txt;
+    // Fit in full text width
+    if (t.getComputedTextLength() < w)
+        return;
+    if (truncate_text_right) {
+        // Truncate the right side of the text.
+        for (var x = txt.length - 2; x > 0; x--) {
+            if (t.getSubStringLength(0, x + 2) <= w) {
+                t.textContent = txt.substring(0, x) + "..";
+                return;
+            }
+        }
+    } else {
+        // Truncate the left side of the text.
+        for (var x = 2; x < txt.length; x++) {
+            if (t.getSubStringLength(x - 2, txt.length) <= w) {
+                t.textContent = ".." + txt.substring(x, txt.length);
+                return;
+            }
+        }
+    }
+    t.textContent = "";
+}
+// zoom
+function zoom_reset(e) {
+    if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * parseInt(e.attributes["fg:x"].value) / total_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / total_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_reset(c[i]);
+    }
+}
+function zoom_child(e, x, zoomed_width_samples) {
+    if (e.tagName == "text") {
+        var parent_x = parseFloat(find_child(e.parentNode, "rect[x]").attributes.x.value);
+        e.attributes.x.value = format_percent(parent_x + (100 * 3 / frames.attributes.width.value));
+    } else if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * (parseInt(e.attributes["fg:x"].value) - x) / zoomed_width_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / zoomed_width_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_child(c[i], x, zoomed_width_samples);
+    }
+}
+function zoom_parent(e) {
+    if (e.attributes) {
+        if (e.attributes.x != undefined) {
+            e.attributes.x.value = "0.0%";
+        }
+        if (e.attributes.width != undefined) {
+            e.attributes.width.value = "100.0%";
+        }
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_parent(c[i]);
+    }
+}
+function zoom(node) {
+    var attr = find_child(node, "rect").attributes;
+    var width = parseInt(attr["fg:w"].value);
+    var xmin = parseInt(attr["fg:x"].value);
+    var xmax = xmin + width;
+    var ymin = parseFloat(attr.y.value);
+    unzoombtn.classList.remove("hide");
+    var el = frames.children;
+    var to_update_text = [];
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        var a = find_child(e, "rect").attributes;
+        var ex = parseInt(a["fg:x"].value);
+        var ew = parseInt(a["fg:w"].value);
+        // Is it an ancestor
+        if (!inverted) {
+            var upstack = parseFloat(a.y.value) > ymin;
+        } else {
+            var upstack = parseFloat(a.y.value) < ymin;
+        }
+        if (upstack) {
+            // Direct ancestor
+            if (ex <= xmin && (ex+ew) >= xmax) {
+                e.classList.add("parent");
+                zoom_parent(e);
+                to_update_text.push(e);
+            }
+            // not in current path
+            else
+                e.classList.add("hide");
+        }
+        // Children maybe
+        else {
+            // no common path
+            if (ex < xmin || ex >= xmax) {
+                e.classList.add("hide");
+            }
+            else {
+                zoom_child(e, xmin, width);
+                to_update_text.push(e);
+            }
+        }
+    }
+    update_text_for_elements(to_update_text);
+}
+function unzoom() {
+    unzoombtn.classList.add("hide");
+    var el = frames.children;
+    for(var i = 0; i < el.length; i++) {
+        el[i].classList.remove("parent");
+        el[i].classList.remove("hide");
+        zoom_reset(el[i]);
+    }
+    update_text_for_elements(el);
+}
+// search
+function reset_search() {
+    var el = document.querySelectorAll("#frames rect");
+    for (var i = 0; i < el.length; i++) {
+        orig_load(el[i], "fill")
+    }
+    var params = get_params();
+    delete params.s;
+    history.replaceState(null, null, parse_params(params));
+}
+function search_prompt() {
+    if (!searching) {
+        var term = prompt("Enter a search term (regexp " +
+            "allowed, eg: ^ext4_)", "");
+        if (term != null) {
+            search(term)
+        }
+    } else {
+        reset_search();
+        searching = 0;
+        searchbtn.classList.remove("show");
+        searchbtn.firstChild.nodeValue = "Search"
+        matchedtxt.classList.add("hide");
+        matchedtxt.firstChild.nodeValue = ""
+    }
+}
+function search(term) {
+    var re = new RegExp(term);
+    var el = frames.children;
+    var matches = new Object();
+    var maxwidth = 0;
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        // Skip over frames which are either not visible, or below the zoomed-to frame
+        if (e.classList.contains("hide") || e.classList.contains("parent")) {
+            continue;
+        }
+        var func = g_to_func(e);
+        var rect = find_child(e, "rect");
+        if (func == null || rect == null)
+            continue;
+        // Save max width. Only works as we have a root frame
+        var w = parseInt(rect.attributes["fg:w"].value);
+        if (w > maxwidth)
+            maxwidth = w;
+        if (func.match(re)) {
+            // highlight
+            var x = parseInt(rect.attributes["fg:x"].value);
+            orig_save(rect, "fill");
+            rect.attributes.fill.value = searchcolor;
+            // remember matches
+            if (matches[x] == undefined) {
+                matches[x] = w;
+            } else {
+                if (w > matches[x]) {
+                    // overwrite with parent
+                    matches[x] = w;
+                }
+            }
+            searching = 1;
+        }
+    }
+    if (!searching)
+        return;
+    var params = get_params();
+    params.s = term;
+    history.replaceState(null, null, parse_params(params));
+
+    searchbtn.classList.add("show");
+    searchbtn.firstChild.nodeValue = "Reset Search";
+    // calculate percent matched, excluding vertical overlap
+    var count = 0;
+    var lastx = -1;
+    var lastw = 0;
+    var keys = Array();
+    for (k in matches) {
+        if (matches.hasOwnProperty(k))
+            keys.push(k);
+    }
+    // sort the matched frames by their x location
+    // ascending, then width descending
+    keys.sort(function(a, b){
+        return a - b;
+    });
+    // Step through frames saving only the biggest bottom-up frames
+    // thanks to the sort order. This relies on the tree property
+    // where children are always smaller than their parents.
+    for (var k in keys) {
+        var x = parseInt(keys[k]);
+        var w = matches[keys[k]];
+        if (x >= lastx + lastw) {
+            count += w;
+            lastx = x;
+            lastw = w;
+        }
+    }
+    // display matched percent
+    matchedtxt.classList.remove("hide");
+    var pct = 100 * count / maxwidth;
+    if (pct != 100) pct = pct.toFixed(1);
+    matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+}
+function format_percent(n) {
+    return n.toFixed(4) + "%";
+}
+]]></script><rect x="0" y="0" width="100%" height="346" fill="url(#background)"/><text id="title" fill="rgb(0,0,0)" x="50.0000%" y="24.00">py-spy record --format flamegraph -o benchmark/results/html/svg/locust_2026-06-26_11-41-36_jobs-10000000_nodes-50000_cc-500_u-1000_r-100_t-10m_flamegraph.svg --subprocesses -- locust -f benchmark/locustfile.py --num-jobs 10000000 --num-nodes 50000 --candidates-count 500 --headless -u 1000 -r 100 -t 10m --log-level ERROR --csv benchmark/results/locust_2026-06-26_11-41-36_jobs-10000000_nodes-50000_cc-500_u-1000_r-100_t-10m --csv-full-history --html benchmark/results/html/locust_2026-06-26_11-41-36_jobs-10000000_nodes-50000_cc-500_u-1000_r-100_t-10m.html</text><text id="details" fill="rgb(0,0,0)" x="10" y="40.00"> </text><text id="unzoom" class="hide" fill="rgb(0,0,0)" x="10" y="24.00">Reset Zoom</text><text id="search" fill="rgb(0,0,0)" x="1190" y="24.00">Search</text><text id="matched" fill="rgb(0,0,0)" x="1190" y="335.00"> </text><svg id="frames" x="10" width="1180" total_samples="98518"><g><title>_start (locust/runners.py:486) (132 samples, 0.13%)</title><rect x="0.1157%" y="100" width="0.1340%" height="15" fill="rgb(227,0,7)" fg:x="114" fg:w="132"/><text x="0.3657%" y="110.50"></text></g><g><title>fire (locust/event.py:47) (132 samples, 0.13%)</title><rect x="0.1157%" y="116" width="0.1340%" height="15" fill="rgb(217,0,24)" fg:x="114" fg:w="132"/><text x="0.3657%" y="126.50"></text></g><g><title>on_test_start (benchmark/locustfile.py:111) (132 samples, 0.13%)</title><rect x="0.1157%" y="132" width="0.1340%" height="15" fill="rgb(221,193,54)" fg:x="114" fg:w="132"/><text x="0.3657%" y="142.50"></text></g><g><title>_load_nodes (benchmark/locustfile.py:43) (132 samples, 0.13%)</title><rect x="0.1157%" y="148" width="0.1340%" height="15" fill="rgb(248,212,6)" fg:x="114" fg:w="132"/><text x="0.3657%" y="158.50"></text></g><g><title>&lt;listcomp&gt; (benchmark/locustfile.py:44) (131 samples, 0.13%)</title><rect x="0.1167%" y="164" width="0.1330%" height="15" fill="rgb(208,68,35)" fg:x="115" fg:w="131"/><text x="0.3667%" y="174.50"></text></g><g><title>model_validate_json (pydantic/main.py:782) (127 samples, 0.13%)</title><rect x="0.1208%" y="180" width="0.1289%" height="15" fill="rgb(232,128,0)" fg:x="119" fg:w="127"/><text x="0.3708%" y="190.50"></text></g><g><title>&lt;lambda&gt; (locust/runners.py:559) (133 samples, 0.14%)</title><rect x="0.1157%" y="84" width="0.1350%" height="15" fill="rgb(207,160,47)" fg:x="114" fg:w="133"/><text x="0.3657%" y="94.50"></text></g><g><title>sample (random.py:473) (227 samples, 0.23%)</title><rect x="0.4923%" y="180" width="0.2304%" height="15" fill="rgb(228,23,34)" fg:x="485" fg:w="227"/><text x="0.7423%" y="190.50"></text></g><g><title>evaluate_select_job (benchmark/locustfile.py:162) (440 samples, 0.45%)</title><rect x="0.3989%" y="164" width="0.4466%" height="15" fill="rgb(218,30,26)" fg:x="393" fg:w="440"/><text x="0.6489%" y="174.50"></text></g><g><title>evaluate_select_job (benchmark/locustfile.py:164) (523 samples, 0.53%)</title><rect x="0.8689%" y="164" width="0.5309%" height="15" fill="rgb(220,122,19)" fg:x="856" fg:w="523"/><text x="1.1189%" y="174.50"></text></g><g><title>check_min_max (matchmaking/models/utils.py:92) (197 samples, 0.20%)</title><rect x="45.0943%" y="212" width="0.2000%" height="15" fill="rgb(250,228,42)" fg:x="44426" fg:w="197"/><text x="45.3443%" y="222.50"></text></g><g><title>__init__ (packaging/version.py:414) (158 samples, 0.16%)</title><rect x="45.6038%" y="228" width="0.1604%" height="15" fill="rgb(240,193,28)" fg:x="44928" fg:w="158"/><text x="45.8538%" y="238.50"></text></g><g><title>__init__ (packaging/version.py:416) (819 samples, 0.83%)</title><rect x="45.7723%" y="228" width="0.8313%" height="15" fill="rgb(216,20,37)" fg:x="45094" fg:w="819"/><text x="46.0223%" y="238.50"></text></g><g><title>validate (matchmaking/models/utils.py:71) (1,339 samples, 1.36%)</title><rect x="45.3470%" y="212" width="1.3591%" height="15" fill="rgb(206,188,39)" fg:x="44675" fg:w="1339"/><text x="45.5970%" y="222.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:26) (1,681 samples, 1.71%)</title><rect x="47.3365%" y="228" width="1.7063%" height="15" fill="rgb(217,207,13)" fg:x="46635" fg:w="1681"/><text x="47.5865%" y="238.50"></text></g><g><title>debug (logging/__init__.py:1476) (158 samples, 0.16%)</title><rect x="55.4213%" y="244" width="0.1604%" height="15" fill="rgb(231,73,38)" fg:x="54600" fg:w="158"/><text x="55.6713%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:39) (6,410 samples, 6.51%)</title><rect x="49.0834%" y="228" width="6.5064%" height="15" fill="rgb(225,20,46)" fg:x="48356" fg:w="6410"/><text x="49.3334%" y="238.50">validate_..</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:40) (369 samples, 0.37%)</title><rect x="55.5898%" y="228" width="0.3746%" height="15" fill="rgb(210,31,41)" fg:x="54766" fg:w="369"/><text x="55.8398%" y="238.50"></text></g><g><title>normalize_tag_expression (matchmaking/logic/tags.py:23) (328 samples, 0.33%)</title><rect x="55.6315%" y="244" width="0.3329%" height="15" fill="rgb(221,200,47)" fg:x="54807" fg:w="328"/><text x="55.8815%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:41) (267 samples, 0.27%)</title><rect x="55.9644%" y="228" width="0.2710%" height="15" fill="rgb(226,26,5)" fg:x="55135" fg:w="267"/><text x="56.2144%" y="238.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:43) (120 samples, 0.12%)</title><rect x="56.2354%" y="228" width="0.1218%" height="15" fill="rgb(249,33,26)" fg:x="55402" fg:w="120"/><text x="56.4854%" y="238.50"></text></g><g><title>_compile (re/__init__.py:274) (3,337 samples, 3.39%)</title><rect x="58.7517%" y="260" width="3.3872%" height="15" fill="rgb(235,183,28)" fg:x="57881" fg:w="3337"/><text x="59.0017%" y="270.50">_co..</text></g><g><title>_compile (re/__init__.py:277) (176 samples, 0.18%)</title><rect x="62.1653%" y="260" width="0.1786%" height="15" fill="rgb(221,5,38)" fg:x="61244" fg:w="176"/><text x="62.4153%" y="270.50"></text></g><g><title>repl_token (matchmaking/logic/tags.py:44) (693 samples, 0.70%)</title><rect x="62.3784%" y="260" width="0.7034%" height="15" fill="rgb(247,18,42)" fg:x="61454" fg:w="693"/><text x="62.6284%" y="270.50"></text></g><g><title>repl_token (matchmaking/logic/tags.py:45) (238 samples, 0.24%)</title><rect x="63.0819%" y="260" width="0.2416%" height="15" fill="rgb(241,131,45)" fg:x="62147" fg:w="238"/><text x="63.3319%" y="270.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:50) (6,878 samples, 6.98%)</title><rect x="56.3572%" y="228" width="6.9815%" height="15" fill="rgb(249,31,29)" fg:x="55522" fg:w="6878"/><text x="56.6072%" y="238.50">validate_..</text></g><g><title>sub (re/__init__.py:185) (6,751 samples, 6.85%)</title><rect x="56.4861%" y="244" width="6.8526%" height="15" fill="rgb(225,111,53)" fg:x="55649" fg:w="6751"/><text x="56.7361%" y="254.50">sub (re/_..</text></g><g><title>debug (logging/__init__.py:1476) (116 samples, 0.12%)</title><rect x="63.5326%" y="244" width="0.1177%" height="15" fill="rgb(238,160,17)" fg:x="62591" fg:w="116"/><text x="63.7826%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:51) (316 samples, 0.32%)</title><rect x="63.3387%" y="228" width="0.3208%" height="15" fill="rgb(214,148,48)" fg:x="62400" fg:w="316"/><text x="63.5887%" y="238.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:54) (25,846 samples, 26.23%)</title><rect x="63.6696%" y="228" width="26.2348%" height="15" fill="rgb(232,36,49)" fg:x="62726" fg:w="25846"/><text x="63.9196%" y="238.50">validate_tag_expression (matchmaking/logic..</text></g><g><title>parse (ast.py:50) (25,549 samples, 25.93%)</title><rect x="63.9711%" y="244" width="25.9333%" height="15" fill="rgb(209,103,24)" fg:x="63023" fg:w="25549"/><text x="64.2211%" y="254.50">parse (ast.py:50)</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:59) (483 samples, 0.49%)</title><rect x="89.9216%" y="228" width="0.4903%" height="15" fill="rgb(229,88,8)" fg:x="88589" fg:w="483"/><text x="90.1716%" y="238.50"></text></g><g><title>debug (logging/__init__.py:1476) (128 samples, 0.13%)</title><rect x="91.1600%" y="260" width="0.1299%" height="15" fill="rgb(213,181,19)" fg:x="89809" fg:w="128"/><text x="91.4100%" y="270.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (772 samples, 0.78%)</title><rect x="90.5205%" y="244" width="0.7836%" height="15" fill="rgb(254,191,54)" fg:x="89179" fg:w="772"/><text x="90.7705%" y="254.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (632 samples, 0.64%)</title><rect x="91.4513%" y="260" width="0.6415%" height="15" fill="rgb(241,83,37)" fg:x="90096" fg:w="632"/><text x="91.7013%" y="270.50"></text></g><g><title>debug (logging/__init__.py:1476) (108 samples, 0.11%)</title><rect x="92.4400%" y="276" width="0.1096%" height="15" fill="rgb(233,36,39)" fg:x="91070" fg:w="108"/><text x="92.6900%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:64) (337 samples, 0.34%)</title><rect x="92.2146%" y="260" width="0.3421%" height="15" fill="rgb(226,3,54)" fg:x="90848" fg:w="337"/><text x="92.4646%" y="270.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:65) (137 samples, 0.14%)</title><rect x="92.5567%" y="260" width="0.1391%" height="15" fill="rgb(245,192,40)" fg:x="91185" fg:w="137"/><text x="92.8067%" y="270.50"></text></g><g><title>debug (logging/__init__.py:1476) (238 samples, 0.24%)</title><rect x="93.5687%" y="292" width="0.2416%" height="15" fill="rgb(238,167,29)" fg:x="92182" fg:w="238"/><text x="93.8187%" y="302.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (950 samples, 0.96%)</title><rect x="92.8602%" y="276" width="0.9643%" height="15" fill="rgb(232,182,51)" fg:x="91484" fg:w="950"/><text x="93.1102%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:61) (119 samples, 0.12%)</title><rect x="93.8245%" y="276" width="0.1208%" height="15" fill="rgb(231,60,39)" fg:x="92434" fg:w="119"/><text x="94.0745%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:63) (109 samples, 0.11%)</title><rect x="93.9524%" y="276" width="0.1106%" height="15" fill="rgb(208,69,12)" fg:x="92560" fg:w="109"/><text x="94.2024%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (136 samples, 0.14%)</title><rect x="94.1310%" y="292" width="0.1380%" height="15" fill="rgb(235,93,37)" fg:x="92736" fg:w="136"/><text x="94.3810%" y="302.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:66) (243 samples, 0.25%)</title><rect x="94.1229%" y="276" width="0.2467%" height="15" fill="rgb(213,116,39)" fg:x="92728" fg:w="243"/><text x="94.3729%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:67) (106 samples, 0.11%)</title><rect x="94.3696%" y="276" width="0.1076%" height="15" fill="rgb(222,207,29)" fg:x="92971" fg:w="106"/><text x="94.6196%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:73) (106 samples, 0.11%)</title><rect x="94.4914%" y="276" width="0.1076%" height="15" fill="rgb(206,96,30)" fg:x="93091" fg:w="106"/><text x="94.7414%" y="286.50"></text></g><g><title>debug (logging/__init__.py:1476) (252 samples, 0.26%)</title><rect x="95.1065%" y="292" width="0.2558%" height="15" fill="rgb(218,138,4)" fg:x="93697" fg:w="252"/><text x="95.3565%" y="302.50"></text></g><g><title>isEnabledFor (logging/__init__.py:1742) (108 samples, 0.11%)</title><rect x="95.2526%" y="308" width="0.1096%" height="15" fill="rgb(250,191,14)" fg:x="93841" fg:w="108"/><text x="95.5026%" y="318.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:79) (682 samples, 0.69%)</title><rect x="94.6822%" y="276" width="0.6923%" height="15" fill="rgb(239,60,40)" fg:x="93279" fg:w="682"/><text x="94.9322%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:80) (134 samples, 0.14%)</title><rect x="95.3744%" y="276" width="0.1360%" height="15" fill="rgb(206,27,48)" fg:x="93961" fg:w="134"/><text x="95.6244%" y="286.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:88) (5,029 samples, 5.10%)</title><rect x="90.4149%" y="228" width="5.1047%" height="15" fill="rgb(225,35,8)" fg:x="89075" fg:w="5029"/><text x="90.6649%" y="238.50">valida..</text></g><g><title>check_tree_node (matchmaking/logic/tags.py:62) (4,102 samples, 4.16%)</title><rect x="91.3559%" y="244" width="4.1637%" height="15" fill="rgb(250,213,24)" fg:x="90002" fg:w="4102"/><text x="91.6059%" y="254.50">check..</text></g><g><title>check_tree_node (matchmaking/logic/tags.py:66) (2,782 samples, 2.82%)</title><rect x="92.6958%" y="260" width="2.8238%" height="15" fill="rgb(247,123,22)" fg:x="91322" fg:w="2782"/><text x="92.9458%" y="270.50">ch..</text></g><g><title>debug (logging/__init__.py:1476) (100 samples, 0.10%)</title><rect x="95.6181%" y="244" width="0.1015%" height="15" fill="rgb(231,138,38)" fg:x="94201" fg:w="100"/><text x="95.8681%" y="254.50"></text></g><g><title>validate_tags (matchmaking/models/job.py:96) (48,172 samples, 48.90%)</title><rect x="46.8260%" y="212" width="48.8966%" height="15" fill="rgb(231,145,46)" fg:x="46132" fg:w="48172"/><text x="47.0760%" y="222.50">validate_tags (matchmaking/models/job.py:96)</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:89) (200 samples, 0.20%)</title><rect x="95.5196%" y="228" width="0.2030%" height="15" fill="rgb(251,118,11)" fg:x="94104" fg:w="200"/><text x="95.7696%" y="238.50"></text></g><g><title>model_validate_json (pydantic/main.py:782) (82,649 samples, 83.89%)</title><rect x="11.8364%" y="196" width="83.8923%" height="15" fill="rgb(217,147,25)" fg:x="11661" fg:w="82649"/><text x="12.0864%" y="206.50">model_validate_json (pydantic/main.py:782)</text></g><g><title>evaluate_select_job (benchmark/locustfile.py:166) (92,946 samples, 94.34%)</title><rect x="1.3997%" y="164" width="94.3442%" height="15" fill="rgb(247,81,37)" fg:x="1379" fg:w="92946"/><text x="1.6497%" y="174.50">evaluate_select_job (benchmark/locustfile.py:166)</text></g><g><title>&lt;listcomp&gt; (benchmark/locustfile.py:166) (83,407 samples, 84.66%)</title><rect x="11.0822%" y="180" width="84.6617%" height="15" fill="rgb(209,12,38)" fg:x="10918" fg:w="83407"/><text x="11.3322%" y="190.50">&lt;listcomp&gt; (benchmark/locustfile.py:166)</text></g><g><title>is_matching (matchmaking/core/match.py:255) (288 samples, 0.29%)</title><rect x="96.2454%" y="212" width="0.2923%" height="15" fill="rgb(227,1,9)" fg:x="94819" fg:w="288"/><text x="96.4954%" y="222.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:121) (347 samples, 0.35%)</title><rect x="97.4076%" y="244" width="0.3522%" height="15" fill="rgb(248,47,43)" fg:x="95964" fg:w="347"/><text x="97.6576%" y="254.50"></text></g><g><title>sub (re/__init__.py:185) (339 samples, 0.34%)</title><rect x="97.4157%" y="260" width="0.3441%" height="15" fill="rgb(221,10,30)" fg:x="95972" fg:w="339"/><text x="97.6657%" y="270.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:146) (534 samples, 0.54%)</title><rect x="97.7984%" y="244" width="0.5420%" height="15" fill="rgb(210,229,1)" fg:x="96349" fg:w="534"/><text x="98.0484%" y="254.50"></text></g><g><title>parse (ast.py:50) (511 samples, 0.52%)</title><rect x="97.8217%" y="260" width="0.5187%" height="15" fill="rgb(222,148,37)" fg:x="96372" fg:w="511"/><text x="98.0717%" y="270.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:147) (325 samples, 0.33%)</title><rect x="98.3404%" y="244" width="0.3299%" height="15" fill="rgb(234,67,33)" fg:x="96883" fg:w="325"/><text x="98.5904%" y="254.50"></text></g><g><title>evaluate_node (matchmaking/logic/tags.py:133) (224 samples, 0.23%)</title><rect x="98.4429%" y="260" width="0.2274%" height="15" fill="rgb(247,98,35)" fg:x="96984" fg:w="224"/><text x="98.6929%" y="270.50"></text></g><g><title>&lt;genexpr&gt; (matchmaking/logic/tags.py:133) (164 samples, 0.17%)</title><rect x="98.5038%" y="276" width="0.1665%" height="15" fill="rgb(247,138,52)" fg:x="97044" fg:w="164"/><text x="98.7538%" y="286.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:237) (1,408 samples, 1.43%)</title><rect x="97.2634%" y="228" width="1.4292%" height="15" fill="rgb(213,79,30)" fg:x="95822" fg:w="1408"/><text x="97.5134%" y="238.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:72) (265 samples, 0.27%)</title><rect x="98.7058%" y="228" width="0.2690%" height="15" fill="rgb(246,177,23)" fg:x="97243" fg:w="265"/><text x="98.9558%" y="238.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:73) (238 samples, 0.24%)</title><rect x="98.9748%" y="228" width="0.2416%" height="15" fill="rgb(230,62,27)" fg:x="97508" fg:w="238"/><text x="99.2248%" y="238.50"></text></g><g><title>is_matching (matchmaking/core/match.py:256) (2,749 samples, 2.79%)</title><rect x="96.5377%" y="212" width="2.7904%" height="15" fill="rgb(216,154,8)" fg:x="95107" fg:w="2749"/><text x="96.7877%" y="222.50">is..</text></g><g><title>select_job (matchmaking/core/main.py:34) (3,494 samples, 3.55%)</title><rect x="95.8292%" y="180" width="3.5466%" height="15" fill="rgb(244,35,45)" fg:x="94409" fg:w="3494"/><text x="96.0792%" y="190.50">sele..</text></g><g><title>&lt;listcomp&gt; (matchmaking/core/main.py:34) (3,484 samples, 3.54%)</title><rect x="95.8393%" y="196" width="3.5364%" height="15" fill="rgb(251,115,12)" fg:x="94419" fg:w="3484"/><text x="96.0893%" y="206.50">&lt;li..</text></g><g><title>select_job (matchmaking/core/main.py:35) (172 samples, 0.17%)</title><rect x="99.3757%" y="180" width="0.1746%" height="15" fill="rgb(240,54,50)" fg:x="97903" fg:w="172"/><text x="99.6257%" y="190.50"></text></g><g><title>&lt;listcomp&gt; (matchmaking/core/main.py:35) (170 samples, 0.17%)</title><rect x="99.3778%" y="196" width="0.1726%" height="15" fill="rgb(233,84,52)" fg:x="97905" fg:w="170"/><text x="99.6278%" y="206.50"></text></g><g><title>evaluate_select_job (benchmark/locustfile.py:173) (3,925 samples, 3.98%)</title><rect x="95.7531%" y="164" width="3.9840%" height="15" fill="rgb(207,117,47)" fg:x="94334" fg:w="3925"/><text x="96.0031%" y="174.50">eval..</text></g><g><title>run (locust/user/task.py:363) (97,993 samples, 99.47%)</title><rect x="0.3695%" y="116" width="99.4671%" height="15" fill="rgb(249,43,39)" fg:x="364" fg:w="97993"/><text x="0.6195%" y="126.50">run (locust/user/task.py:363)</text></g><g><title>execute_next_task (locust/user/task.py:396) (97,992 samples, 99.47%)</title><rect x="0.3705%" y="132" width="99.4661%" height="15" fill="rgb(209,38,44)" fg:x="365" fg:w="97992"/><text x="0.6205%" y="142.50">execute_next_task (locust/user/task.py:396)</text></g><g><title>execute_task (locust/user/task.py:513) (97,989 samples, 99.46%)</title><rect x="0.3735%" y="148" width="99.4630%" height="15" fill="rgb(236,212,23)" fg:x="368" fg:w="97989"/><text x="0.6235%" y="158.50">execute_task (locust/user/task.py:513)</text></g><g><title>_sleep (locust/user/task.py:471) (127 samples, 0.13%)</title><rect x="99.8447%" y="148" width="0.1289%" height="15" fill="rgb(242,79,21)" fg:x="98365" fg:w="127"/><text x="100.0947%" y="158.50"></text></g><g><title>wait (locust/user/task.py:465) (138 samples, 0.14%)</title><rect x="99.8427%" y="132" width="0.1401%" height="15" fill="rgb(211,96,35)" fg:x="98363" fg:w="138"/><text x="100.0927%" y="142.50"></text></g><g><title>run (locust/user/users.py:167) (98,156 samples, 99.63%)</title><rect x="0.3512%" y="100" width="99.6326%" height="15" fill="rgb(253,215,40)" fg:x="346" fg:w="98156"/><text x="0.6012%" y="110.50">run (locust/user/users.py:167)</text></g><g><title>run (locust/user/task.py:369) (144 samples, 0.15%)</title><rect x="99.8376%" y="116" width="0.1462%" height="15" fill="rgb(211,81,21)" fg:x="98358" fg:w="144"/><text x="100.0876%" y="126.50"></text></g><g><title>run_user (locust/user/users.py:199) (98,182 samples, 99.66%)</title><rect x="0.3339%" y="84" width="99.6589%" height="15" fill="rgb(208,190,38)" fg:x="329" fg:w="98182"/><text x="0.5839%" y="94.50">run_user (locust/user/users.py:199)</text></g><g><title>all (98,518 samples, 100%)</title><rect x="0.0000%" y="52" width="100.0000%" height="15" fill="rgb(235,213,38)" fg:x="0" fg:w="98518"/><text x="0.2500%" y="62.50"></text></g><g><title>process 392420:&quot;&quot; (98,518 samples, 100.00%)</title><rect x="0.0000%" y="68" width="100.0000%" height="15" fill="rgb(237,122,38)" fg:x="0" fg:w="98518"/><text x="0.2500%" y="78.50">process 392420:&quot;&quot;</text></g></svg></svg>
