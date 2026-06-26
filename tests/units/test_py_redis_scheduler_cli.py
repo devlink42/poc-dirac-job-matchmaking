@@ -10,6 +10,7 @@ import redis
 import yaml
 
 from matchmaking.cli.py_redis import scheduler
+from matchmaking.core import utils
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -17,6 +18,12 @@ from matchmaking.models.node import Node
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 CONFIG_01 = "tests/examples/config/config_01_scheduling_valid.yaml"
 JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
+
+
+@pytest.fixture(autouse=True)
+def reset_scheduler_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(utils, "_JOBS_CACHE", None)
+    monkeypatch.setattr(utils, "_CONFIG_CACHE", None)
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
@@ -48,11 +55,15 @@ def test_main_redis_connection_error(monkeypatch, capsys):
 
 def test_main_config_load_error(monkeypatch, capsys):
     monkeypatch.setattr("redis.Redis.ping", MagicMock())
+
+    with open(JOB_01) as f:
+        job = Job.model_validate(yaml.safe_load(f))
+
     monkeypatch.setattr(scheduler, "fetch_candidate_jobs", MagicMock(return_value=[]))
     monkeypatch.setattr(
         scheduler,
         "match_jobs_with_node_redis",
-        MagicMock(return_value=([MagicMock()], Node.load_from_yaml(NODE_01))),
+        MagicMock(return_value=([job], Node.load_from_yaml(NODE_01))),
     )
     monkeypatch.setattr(SchedulingConfig, "load_from_yaml", MagicMock(side_effect=RuntimeError("err")))
 

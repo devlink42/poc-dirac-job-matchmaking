@@ -20,6 +20,7 @@ import sys
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.core import utils
 from matchmaking.core.main import select_job
 from matchmaking.core.py_redis.match_making import match_jobs_with_node_redis
 from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
@@ -67,6 +68,8 @@ def main() -> None:
             jobs, node = valid_jobs_node
 
             if jobs:
+                utils.JOBS = jobs
+
                 allowed_job = select_job(node)
 
                 if allowed_job:
