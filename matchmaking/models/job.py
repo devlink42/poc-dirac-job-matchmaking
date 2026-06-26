@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from typing import Self
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
+from matchmaking.models.base import YamlLoadableModel
 from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
@@ -35,7 +35,6 @@ class System(BaseModel):
 class ComputeMemory(BaseModel):
     """Memory requirements for computation."""
 
-    # TODO: .
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     request: ResourceSpec
@@ -101,14 +100,14 @@ class MatchingSpecs(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_job(self):
+    def validate_job(self) -> Self:
         if self.wall_time is None and self.cpu_work is None:
             raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
 
         return self
 
 
-class Job(BaseModel):
+class Job(YamlLoadableModel):
     """Data model representing a job in the matchmaking system."""
 
     version: CustomVersion = Field(default=CustomVersion("0.1"))
@@ -124,14 +123,4 @@ class Job(BaseModel):
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)
 
-    @classmethod
-    def load_from_yaml(cls, path: str | Path) -> Job:
-        """Load and apply the configuration from a YAML file."""
-        file_path = Path(path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
-
-        with open(file_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return cls.model_validate(data or {})
+    assigned_site: str | None = None

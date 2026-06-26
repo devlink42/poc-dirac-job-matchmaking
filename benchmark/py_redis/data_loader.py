@@ -6,14 +6,14 @@ database. It uses the ``benchmark.data_generator`` module to create the data
 and the ``redis`` library to interact with Redis.
 
 Workflow:
-    1. Make sure Redis is running and accessible via the default host and port:
-        docker compose up -d redis
+  1. Make sure Redis is running and accessible via the default host and port:
+    docker compose up -d redis
 
-    2. Generate the benchmark database once:
-        pixi run data_loader --num-jobs 10000000 --num-nodes 50000
+  2. Generate the benchmark database once:
+    pixi run data_loader --num-jobs 10000000 --num-nodes 50000
 
-    3. Run the benchmark:
-        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python_redis --num-jobs 10000000 --num-nodes 50000
+  3. Run the benchmark:
+    pixi run benchmark -u 100 -r 50 -t 15m --match-mode python_redis --num-jobs 10000000 --num-nodes 50000
 """
 
 from __future__ import annotations

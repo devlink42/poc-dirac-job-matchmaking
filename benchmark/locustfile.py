@@ -5,11 +5,11 @@ This module tests the throughput and latency of the Python matching algorithm
 by directly firing events to Locust's metric system.
 
 Workflow:
-    1. Generate the benchmark database once:
-           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+  1. Generate the benchmark database once:
+    pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
-    2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-jobs 10000000 --num-nodes 50000
+  2. Run the benchmark:
+    pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-jobs 10000000 --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
@@ -32,8 +32,6 @@ from matchmaking.core.router import MatchMode
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
-
-configure_logger("INFO")
 
 _rng = random.Random()  # noqa: S311
 
@@ -95,6 +93,12 @@ def _(parser):
         default="benchmark/benchmark.db",
         help="Path to the SQLite benchmark database (generate with benchmark/generate_db.py)",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
+    )
 
 
 @events.test_start.add_listener
@@ -105,6 +109,8 @@ def on_test_start(environment, **kwargs):
 
     opts = environment.parsed_options
     global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
+
+    configure_logger(opts.log_level)
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)

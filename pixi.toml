@@ -49,6 +49,7 @@ tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-
 # ---------------------------------------------------------
 [feature.benchmark.dependencies]
 locust = ">=2.44.0,<2.45"
+py-spy = ">=0.4.2,<0.5"
 
 # TARGET-SPECIFIC DEPENDENCIES
 # The following dependencies will only be resolved and installed on Windows.
@@ -57,10 +58,10 @@ m2-bash = ">=5.2.37.2,<5.3"
 
 [feature.benchmark.tasks]
 # Benchmark Linux
-benchmark = "sh ./benchmark/run_benchmark.sh --headless"
-benchmark-ui = "sh ./benchmark/run_benchmark.sh --ui"
-benchmark-dist = "sh ./benchmark/run_benchmark.sh --distributed --headless"
-benchmark-dist-ui = "sh ./benchmark/run_benchmark.sh --distributed --ui"
+benchmark = "bash ./benchmark/run_benchmark.sh --headless"
+benchmark-ui = "bash ./benchmark/run_benchmark.sh --ui"
+benchmark-dist = "bash ./benchmark/run_benchmark.sh --distributed --headless"
+benchmark-dist-ui = "bash ./benchmark/run_benchmark.sh --distributed --ui"
 # Benchmark Windows
 win-benchmark = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --headless"
 win-benchmark-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --ui"

@@ -254,7 +254,7 @@ def is_matching(job: Job, node: Node) -> bool:
     """
     for i, job_spec in enumerate(job.matching_specs):
         if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node):
-            logger.info("Job %s-%s matches node %s.", job.job_id, i, node.node_id)
+            logger.info("Job: %s-%s matches Node: %s.", job.job_id, i, node.node_id)
 
             return True
 

@@ -2,24 +2,35 @@
 
 from __future__ import annotations
 
+from collections import Counter
+from datetime import datetime
+
 from matchmaking.models.job import Job
 
 
-def rank(
-    job: Job, running_by_job_group: dict[str, int], running_by_job_owner: dict[str, int]
-) -> tuple[int, int, float]:
-    """Sort by job group running count, then owner running count, then FIFO timestamp.
+def _calculate_score(
+    job: Job, running_by_job_group: Counter, running_by_job_owner: Counter
+) -> tuple[int, int, datetime]:
+    """Calculate the sorting score for a single job based on fairshare and FIFO.
 
     Args:
-        job (Job): The job to generate the sorting key for.
-        running_by_job_group (dict[str, int]): Running count by job group.
-        running_by_job_owner (dict[str, int]): Running count by job owner.
+        job (Job): The job to evaluate.
+        running_by_job_group (Counter): Running jobs count grouped by job group.
+        running_by_job_owner (Counter): Running jobs count grouped by job owner.
 
     Returns:
-        tuple[int, int, float]: Sorting key tuple for job comparison.
+        tuple[int, int, datetime]: A score tuple used for sorting.
     """
-    job_group_running_count = running_by_job_group[job.group]
-    owner_running_count = running_by_job_owner[job.owner]
-    fifo_timestamp = job.submit_time.timestamp()
+    return running_by_job_group.get(job.group, 0), running_by_job_owner.get(job.owner, 0), job.submit_time
 
-    return job_group_running_count, owner_running_count, fifo_timestamp
+
+def rank(candidates: list[Job], running_by_job_group: Counter, running_by_job_owner: Counter) -> None:
+    """Rank the candidate jobs and return the best match.
+
+    Args:
+        candidates (list[Job]): The list of filtered candidate jobs.
+        running_by_job_group (Counter): Running jobs count grouped by job group.
+        running_by_job_owner (Counter): Running jobs count grouped by job owner.
+    """
+    # Sort the candidates in-place using the private scoring function
+    candidates.sort(key=lambda job: _calculate_score(job, running_by_job_group, running_by_job_owner))
