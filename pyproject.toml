@@ -6,7 +6,7 @@ dependencies = [
 ]
 name = "matchmaking"
 requires-python = ">= 3.11"
-version = "0.1.1"
+version = "0.2.0"
 
 [project.scripts]
 matchmaking = "matchmaking.cli.match_making:main"
