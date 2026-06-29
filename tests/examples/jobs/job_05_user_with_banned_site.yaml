@@ -2,47 +2,51 @@
 # From the long tail of owners: individual user submissions
 # Owner: sharmar / Group: lhcb_user / Type: User
 # Short CPU time (1 day), single core, minimal requirements
-# Production data shows only 8 TQs of type "User" but they matter for fairness
+# Production data shows only 8 TQs of type `User` but they matter for fairness
 # Uses a banned-site tag to exclude a specific site
+
+version: 0.1.0
+job_id: 'job_05_user_with_banned_site'
+submit_time: '2026-03-28T16:30:00Z'
 
 owner: sharmar
 group: lhcb_user
-job_type: User
-submission_time: "2026-03-28T16:30:00Z"
+type: User
+status: Waiting
 
 matching_specs:
-  - site: "LCG.CERN.cern"
+  - site: LCG.CERN.cern
     system:
       name: Linux
     wall-time: 86400  # 1 day
     cpu-work: 150000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 1, "max": null}
-    tags: "cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro"
+        microarchitecture-level: {min: 1, max: null}
+    tags: cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro
 
-  - site: "LCG.RAL.uk"
+  - site: LCG.RAL.uk
     system:
       name: Linux
     wall-time: 86400
     cpu-work: 150000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 1, "max": null}
-    tags: "cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro"
+        microarchitecture-level: {min: 1, max: null}
+    tags: cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro
 
-  - site: "LCG.CSCS.ch"
+  - site: LCG.CSCS.ch
     system:
       name: Linux
     wall-time: 86400
     cpu-work: 150000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 1, "max": null}
-    tags: "cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro"
+        microarchitecture-level: {min: 1, max: null}
+    tags: cvmfs:lhcb & ~diracx:banned:LCG.NIPNE-07.ro

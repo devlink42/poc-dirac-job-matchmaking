@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from matchmaking.models.config import SchedulingConfig
+from matchmaking.models.utils import Type
+
+
+def test_load_scheduling_config_from_valid_yaml(load_config):
+    config = load_config("config_01_scheduling_valid")
+
+    assert config.job_type_priorities == [
+        Type.WGPRODUCTION,
+        Type.SPRUCING,
+        Type.MCFASTSIMULATION,
+        Type.MCSIMULATION,
+        Type.USER,
+        Type.MERGE,
+        Type.MCRECONSTRUCTION,
+        Type.APMERGE,
+        Type.APPOSTPROC,
+        Type.MCMERGE,
+        Type.LBAPI,
+    ]
+    assert config.by_site["LCG.CERN.cern"].running_limits[Type.WGPRODUCTION] == 1000
+
+
+def test_load_scheduling_config_from_empty_yaml(load_config):
+    config = load_config("config_02_scheduling_empty")
+
+    assert config.job_type_priorities == []
+    assert config.by_site == {}
+
+
+def test_load_scheduling_config_missing_file_raises():
+    missing_file = Path("tests/examples/config/does_not_exist.yaml")
+
+    with pytest.raises(FileNotFoundError):
+        SchedulingConfig.load_from_yaml(missing_file)
+
+
+def test_load_scheduling_config_invalid_yaml_raises_validation_error():
+    with pytest.raises(ValidationError):
+        SchedulingConfig.load_from_yaml("tests/examples/config/invalid_10_scheduling_negative_limit.yaml")

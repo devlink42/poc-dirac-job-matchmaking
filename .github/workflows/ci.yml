@@ -2,7 +2,8 @@ name: Python CI
 
 on:
   push:
-    branches: [ "**" ]
+    branches-ignore:
+      - release-please-**
   pull_request:
     branches: [ main ]
 
@@ -22,6 +23,7 @@ jobs:
       - name: Run pre-commit
         run: pixi run pc-run-all --show-diff-on-failure
 
+
       - name: Run Tests (Pytest)
         run: pixi run tests
 
@@ -31,3 +33,20 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./htmlcov/,coverage.md,coverage.xml
           fail_ci_if_error: false
+
+  release-please:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.repository == 'devlink42/poc-dirac-job-matchmaking' && github.ref_name == 'main' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json

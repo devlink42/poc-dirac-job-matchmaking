@@ -1,0 +1,7 @@
+job_type_priorities:
+  - MCSimulation
+
+by_site:
+  LCG.CERN.cern:
+    running_limits:
+      MCSimulation: -1

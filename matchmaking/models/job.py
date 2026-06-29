@@ -2,35 +2,59 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Self
+
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
-from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, Range, ResourceSpec, StrictRange
+from matchmaking.models.base import YamlLoadableModel
+from matchmaking.models.utils import (
+    ArchitectureName,
+    CustomVersion,
+    Io,
+    JobStatus,
+    Range,
+    ResourceSpec,
+    StrictRange,
+    SystemName,
+    Type,
+)
 
 
 class System(BaseModel):
-    name: str
+    """System requirements for a job."""
+
+    name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
 
 
 class ComputeMemory(BaseModel):
+    """Memory requirements for computation."""
+
     request: ResourceSpec
     limit: ResourceSpec
 
 
 class Architecture(BaseModel):
+    """CPU architecture requirements."""
+
     name: ArchitectureName
     microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
+    """CPU core and RAM requirements."""
+
     num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
     ram_mb: ComputeMemory | None = Field(default=None, validation_alias="ram-mb")
     architecture: Architecture
 
 
 class Gpu(BaseModel):
+    """GPU requirements for a job."""
+
     count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
     vendor: str
@@ -38,8 +62,9 @@ class Gpu(BaseModel):
     driver_version: CustomVersion | None = Field(default=None, validation_alias="driver-version")
 
 
-class Job(BaseModel):
-    job_id: str | None = None
+class MatchingSpecs(BaseModel):
+    """Specification of requirements for matching a job with a node."""
+
     site: str | None = None
     system: System
     wall_time: PositiveInt | None = Field(default=None, validation_alias="wall-time")
@@ -63,8 +88,27 @@ class Job(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_job(self):
+    def validate_job(self) -> Self:
         if self.wall_time is None and self.cpu_work is None:
             raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
 
         return self
+
+
+class Job(YamlLoadableModel):
+    """Data model representing a job in the matchmaking system."""
+
+    version: CustomVersion = Field(default=CustomVersion("0.1"))
+    job_id: str | None = None
+    submit_time: datetime
+
+    # Job information
+    owner: str
+    group: str
+    type: Type
+    status: JobStatus = JobStatus.WAITING
+
+    # Matching specs
+    matching_specs: list[MatchingSpecs] = Field(min_length=1)
+
+    assigned_site: str | None = None

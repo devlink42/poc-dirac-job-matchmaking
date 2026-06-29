@@ -33,6 +33,7 @@ def validate_tag_expression(expr: str) -> None:
         ValueError: If the expression is syntactically invalid or contains unsupported operations.
     """
     if not expr:
+        logger.debug("Empty tag expression provided")
         return
 
     logger.debug(f"Validating tag expression: {expr}")
@@ -92,7 +93,13 @@ def validate_tag_expression(expr: str) -> None:
 
 
 def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
-    """Evaluate a tag expression against a set of node tags.
+    """Evaluate a boolean expression of tags against a set of node tags.
+
+    Supported syntax examples:
+      - "a & b"
+      - "a | (b & c)"
+      - "~a"
+      - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
 
     Args:
         expr (str): The tag expression to evaluate.
