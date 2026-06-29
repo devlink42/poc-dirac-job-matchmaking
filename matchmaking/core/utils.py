@@ -9,10 +9,11 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.utils import JobStatus
 
-CONFIG_PATH = "matchmaking/config/scheduling.yaml"
-JOBS = "tests/examples/jobs/"
+CONFIG_PATH: str = "matchmaking/config/scheduling.yaml"
+JOBS: str | list[Job] = "tests/examples/jobs/"
 
 _JOBS_CACHE: list[Job] | None = None
+_CONFIG_CACHE: SchedulingConfig | None = None
 
 
 def get_jobs() -> list[Job]:
@@ -26,27 +27,36 @@ def get_jobs() -> list[Job]:
     """
     global _JOBS_CACHE
 
+    if isinstance(JOBS, list):
+        if not all(isinstance(job, Job) for job in JOBS):
+            raise ValueError("All elements in the dynamically injected JOBS list must be Job instances.")
+
+        return JOBS
+
     if _JOBS_CACHE is not None:
         return _JOBS_CACHE
 
-    try:
-        jobs = []
+    if isinstance(JOBS, str) and Path(JOBS).exists():
+        logger.info("Loading job examples from: '%s'", JOBS)
+        try:
+            jobs = []
 
-        for job_file in Path(JOBS).glob("*.yaml"):
-            if job_file.stem.startswith("invalid"):
-                continue
+            for job_file in Path(JOBS).glob("*.yaml"):
+                if job_file.stem.startswith("invalid"):
+                    continue
 
-            jobs.append(Job.load_from_yaml(job_file))
-    except FileNotFoundError as e:
-        raise ValueError(f"Job examples not found at: '{JOBS}'") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load job examples from: '{JOBS}': {e}") from e
-    else:
-        logger.info("Loaded job examples from: '%s'", JOBS)
+                jobs.append(Job.load_from_yaml(job_file))
+        except FileNotFoundError as e:
+            raise ValueError(f"Job examples not found at: '{JOBS}'") from e
+        except Exception as e:
+            raise ValueError(f"Failed to load job examples from: '{JOBS}': {e}") from e
+        else:
+            logger.info("Loaded job examples from: '%s'", JOBS)
+            _JOBS_CACHE = jobs
 
-    _JOBS_CACHE = jobs
+            return _JOBS_CACHE
 
-    return jobs
+    raise ValueError(f"Invalid JOBS path: '{JOBS}'")
 
 
 def get_selection_configuration() -> SchedulingConfig:
@@ -58,6 +68,11 @@ def get_selection_configuration() -> SchedulingConfig:
     Raises:
         ValueError: If the scheduling config file is not found or fails to load.
     """
+    global _CONFIG_CACHE
+
+    if _CONFIG_CACHE is not None:
+        return _CONFIG_CACHE
+
     try:
         config = SchedulingConfig.load_from_yaml(CONFIG_PATH)
     except FileNotFoundError as e:
@@ -67,7 +82,9 @@ def get_selection_configuration() -> SchedulingConfig:
     else:
         logger.info("Loaded scheduling config from: '%s'", CONFIG_PATH)
 
-    return config
+    _CONFIG_CACHE = config
+
+    return _CONFIG_CACHE
 
 
 def assign_job_to_site(job: Job, node_site: str) -> None:

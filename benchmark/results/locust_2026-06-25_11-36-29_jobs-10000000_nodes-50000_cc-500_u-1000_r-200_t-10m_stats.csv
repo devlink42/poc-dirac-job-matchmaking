@@ -1,0 +1,3 @@
+Type,Name,Request Count,Failure Count,Median Response Time,Average Response Time,Min Response Time,Max Response Time,Average Content Size,Requests/s,Failures/s,50%,66%,75%,80%,90%,95%,98%,99%,99.9%,99.99%,100%
+Python,select_job_cycle,31031,0,1,1.2982025747583266,0.6991520058363676,17.301466010394506,80.0,0.3687327108523288,0.0,1,1,1,1,2,2,3,3,4,9,17
+,Aggregated,31031,0,1,1.2982025747583266,0.6991520058363676,17.301466010394506,80.0,0.3687327108523288,0.0,1,1,1,1,2,2,3,3,4,9,17

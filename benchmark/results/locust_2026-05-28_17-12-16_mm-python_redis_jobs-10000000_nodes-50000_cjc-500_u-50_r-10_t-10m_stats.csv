@@ -1,0 +1,3 @@
+Type,Name,Request Count,Failure Count,Median Response Time,Average Response Time,Min Response Time,Max Response Time,Average Content Size,Requests/s,Failures/s,50%,66%,75%,80%,90%,95%,98%,99%,99.9%,99.99%,100%
+Redis-Python,select_job_cycle,1,0,3.3250160049647093,3.3250160049647093,3.3250160049647093,3.3250160049647093,80.0,0.008112977680071302,0.0,3,3,3,3,3,3,3,3,3,3,3
+,Aggregated,1,0,3.3250160049647093,3.3250160049647093,3.3250160049647093,3.3250160049647093,80.0,0.008112977680071302,0.0,3,3,3,3,3,3,3,3,3,3,3
