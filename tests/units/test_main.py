@@ -8,9 +8,12 @@ from unittest.mock import patch
 
 import pytest
 
+from matchmaking.config.logger import configure_logger
 from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
+
+configure_logger("ERROR")
 
 
 def test_select_job_respects_site_limits(example_config, load_job, load_node):
