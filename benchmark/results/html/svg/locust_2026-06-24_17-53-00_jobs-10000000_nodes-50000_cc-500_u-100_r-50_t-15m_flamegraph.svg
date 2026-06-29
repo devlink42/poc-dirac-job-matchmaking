@@ -1,0 +1,491 @@
+<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg version="1.1" width="1200" height="570" onload="init(evt)" viewBox="0 0 1200 570" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:fg="http://github.com/jonhoo/inferno"><!--Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples.--><!--NOTES: --><defs><linearGradient id="background" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#eeeeee" offset="5%"/><stop stop-color="#eeeeb0" offset="95%"/></linearGradient></defs><style type="text/css">
+text { font-family:monospace; font-size:12px }
+#title { text-anchor:middle; font-size:17px; }
+#matched { text-anchor:end; }
+#search { text-anchor:end; opacity:0.1; cursor:pointer; }
+#search:hover, #search.show { opacity:1; }
+#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+#unzoom { cursor:pointer; }
+#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+.hide { display:none; }
+.parent { opacity:0.5; }
+</style><script type="text/ecmascript"><![CDATA[
+        var nametype = 'Function:';
+        var fontsize = 12;
+        var fontwidth = 0.59;
+        var xpad = 10;
+        var inverted = true;
+        var searchcolor = 'rgb(230,0,230)';
+        var fluiddrawing = true;
+        var truncate_text_right = false;
+    ]]><![CDATA["use strict";
+var details, searchbtn, unzoombtn, matchedtxt, svg, searching, frames, known_font_width;
+function init(evt) {
+    details = document.getElementById("details").firstChild;
+    searchbtn = document.getElementById("search");
+    unzoombtn = document.getElementById("unzoom");
+    matchedtxt = document.getElementById("matched");
+    svg = document.getElementsByTagName("svg")[0];
+    frames = document.getElementById("frames");
+    known_font_width = get_monospace_width(frames);
+    total_samples = parseInt(frames.attributes.total_samples.value);
+    searching = 0;
+
+    // Use GET parameters to restore a flamegraph's state.
+    var restore_state = function() {
+        var params = get_params();
+        if (params.x && params.y)
+            zoom(find_group(document.querySelector('[*|x="' + params.x + '"][y="' + params.y + '"]')));
+        if (params.s)
+            search(params.s);
+    };
+
+    if (fluiddrawing) {
+        // Make width dynamic so the SVG fits its parent's width.
+        svg.removeAttribute("width");
+        // Edge requires us to have a viewBox that gets updated with size changes.
+        var isEdge = /Edge\/\d./i.test(navigator.userAgent);
+        if (!isEdge) {
+            svg.removeAttribute("viewBox");
+        }
+        var update_for_width_change = function() {
+            if (isEdge) {
+                svg.attributes.viewBox.value = "0 0 " + svg.width.baseVal.value + " " + svg.height.baseVal.value;
+            }
+
+            // Keep consistent padding on left and right of frames container.
+            frames.attributes.width.value = svg.width.baseVal.value - xpad * 2;
+
+            // Text truncation needs to be adjusted for the current width.
+            update_text_for_elements(frames.children);
+
+            // Keep search elements at a fixed distance from right edge.
+            var svgWidth = svg.width.baseVal.value;
+            searchbtn.attributes.x.value = svgWidth - xpad;
+            matchedtxt.attributes.x.value = svgWidth - xpad;
+        };
+        window.addEventListener('resize', function() {
+            update_for_width_change();
+        });
+        // This needs to be done asynchronously for Safari to work.
+        setTimeout(function() {
+            unzoom();
+            update_for_width_change();
+            restore_state();
+        }, 0);
+    } else {
+        restore_state();
+    }
+}
+// event listeners
+window.addEventListener("click", function(e) {
+    var target = find_group(e.target);
+    if (target) {
+        if (target.nodeName == "a") {
+            if (e.ctrlKey === false) return;
+            e.preventDefault();
+        }
+        if (target.classList.contains("parent")) unzoom();
+        zoom(target);
+
+        // set parameters for zoom state
+        var el = target.querySelector("rect");
+        if (el && el.attributes && el.attributes.y && el.attributes["fg:x"]) {
+            var params = get_params()
+            params.x = el.attributes["fg:x"].value;
+            params.y = el.attributes.y.value;
+            history.replaceState(null, null, parse_params(params));
+        }
+    }
+    else if (e.target.id == "unzoom") {
+        unzoom();
+
+        // remove zoom state
+        var params = get_params();
+        if (params.x) delete params.x;
+        if (params.y) delete params.y;
+        history.replaceState(null, null, parse_params(params));
+    }
+    else if (e.target.id == "search") search_prompt();
+}, false)
+// mouse-over for info
+// show
+window.addEventListener("mouseover", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = nametype + " " + g_to_text(target);
+}, false)
+// clear
+window.addEventListener("mouseout", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = ' ';
+}, false)
+// ctrl-F for search
+window.addEventListener("keydown",function (e) {
+    if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+        e.preventDefault();
+        search_prompt();
+    }
+}, false)
+// functions
+function get_params() {
+    var params = {};
+    var paramsarr = window.location.search.substr(1).split('&');
+    for (var i = 0; i < paramsarr.length; ++i) {
+        var tmp = paramsarr[i].split("=");
+        if (!tmp[0] || !tmp[1]) continue;
+        params[tmp[0]]  = decodeURIComponent(tmp[1]);
+    }
+    return params;
+}
+function parse_params(params) {
+    var uri = "?";
+    for (var key in params) {
+        uri += key + '=' + encodeURIComponent(params[key]) + '&';
+    }
+    if (uri.slice(-1) == "&")
+        uri = uri.substring(0, uri.length - 1);
+    if (uri == '?')
+        uri = window.location.href.split('?')[0];
+    return uri;
+}
+function find_child(node, selector) {
+    var children = node.querySelectorAll(selector);
+    if (children.length) return children[0];
+    return;
+}
+function find_group(node) {
+    var parent = node.parentElement;
+    if (!parent) return;
+    if (parent.id == "frames") return node;
+    return find_group(parent);
+}
+function orig_save(e, attr, val) {
+    if (e.attributes["fg:orig_" + attr] != undefined) return;
+    if (e.attributes[attr] == undefined) return;
+    if (val == undefined) val = e.attributes[attr].value;
+    e.setAttribute("fg:orig_" + attr, val);
+}
+function orig_load(e, attr) {
+    if (e.attributes["fg:orig_"+attr] == undefined) return;
+    e.attributes[attr].value = e.attributes["fg:orig_" + attr].value;
+    e.removeAttribute("fg:orig_" + attr);
+}
+function g_to_text(e) {
+    var text = find_child(e, "title").firstChild.nodeValue;
+    return (text)
+}
+function g_to_func(e) {
+    var func = g_to_text(e);
+    // if there's any manipulation we want to do to the function
+    // name before it's searched, do it here before returning.
+    return (func);
+}
+function get_monospace_width(frames) {
+    // Given the id="frames" element, return the width of text characters if
+    // this is a monospace font, otherwise return 0.
+    text = find_child(frames.children[0], "text");
+    originalContent = text.textContent;
+    text.textContent = "!";
+    bangWidth = text.getComputedTextLength();
+    text.textContent = "W";
+    wWidth = text.getComputedTextLength();
+    text.textContent = originalContent;
+    if (bangWidth === wWidth) {
+        return bangWidth;
+    } else {
+        return 0;
+    }
+}
+function update_text_for_elements(elements) {
+    // In order to render quickly in the browser, you want to do one pass of
+    // reading attributes, and one pass of mutating attributes. See
+    // https://web.dev/avoid-large-complex-layouts-and-layout-thrashing/ for details.
+
+    // Fall back to inefficient calculation, if we're variable-width font.
+    // TODO This should be optimized somehow too.
+    if (known_font_width === 0) {
+        for (var i = 0; i < elements.length; i++) {
+            update_text(elements[i]);
+        }
+        return;
+    }
+
+    var textElemNewAttributes = [];
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var r = find_child(e, "rect");
+        var t = find_child(e, "text");
+        var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+        var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+        var newX = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+        // Smaller than this size won't fit anything
+        if (w < 2 * known_font_width) {
+            textElemNewAttributes.push([newX, ""]);
+            continue;
+        }
+
+        // Fit in full text width
+        if (txt.length * known_font_width < w) {
+            textElemNewAttributes.push([newX, txt]);
+            continue;
+        }
+
+        var substringLength = Math.floor(w / known_font_width) - 2;
+        if (truncate_text_right) {
+            // Truncate the right side of the text.
+            textElemNewAttributes.push([newX, txt.substring(0, substringLength) + ".."]);
+            continue;
+        } else {
+            // Truncate the left side of the text.
+            textElemNewAttributes.push([newX, ".." + txt.substring(txt.length - substringLength, txt.length)]);
+            continue;
+        }
+    }
+
+    console.assert(textElemNewAttributes.length === elements.length, "Resize failed, please file a bug at https://github.com/jonhoo/inferno/");
+
+    // Now that we know new textContent, set it all in one go so we don't refresh a bazillion times.
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var values = textElemNewAttributes[i];
+        var t = find_child(e, "text");
+        t.attributes.x.value = values[0];
+        t.textContent = values[1];
+    }
+}
+
+function update_text(e) {
+    var r = find_child(e, "rect");
+    var t = find_child(e, "text");
+    var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+    var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+    t.attributes.x.value = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+    // Smaller than this size won't fit anything
+    if (w < 2 * fontsize * fontwidth) {
+        t.textContent = "";
+        return;
+    }
+    t.textContent = txt;
+    // Fit in full text width
+    if (t.getComputedTextLength() < w)
+        return;
+    if (truncate_text_right) {
+        // Truncate the right side of the text.
+        for (var x = txt.length - 2; x > 0; x--) {
+            if (t.getSubStringLength(0, x + 2) <= w) {
+                t.textContent = txt.substring(0, x) + "..";
+                return;
+            }
+        }
+    } else {
+        // Truncate the left side of the text.
+        for (var x = 2; x < txt.length; x++) {
+            if (t.getSubStringLength(x - 2, txt.length) <= w) {
+                t.textContent = ".." + txt.substring(x, txt.length);
+                return;
+            }
+        }
+    }
+    t.textContent = "";
+}
+// zoom
+function zoom_reset(e) {
+    if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * parseInt(e.attributes["fg:x"].value) / total_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / total_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_reset(c[i]);
+    }
+}
+function zoom_child(e, x, zoomed_width_samples) {
+    if (e.tagName == "text") {
+        var parent_x = parseFloat(find_child(e.parentNode, "rect[x]").attributes.x.value);
+        e.attributes.x.value = format_percent(parent_x + (100 * 3 / frames.attributes.width.value));
+    } else if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * (parseInt(e.attributes["fg:x"].value) - x) / zoomed_width_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / zoomed_width_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_child(c[i], x, zoomed_width_samples);
+    }
+}
+function zoom_parent(e) {
+    if (e.attributes) {
+        if (e.attributes.x != undefined) {
+            e.attributes.x.value = "0.0%";
+        }
+        if (e.attributes.width != undefined) {
+            e.attributes.width.value = "100.0%";
+        }
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_parent(c[i]);
+    }
+}
+function zoom(node) {
+    var attr = find_child(node, "rect").attributes;
+    var width = parseInt(attr["fg:w"].value);
+    var xmin = parseInt(attr["fg:x"].value);
+    var xmax = xmin + width;
+    var ymin = parseFloat(attr.y.value);
+    unzoombtn.classList.remove("hide");
+    var el = frames.children;
+    var to_update_text = [];
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        var a = find_child(e, "rect").attributes;
+        var ex = parseInt(a["fg:x"].value);
+        var ew = parseInt(a["fg:w"].value);
+        // Is it an ancestor
+        if (!inverted) {
+            var upstack = parseFloat(a.y.value) > ymin;
+        } else {
+            var upstack = parseFloat(a.y.value) < ymin;
+        }
+        if (upstack) {
+            // Direct ancestor
+            if (ex <= xmin && (ex+ew) >= xmax) {
+                e.classList.add("parent");
+                zoom_parent(e);
+                to_update_text.push(e);
+            }
+            // not in current path
+            else
+                e.classList.add("hide");
+        }
+        // Children maybe
+        else {
+            // no common path
+            if (ex < xmin || ex >= xmax) {
+                e.classList.add("hide");
+            }
+            else {
+                zoom_child(e, xmin, width);
+                to_update_text.push(e);
+            }
+        }
+    }
+    update_text_for_elements(to_update_text);
+}
+function unzoom() {
+    unzoombtn.classList.add("hide");
+    var el = frames.children;
+    for(var i = 0; i < el.length; i++) {
+        el[i].classList.remove("parent");
+        el[i].classList.remove("hide");
+        zoom_reset(el[i]);
+    }
+    update_text_for_elements(el);
+}
+// search
+function reset_search() {
+    var el = document.querySelectorAll("#frames rect");
+    for (var i = 0; i < el.length; i++) {
+        orig_load(el[i], "fill")
+    }
+    var params = get_params();
+    delete params.s;
+    history.replaceState(null, null, parse_params(params));
+}
+function search_prompt() {
+    if (!searching) {
+        var term = prompt("Enter a search term (regexp " +
+            "allowed, eg: ^ext4_)", "");
+        if (term != null) {
+            search(term)
+        }
+    } else {
+        reset_search();
+        searching = 0;
+        searchbtn.classList.remove("show");
+        searchbtn.firstChild.nodeValue = "Search"
+        matchedtxt.classList.add("hide");
+        matchedtxt.firstChild.nodeValue = ""
+    }
+}
+function search(term) {
+    var re = new RegExp(term);
+    var el = frames.children;
+    var matches = new Object();
+    var maxwidth = 0;
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        // Skip over frames which are either not visible, or below the zoomed-to frame
+        if (e.classList.contains("hide") || e.classList.contains("parent")) {
+            continue;
+        }
+        var func = g_to_func(e);
+        var rect = find_child(e, "rect");
+        if (func == null || rect == null)
+            continue;
+        // Save max width. Only works as we have a root frame
+        var w = parseInt(rect.attributes["fg:w"].value);
+        if (w > maxwidth)
+            maxwidth = w;
+        if (func.match(re)) {
+            // highlight
+            var x = parseInt(rect.attributes["fg:x"].value);
+            orig_save(rect, "fill");
+            rect.attributes.fill.value = searchcolor;
+            // remember matches
+            if (matches[x] == undefined) {
+                matches[x] = w;
+            } else {
+                if (w > matches[x]) {
+                    // overwrite with parent
+                    matches[x] = w;
+                }
+            }
+            searching = 1;
+        }
+    }
+    if (!searching)
+        return;
+    var params = get_params();
+    params.s = term;
+    history.replaceState(null, null, parse_params(params));
+
+    searchbtn.classList.add("show");
+    searchbtn.firstChild.nodeValue = "Reset Search";
+    // calculate percent matched, excluding vertical overlap
+    var count = 0;
+    var lastx = -1;
+    var lastw = 0;
+    var keys = Array();
+    for (k in matches) {
+        if (matches.hasOwnProperty(k))
+            keys.push(k);
+    }
+    // sort the matched frames by their x location
+    // ascending, then width descending
+    keys.sort(function(a, b){
+        return a - b;
+    });
+    // Step through frames saving only the biggest bottom-up frames
+    // thanks to the sort order. This relies on the tree property
+    // where children are always smaller than their parents.
+    for (var k in keys) {
+        var x = parseInt(keys[k]);
+        var w = matches[keys[k]];
+        if (x >= lastx + lastw) {
+            count += w;
+            lastx = x;
+            lastw = w;
+        }
+    }
+    // display matched percent
+    matchedtxt.classList.remove("hide");
+    var pct = 100 * count / maxwidth;
+    if (pct != 100) pct = pct.toFixed(1);
+    matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+}
+function format_percent(n) {
+    return n.toFixed(4) + "%";
+}
+]]></script><rect x="0" y="0" width="100%" height="570" fill="url(#background)"/><text id="title" fill="rgb(0,0,0)" x="50.0000%" y="24.00">py-spy record --format flamegraph -o benchmark/results/html/svg/locust_2026-06-24_17-53-00_jobs-10000000_nodes-50000_cc-500_u-100_r-50_t-15m_flamegraph.svg --subprocesses -- locust -f benchmark/locustfile.py --num-jobs 10000000 --num-nodes 50000 --candidates-count 500 --headless -u 100 -r 50 -t 15m --log-level ERROR --csv benchmark/results/locust_2026-06-24_17-53-00_jobs-10000000_nodes-50000_cc-500_u-100_r-50_t-15m --csv-full-history --html benchmark/results/html/locust_2026-06-24_17-53-00_jobs-10000000_nodes-50000_cc-500_u-100_r-50_t-15m.html</text><text id="details" fill="rgb(0,0,0)" x="10" y="40.00"> </text><text id="unzoom" class="hide" fill="rgb(0,0,0)" x="10" y="24.00">Reset Zoom</text><text id="search" fill="rgb(0,0,0)" x="1190" y="24.00">Search</text><text id="matched" fill="rgb(0,0,0)" x="1190" y="559.00"> </text><svg id="frames" x="10" width="1180" total_samples="91105"><g><title>sample (random.py:473) (168 samples, 0.18%)</title><rect x="0.4347%" y="180" width="0.1844%" height="15" fill="rgb(227,0,7)" fg:x="396" fg:w="168"/><text x="0.6847%" y="190.50"></text></g><g><title>evaluate_select_job (benchmark/locustfile.py:162) (359 samples, 0.39%)</title><rect x="0.3501%" y="164" width="0.3941%" height="15" fill="rgb(217,0,24)" fg:x="319" fg:w="359"/><text x="0.6001%" y="174.50"></text></g><g><title>evaluate_select_job (benchmark/locustfile.py:164) (413 samples, 0.45%)</title><rect x="0.7607%" y="164" width="0.4533%" height="15" fill="rgb(221,193,54)" fg:x="693" fg:w="413"/><text x="1.0107%" y="174.50"></text></g><g><title>check_min_max (matchmaking/models/utils.py:92) (206 samples, 0.23%)</title><rect x="45.3411%" y="212" width="0.2261%" height="15" fill="rgb(248,212,6)" fg:x="41308" fg:w="206"/><text x="45.5911%" y="222.50"></text></g><g><title>__init__ (packaging/version.py:414) (134 samples, 0.15%)</title><rect x="45.9108%" y="228" width="0.1471%" height="15" fill="rgb(208,68,35)" fg:x="41827" fg:w="134"/><text x="46.1608%" y="238.50"></text></g><g><title>__init__ (packaging/version.py:416) (821 samples, 0.90%)</title><rect x="46.0721%" y="228" width="0.9012%" height="15" fill="rgb(232,128,0)" fg:x="41974" fg:w="821"/><text x="46.3221%" y="238.50"></text></g><g><title>validate (matchmaking/models/utils.py:71) (1,320 samples, 1.45%)</title><rect x="45.6342%" y="212" width="1.4489%" height="15" fill="rgb(207,160,47)" fg:x="41575" fg:w="1320"/><text x="45.8842%" y="222.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:26) (1,353 samples, 1.49%)</title><rect x="47.6253%" y="228" width="1.4851%" height="15" fill="rgb(228,23,34)" fg:x="43389" fg:w="1353"/><text x="47.8753%" y="238.50"></text></g><g><title>debug (logging/__init__.py:1476) (155 samples, 0.17%)</title><rect x="54.1738%" y="244" width="0.1701%" height="15" fill="rgb(218,30,26)" fg:x="49355" fg:w="155"/><text x="54.4238%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:39) (4,736 samples, 5.20%)</title><rect x="49.1565%" y="228" width="5.1984%" height="15" fill="rgb(220,122,19)" fg:x="44784" fg:w="4736"/><text x="49.4065%" y="238.50">valida..</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:40) (378 samples, 0.41%)</title><rect x="54.3549%" y="228" width="0.4149%" height="15" fill="rgb(250,228,42)" fg:x="49520" fg:w="378"/><text x="54.6049%" y="238.50"></text></g><g><title>normalize_tag_expression (matchmaking/logic/tags.py:23) (327 samples, 0.36%)</title><rect x="54.4108%" y="244" width="0.3589%" height="15" fill="rgb(240,193,28)" fg:x="49571" fg:w="327"/><text x="54.6608%" y="254.50"></text></g><g><title>debug (logging/__init__.py:1476) (98 samples, 0.11%)</title><rect x="54.9344%" y="244" width="0.1076%" height="15" fill="rgb(216,20,37)" fg:x="50048" fg:w="98"/><text x="55.1844%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:41) (253 samples, 0.28%)</title><rect x="54.7698%" y="228" width="0.2777%" height="15" fill="rgb(206,188,39)" fg:x="49898" fg:w="253"/><text x="55.0198%" y="238.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:43) (110 samples, 0.12%)</title><rect x="55.0475%" y="228" width="0.1207%" height="15" fill="rgb(217,207,13)" fg:x="50151" fg:w="110"/><text x="55.2975%" y="238.50"></text></g><g><title>_compile (re/__init__.py:274) (3,005 samples, 3.30%)</title><rect x="57.4326%" y="260" width="3.2984%" height="15" fill="rgb(231,73,38)" fg:x="52324" fg:w="3005"/><text x="57.6826%" y="270.50">_co..</text></g><g><title>_compile (re/__init__.py:277) (172 samples, 0.19%)</title><rect x="60.7398%" y="260" width="0.1888%" height="15" fill="rgb(225,20,46)" fg:x="55337" fg:w="172"/><text x="60.9898%" y="270.50"></text></g><g><title>repl_token (matchmaking/logic/tags.py:44) (630 samples, 0.69%)</title><rect x="60.9714%" y="260" width="0.6915%" height="15" fill="rgb(210,31,41)" fg:x="55548" fg:w="630"/><text x="61.2214%" y="270.50"></text></g><g><title>repl_token (matchmaking/logic/tags.py:45) (211 samples, 0.23%)</title><rect x="61.6629%" y="260" width="0.2316%" height="15" fill="rgb(221,200,47)" fg:x="56178" fg:w="211"/><text x="61.9129%" y="270.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:50) (6,147 samples, 6.75%)</title><rect x="55.1682%" y="228" width="6.7472%" height="15" fill="rgb(226,26,5)" fg:x="50261" fg:w="6147"/><text x="55.4182%" y="238.50">validate_..</text></g><g><title>sub (re/__init__.py:185) (6,018 samples, 6.61%)</title><rect x="55.3098%" y="244" width="6.6056%" height="15" fill="rgb(249,33,26)" fg:x="50390" fg:w="6018"/><text x="55.5598%" y="254.50">sub (re/_..</text></g><g><title>debug (logging/__init__.py:1476) (102 samples, 0.11%)</title><rect x="62.0954%" y="244" width="0.1120%" height="15" fill="rgb(235,183,28)" fg:x="56572" fg:w="102"/><text x="62.3454%" y="254.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:51) (279 samples, 0.31%)</title><rect x="61.9154%" y="228" width="0.3062%" height="15" fill="rgb(221,5,38)" fg:x="56408" fg:w="279"/><text x="62.1654%" y="238.50"></text></g><g><title>parse (ast.py:50) (18,903 samples, 20.75%)</title><rect x="62.5652%" y="244" width="20.7486%" height="15" fill="rgb(247,18,42)" fg:x="57000" fg:w="18903"/><text x="62.8152%" y="254.50">parse (ast.py:50)</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:54) (19,203 samples, 21.08%)</title><rect x="62.2370%" y="228" width="21.0779%" height="15" fill="rgb(241,131,45)" fg:x="56701" fg:w="19203"/><text x="62.4870%" y="238.50">validate_tag_expression (matchmak..</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:59) (655 samples, 0.72%)</title><rect x="83.3379%" y="228" width="0.7190%" height="15" fill="rgb(249,31,29)" fg:x="75925" fg:w="655"/><text x="83.5879%" y="238.50"></text></g><g><title>debug (logging/__init__.py:1476) (110 samples, 0.12%)</title><rect x="84.6990%" y="260" width="0.1207%" height="15" fill="rgb(225,111,53)" fg:x="77165" fg:w="110"/><text x="84.9490%" y="270.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (631 samples, 0.69%)</title><rect x="84.1359%" y="244" width="0.6926%" height="15" fill="rgb(238,160,17)" fg:x="76652" fg:w="631"/><text x="84.3859%" y="254.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (510 samples, 0.56%)</title><rect x="84.9844%" y="260" width="0.5598%" height="15" fill="rgb(214,148,48)" fg:x="77425" fg:w="510"/><text x="85.2344%" y="270.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:64) (307 samples, 0.34%)</title><rect x="85.6484%" y="260" width="0.3370%" height="15" fill="rgb(232,36,49)" fg:x="78030" fg:w="307"/><text x="85.8984%" y="270.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:65) (123 samples, 0.14%)</title><rect x="85.9854%" y="260" width="0.1350%" height="15" fill="rgb(209,103,24)" fg:x="78337" fg:w="123"/><text x="86.2354%" y="270.50"></text></g><g><title>debug (logging/__init__.py:1476) (219 samples, 0.24%)</title><rect x="86.9250%" y="292" width="0.2404%" height="15" fill="rgb(229,88,8)" fg:x="79193" fg:w="219"/><text x="87.1750%" y="302.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (832 samples, 0.91%)</title><rect x="86.2697%" y="276" width="0.9132%" height="15" fill="rgb(213,181,19)" fg:x="78596" fg:w="832"/><text x="86.5197%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:61) (143 samples, 0.16%)</title><rect x="87.1829%" y="276" width="0.1570%" height="15" fill="rgb(254,191,54)" fg:x="79428" fg:w="143"/><text x="87.4329%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:63) (93 samples, 0.10%)</title><rect x="87.3465%" y="276" width="0.1021%" height="15" fill="rgb(241,83,37)" fg:x="79577" fg:w="93"/><text x="87.5965%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:60) (103 samples, 0.11%)</title><rect x="87.5177%" y="292" width="0.1131%" height="15" fill="rgb(233,36,39)" fg:x="79733" fg:w="103"/><text x="87.7677%" y="302.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:66) (218 samples, 0.24%)</title><rect x="87.5034%" y="276" width="0.2393%" height="15" fill="rgb(226,3,54)" fg:x="79720" fg:w="218"/><text x="87.7534%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:67) (116 samples, 0.13%)</title><rect x="87.7427%" y="276" width="0.1273%" height="15" fill="rgb(245,192,40)" fg:x="79938" fg:w="116"/><text x="87.9927%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:73) (116 samples, 0.13%)</title><rect x="87.8788%" y="276" width="0.1273%" height="15" fill="rgb(238,167,29)" fg:x="80062" fg:w="116"/><text x="88.1288%" y="286.50"></text></g><g><title>debug (logging/__init__.py:1476) (219 samples, 0.24%)</title><rect x="88.4924%" y="292" width="0.2404%" height="15" fill="rgb(232,182,51)" fg:x="80621" fg:w="219"/><text x="88.7424%" y="302.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:79) (581 samples, 0.64%)</title><rect x="88.1137%" y="276" width="0.6377%" height="15" fill="rgb(231,60,39)" fg:x="80276" fg:w="581"/><text x="88.3637%" y="286.50"></text></g><g><title>check_tree_node (matchmaking/logic/tags.py:80) (139 samples, 0.15%)</title><rect x="88.7514%" y="276" width="0.1526%" height="15" fill="rgb(208,69,12)" fg:x="80857" fg:w="139"/><text x="89.0014%" y="286.50"></text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:88) (4,425 samples, 4.86%)</title><rect x="84.0569%" y="228" width="4.8570%" height="15" fill="rgb(235,93,37)" fg:x="76580" fg:w="4425"/><text x="84.3069%" y="238.50">valida..</text></g><g><title>check_tree_node (matchmaking/logic/tags.py:62) (3,669 samples, 4.03%)</title><rect x="84.8867%" y="244" width="4.0272%" height="15" fill="rgb(213,116,39)" fg:x="77336" fg:w="3669"/><text x="85.1367%" y="254.50">chec..</text></g><g><title>check_tree_node (matchmaking/logic/tags.py:66) (2,545 samples, 2.79%)</title><rect x="86.1204%" y="260" width="2.7935%" height="15" fill="rgb(222,207,29)" fg:x="78460" fg:w="2545"/><text x="86.3704%" y="270.50">ch..</text></g><g><title>debug (logging/__init__.py:1476) (97 samples, 0.11%)</title><rect x="89.0269%" y="244" width="0.1065%" height="15" fill="rgb(206,96,30)" fg:x="81108" fg:w="97"/><text x="89.2769%" y="254.50"></text></g><g><title>validate_tags (matchmaking/models/job.py:97) (38,196 samples, 41.93%)</title><rect x="47.2115%" y="212" width="41.9253%" height="15" fill="rgb(218,138,4)" fg:x="43012" fg:w="38196"/><text x="47.4615%" y="222.50">validate_tags (matchmaking/models/job.py:97)</text></g><g><title>validate_tag_expression (matchmaking/logic/tags.py:89) (203 samples, 0.22%)</title><rect x="88.9139%" y="228" width="0.2228%" height="15" fill="rgb(250,191,14)" fg:x="81005" fg:w="203"/><text x="89.1639%" y="238.50"></text></g><g><title>model_validate_json (pydantic/main.py:782) (71,210 samples, 78.16%)</title><rect x="10.9840%" y="196" width="78.1626%" height="15" fill="rgb(239,60,40)" fg:x="10007" fg:w="71210"/><text x="11.2340%" y="206.50">model_validate_json (pydantic/main.py:782)</text></g><g><title>evaluate_select_job (benchmark/locustfile.py:166) (80,124 samples, 87.95%)</title><rect x="1.2140%" y="164" width="87.9469%" height="15" fill="rgb(206,27,48)" fg:x="1106" fg:w="80124"/><text x="1.4640%" y="174.50">evaluate_select_job (benchmark/locustfile.py:166)</text></g><g><title>&lt;listcomp&gt; (benchmark/locustfile.py:166) (71,880 samples, 78.90%)</title><rect x="10.2629%" y="180" width="78.8980%" height="15" fill="rgb(225,35,8)" fg:x="9350" fg:w="71880"/><text x="10.5129%" y="190.50">&lt;listcomp&gt; (benchmark/locustfile.py:166)</text></g><g><title>is_matching (matchmaking/core/match.py:255) (234 samples, 0.26%)</title><rect x="89.6295%" y="212" width="0.2568%" height="15" fill="rgb(250,213,24)" fg:x="81657" fg:w="234"/><text x="89.8795%" y="222.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:121) (269 samples, 0.30%)</title><rect x="90.6877%" y="244" width="0.2953%" height="15" fill="rgb(247,123,22)" fg:x="82621" fg:w="269"/><text x="90.9377%" y="254.50"></text></g><g><title>sub (re/__init__.py:185) (260 samples, 0.29%)</title><rect x="90.6975%" y="260" width="0.2854%" height="15" fill="rgb(231,138,38)" fg:x="82630" fg:w="260"/><text x="90.9475%" y="270.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:146) (481 samples, 0.53%)</title><rect x="91.0301%" y="244" width="0.5280%" height="15" fill="rgb(231,145,46)" fg:x="82933" fg:w="481"/><text x="91.2801%" y="254.50"></text></g><g><title>parse (ast.py:50) (454 samples, 0.50%)</title><rect x="91.0598%" y="260" width="0.4983%" height="15" fill="rgb(251,118,11)" fg:x="82960" fg:w="454"/><text x="91.3098%" y="270.50"></text></g><g><title>evaluate_tag_expression (matchmaking/logic/tags.py:147) (273 samples, 0.30%)</title><rect x="91.5581%" y="244" width="0.2997%" height="15" fill="rgb(217,147,25)" fg:x="83414" fg:w="273"/><text x="91.8081%" y="254.50"></text></g><g><title>evaluate_node (matchmaking/logic/tags.py:133) (196 samples, 0.22%)</title><rect x="91.6426%" y="260" width="0.2151%" height="15" fill="rgb(247,81,37)" fg:x="83491" fg:w="196"/><text x="91.8926%" y="270.50"></text></g><g><title>&lt;genexpr&gt; (matchmaking/logic/tags.py:133) (155 samples, 0.17%)</title><rect x="91.6876%" y="276" width="0.1701%" height="15" fill="rgb(209,12,38)" fg:x="83532" fg:w="155"/><text x="91.9376%" y="286.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:237) (1,222 samples, 1.34%)</title><rect x="90.5527%" y="228" width="1.3413%" height="15" fill="rgb(227,1,9)" fg:x="82498" fg:w="1222"/><text x="90.8027%" y="238.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:72) (271 samples, 0.30%)</title><rect x="91.9126%" y="228" width="0.2975%" height="15" fill="rgb(248,47,43)" fg:x="83737" fg:w="271"/><text x="92.1626%" y="238.50"></text></g><g><title>is_valid_job_specs_with_node (matchmaking/core/match.py:73) (206 samples, 0.23%)</title><rect x="92.2101%" y="228" width="0.2261%" height="15" fill="rgb(221,10,30)" fg:x="84008" fg:w="206"/><text x="92.4601%" y="238.50"></text></g><g><title>is_matching (matchmaking/core/match.py:256) (2,428 samples, 2.67%)</title><rect x="89.8864%" y="212" width="2.6651%" height="15" fill="rgb(210,229,1)" fg:x="81891" fg:w="2428"/><text x="90.1364%" y="222.50">is..</text></g><g><title>select_job (matchmaking/core/main.py:34) (3,053 samples, 3.35%)</title><rect x="89.2443%" y="180" width="3.3511%" height="15" fill="rgb(222,148,37)" fg:x="81306" fg:w="3053"/><text x="89.4943%" y="190.50">sel..</text></g><g><title>&lt;listcomp&gt; (matchmaking/core/main.py:34) (3,045 samples, 3.34%)</title><rect x="89.2531%" y="196" width="3.3423%" height="15" fill="rgb(234,67,33)" fg:x="81314" fg:w="3045"/><text x="89.5031%" y="206.50">&lt;li..</text></g><g><title>select_job (matchmaking/core/main.py:35) (169 samples, 0.19%)</title><rect x="92.5954%" y="180" width="0.1855%" height="15" fill="rgb(247,98,35)" fg:x="84359" fg:w="169"/><text x="92.8454%" y="190.50"></text></g><g><title>&lt;listcomp&gt; (matchmaking/core/main.py:35) (169 samples, 0.19%)</title><rect x="92.5954%" y="196" width="0.1855%" height="15" fill="rgb(247,138,52)" fg:x="84359" fg:w="169"/><text x="92.8454%" y="206.50"></text></g><g><title>load_from_yaml (matchmaking/models/config.py:44) (139 samples, 0.15%)</title><rect x="92.9872%" y="212" width="0.1526%" height="15" fill="rgb(213,79,30)" fg:x="84716" fg:w="139"/><text x="93.2372%" y="222.50"></text></g><g><title>__init__ (yaml/loader.py:34) (130 samples, 0.14%)</title><rect x="93.1530%" y="260" width="0.1427%" height="15" fill="rgb(246,177,23)" fg:x="84867" fg:w="130"/><text x="93.4030%" y="270.50"></text></g><g><title>__init__ (yaml/reader.py:85) (114 samples, 0.13%)</title><rect x="93.1705%" y="276" width="0.1251%" height="15" fill="rgb(230,62,27)" fg:x="84883" fg:w="114"/><text x="93.4205%" y="286.50"></text></g><g><title>load (yaml/__init__.py:79) (185 samples, 0.20%)</title><rect x="93.1464%" y="244" width="0.2031%" height="15" fill="rgb(216,154,8)" fg:x="84861" fg:w="185"/><text x="93.3964%" y="254.50"></text></g><g><title>check_token (yaml/scanner.py:116) (112 samples, 0.12%)</title><rect x="93.4460%" y="324" width="0.1229%" height="15" fill="rgb(244,35,45)" fg:x="85134" fg:w="112"/><text x="93.6960%" y="334.50"></text></g><g><title>parse_implicit_document_start (yaml/parser.py:142) (123 samples, 0.14%)</title><rect x="93.4361%" y="308" width="0.1350%" height="15" fill="rgb(251,115,12)" fg:x="85125" fg:w="123"/><text x="93.6861%" y="318.50"></text></g><g><title>get_single_node (yaml/composer.py:35) (145 samples, 0.16%)</title><rect x="93.4318%" y="276" width="0.1592%" height="15" fill="rgb(240,54,50)" fg:x="85121" fg:w="145"/><text x="93.6818%" y="286.50"></text></g><g><title>check_event (yaml/parser.py:98) (141 samples, 0.15%)</title><rect x="93.4361%" y="292" width="0.1548%" height="15" fill="rgb(233,84,52)" fg:x="85125" fg:w="141"/><text x="93.6861%" y="302.50"></text></g><g><title>compose_node (yaml/composer.py:64) (118 samples, 0.13%)</title><rect x="93.7786%" y="340" width="0.1295%" height="15" fill="rgb(207,117,47)" fg:x="85437" fg:w="118"/><text x="94.0286%" y="350.50"></text></g><g><title>check_event (yaml/parser.py:98) (117 samples, 0.13%)</title><rect x="93.7797%" y="356" width="0.1284%" height="15" fill="rgb(249,43,39)" fg:x="85438" fg:w="117"/><text x="94.0297%" y="366.50"></text></g><g><title>check_token (yaml/scanner.py:116) (95 samples, 0.10%)</title><rect x="93.9663%" y="404" width="0.1043%" height="15" fill="rgb(209,38,44)" fg:x="85608" fg:w="95"/><text x="94.2163%" y="414.50"></text></g><g><title>parse_block_sequence_entry (yaml/parser.py:382) (120 samples, 0.13%)</title><rect x="93.9411%" y="388" width="0.1317%" height="15" fill="rgb(236,212,23)" fg:x="85585" fg:w="120"/><text x="94.1911%" y="398.50"></text></g><g><title>check_token (yaml/scanner.py:116) (246 samples, 0.27%)</title><rect x="94.1134%" y="404" width="0.2700%" height="15" fill="rgb(242,79,21)" fg:x="85742" fg:w="246"/><text x="94.3634%" y="414.50"></text></g><g><title>fetch_more_tokens (yaml/scanner.py:255) (203 samples, 0.22%)</title><rect x="94.1606%" y="420" width="0.2228%" height="15" fill="rgb(211,96,35)" fg:x="85785" fg:w="203"/><text x="94.4106%" y="430.50"></text></g><g><title>fetch_plain (yaml/scanner.py:679) (181 samples, 0.20%)</title><rect x="94.1847%" y="436" width="0.1987%" height="15" fill="rgb(253,215,40)" fg:x="85807" fg:w="181"/><text x="94.4347%" y="446.50"></text></g><g><title>parse_block_sequence_entry (yaml/parser.py:384) (268 samples, 0.29%)</title><rect x="94.0903%" y="388" width="0.2942%" height="15" fill="rgb(211,81,21)" fg:x="85721" fg:w="268"/><text x="94.3403%" y="398.50"></text></g><g><title>compose_sequence_node (yaml/composer.py:110) (574 samples, 0.63%)</title><rect x="93.9180%" y="356" width="0.6300%" height="15" fill="rgb(208,190,38)" fg:x="85564" fg:w="574"/><text x="94.1680%" y="366.50"></text></g><g><title>check_event (yaml/parser.py:98) (562 samples, 0.62%)</title><rect x="93.9312%" y="372" width="0.6169%" height="15" fill="rgb(235,213,38)" fg:x="85576" fg:w="562"/><text x="94.1812%" y="382.50"></text></g><g><title>compose_node (yaml/composer.py:82) (621 samples, 0.68%)</title><rect x="93.9125%" y="340" width="0.6816%" height="15" fill="rgb(237,122,38)" fg:x="85559" fg:w="621"/><text x="94.1625%" y="350.50"></text></g><g><title>parse_block_mapping_key (yaml/parser.py:428) (93 samples, 0.10%)</title><rect x="94.6315%" y="388" width="0.1021%" height="15" fill="rgb(244,218,35)" fg:x="86214" fg:w="93"/><text x="94.8815%" y="398.50"></text></g><g><title>check_event (yaml/parser.py:98) (236 samples, 0.26%)</title><rect x="94.5985%" y="372" width="0.2590%" height="15" fill="rgb(240,68,47)" fg:x="86184" fg:w="236"/><text x="94.8485%" y="382.50"></text></g><g><title>compose_mapping_node (yaml/composer.py:127) (239 samples, 0.26%)</title><rect x="94.5963%" y="356" width="0.2623%" height="15" fill="rgb(210,16,53)" fg:x="86182" fg:w="239"/><text x="94.8463%" y="366.50"></text></g><g><title>check_token (yaml/scanner.py:116) (315 samples, 0.35%)</title><rect x="94.9937%" y="420" width="0.3458%" height="15" fill="rgb(235,124,12)" fg:x="86544" fg:w="315"/><text x="95.2437%" y="430.50"></text></g><g><title>fetch_more_tokens (yaml/scanner.py:255) (163 samples, 0.18%)</title><rect x="95.1605%" y="436" width="0.1789%" height="15" fill="rgb(224,169,11)" fg:x="86696" fg:w="163"/><text x="95.4105%" y="446.50"></text></g><g><title>fetch_plain (yaml/scanner.py:679) (144 samples, 0.16%)</title><rect x="95.1814%" y="452" width="0.1581%" height="15" fill="rgb(250,166,2)" fg:x="86715" fg:w="144"/><text x="95.4314%" y="462.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:449) (359 samples, 0.39%)</title><rect x="94.9509%" y="404" width="0.3941%" height="15" fill="rgb(242,216,29)" fg:x="86505" fg:w="359"/><text x="95.2009%" y="414.50"></text></g><g><title>compose_node (yaml/composer.py:64) (505 samples, 0.55%)</title><rect x="94.9147%" y="372" width="0.5543%" height="15" fill="rgb(230,116,27)" fg:x="86472" fg:w="505"/><text x="95.1647%" y="382.50"></text></g><g><title>check_event (yaml/parser.py:98) (496 samples, 0.54%)</title><rect x="94.9245%" y="388" width="0.5444%" height="15" fill="rgb(228,99,48)" fg:x="86481" fg:w="496"/><text x="95.1745%" y="398.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:451) (113 samples, 0.12%)</title><rect x="95.3449%" y="404" width="0.1240%" height="15" fill="rgb(253,11,6)" fg:x="86864" fg:w="113"/><text x="95.5949%" y="414.50"></text></g><g><title>parse_block_node_or_indentless_sequence (yaml/parser.py:271) (111 samples, 0.12%)</title><rect x="95.3471%" y="420" width="0.1218%" height="15" fill="rgb(247,143,39)" fg:x="86866" fg:w="111"/><text x="95.5971%" y="430.50"></text></g><g><title>parse_block_mapping_first_key (yaml/parser.py:425) (126 samples, 0.14%)</title><rect x="95.5491%" y="420" width="0.1383%" height="15" fill="rgb(236,97,10)" fg:x="87050" fg:w="126"/><text x="95.7991%" y="430.50"></text></g><g><title>compose_mapping_node (yaml/composer.py:127) (216 samples, 0.24%)</title><rect x="95.5074%" y="388" width="0.2371%" height="15" fill="rgb(233,208,19)" fg:x="87012" fg:w="216"/><text x="95.7574%" y="398.50"></text></g><g><title>check_event (yaml/parser.py:98) (210 samples, 0.23%)</title><rect x="95.5140%" y="404" width="0.2305%" height="15" fill="rgb(216,164,2)" fg:x="87018" fg:w="210"/><text x="95.7640%" y="414.50"></text></g><g><title>check_token (yaml/scanner.py:116) (322 samples, 0.35%)</title><rect x="95.8894%" y="452" width="0.3534%" height="15" fill="rgb(220,129,5)" fg:x="87360" fg:w="322"/><text x="96.1394%" y="462.50"></text></g><g><title>fetch_more_tokens (yaml/scanner.py:255) (150 samples, 0.16%)</title><rect x="96.0782%" y="468" width="0.1646%" height="15" fill="rgb(242,17,10)" fg:x="87532" fg:w="150"/><text x="96.3282%" y="478.50"></text></g><g><title>fetch_plain (yaml/scanner.py:679) (139 samples, 0.15%)</title><rect x="96.0902%" y="484" width="0.1526%" height="15" fill="rgb(242,107,0)" fg:x="87543" fg:w="139"/><text x="96.3402%" y="494.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:449) (356 samples, 0.39%)</title><rect x="95.8575%" y="436" width="0.3908%" height="15" fill="rgb(251,28,31)" fg:x="87331" fg:w="356"/><text x="96.1075%" y="446.50"></text></g><g><title>compose_node (yaml/composer.py:64) (530 samples, 0.58%)</title><rect x="95.8048%" y="404" width="0.5817%" height="15" fill="rgb(233,223,10)" fg:x="87283" fg:w="530"/><text x="96.0548%" y="414.50"></text></g><g><title>check_event (yaml/parser.py:98) (520 samples, 0.57%)</title><rect x="95.8158%" y="420" width="0.5708%" height="15" fill="rgb(215,21,27)" fg:x="87293" fg:w="520"/><text x="96.0658%" y="430.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:451) (121 samples, 0.13%)</title><rect x="96.2538%" y="436" width="0.1328%" height="15" fill="rgb(232,23,21)" fg:x="87692" fg:w="121"/><text x="96.5038%" y="446.50"></text></g><g><title>parse_block_node_or_indentless_sequence (yaml/parser.py:271) (121 samples, 0.13%)</title><rect x="96.2538%" y="452" width="0.1328%" height="15" fill="rgb(244,5,23)" fg:x="87692" fg:w="121"/><text x="96.5038%" y="462.50"></text></g><g><title>parse_block_mapping_first_key (yaml/parser.py:425) (113 samples, 0.12%)</title><rect x="96.4755%" y="452" width="0.1240%" height="15" fill="rgb(226,81,46)" fg:x="87894" fg:w="113"/><text x="96.7255%" y="462.50"></text></g><g><title>check_token (yaml/scanner.py:116) (611 samples, 0.67%)</title><rect x="96.6731%" y="468" width="0.6707%" height="15" fill="rgb(247,70,30)" fg:x="88074" fg:w="611"/><text x="96.9231%" y="478.50"></text></g><g><title>fetch_more_tokens (yaml/scanner.py:255) (322 samples, 0.35%)</title><rect x="96.9903%" y="484" width="0.3534%" height="15" fill="rgb(212,68,19)" fg:x="88363" fg:w="322"/><text x="97.2403%" y="494.50"></text></g><g><title>fetch_plain (yaml/scanner.py:679) (274 samples, 0.30%)</title><rect x="97.0430%" y="500" width="0.3008%" height="15" fill="rgb(240,187,13)" fg:x="88411" fg:w="274"/><text x="97.2930%" y="510.50"></text></g><g><title>parse_block_mapping_key (yaml/parser.py:428) (689 samples, 0.76%)</title><rect x="96.5995%" y="452" width="0.7563%" height="15" fill="rgb(223,113,26)" fg:x="88007" fg:w="689"/><text x="96.8495%" y="462.50"></text></g><g><title>parse_block_mapping_key (yaml/parser.py:432) (149 samples, 0.16%)</title><rect x="97.4096%" y="452" width="0.1635%" height="15" fill="rgb(206,192,2)" fg:x="88745" fg:w="149"/><text x="97.6596%" y="462.50"></text></g><g><title>parse_block_node_or_indentless_sequence (yaml/parser.py:271) (146 samples, 0.16%)</title><rect x="97.4129%" y="468" width="0.1603%" height="15" fill="rgb(241,108,4)" fg:x="88748" fg:w="146"/><text x="97.6629%" y="478.50"></text></g><g><title>check_event (yaml/parser.py:98) (1,074 samples, 1.18%)</title><rect x="96.4502%" y="436" width="1.1789%" height="15" fill="rgb(247,173,49)" fg:x="87871" fg:w="1074"/><text x="96.7002%" y="446.50"></text></g><g><title>compose_mapping_node (yaml/composer.py:127) (1,096 samples, 1.20%)</title><rect x="96.4272%" y="420" width="1.2030%" height="15" fill="rgb(224,114,35)" fg:x="87850" fg:w="1096"/><text x="96.6772%" y="430.50"></text></g><g><title>compose_mapping_node (yaml/composer.py:129) (102 samples, 0.11%)</title><rect x="97.6302%" y="420" width="0.1120%" height="15" fill="rgb(245,159,27)" fg:x="88946" fg:w="102"/><text x="97.8802%" y="430.50"></text></g><g><title>scan_plain (yaml/scanner.py:1305) (237 samples, 0.26%)</title><rect x="98.1834%" y="532" width="0.2601%" height="15" fill="rgb(245,172,44)" fg:x="89450" fg:w="237"/><text x="98.4334%" y="542.50"></text></g><g><title>check_token (yaml/scanner.py:116) (530 samples, 0.58%)</title><rect x="97.8805%" y="484" width="0.5817%" height="15" fill="rgb(236,23,11)" fg:x="89174" fg:w="530"/><text x="98.1305%" y="494.50"></text></g><g><title>fetch_more_tokens (yaml/scanner.py:255) (425 samples, 0.47%)</title><rect x="97.9957%" y="500" width="0.4665%" height="15" fill="rgb(205,117,38)" fg:x="89279" fg:w="425"/><text x="98.2457%" y="510.50"></text></g><g><title>fetch_plain (yaml/scanner.py:679) (407 samples, 0.45%)</title><rect x="98.0155%" y="516" width="0.4467%" height="15" fill="rgb(237,72,25)" fg:x="89297" fg:w="407"/><text x="98.2655%" y="526.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:449) (580 samples, 0.64%)</title><rect x="97.8377%" y="468" width="0.6366%" height="15" fill="rgb(244,70,9)" fg:x="89135" fg:w="580"/><text x="98.0877%" y="478.50"></text></g><g><title>compose_node (yaml/composer.py:64) (906 samples, 0.99%)</title><rect x="97.7520%" y="436" width="0.9945%" height="15" fill="rgb(217,125,39)" fg:x="89057" fg:w="906"/><text x="98.0020%" y="446.50"></text></g><g><title>check_event (yaml/parser.py:98) (894 samples, 0.98%)</title><rect x="97.7652%" y="452" width="0.9813%" height="15" fill="rgb(235,36,10)" fg:x="89069" fg:w="894"/><text x="98.0152%" y="462.50"></text></g><g><title>parse_block_mapping_value (yaml/parser.py:451) (244 samples, 0.27%)</title><rect x="98.4787%" y="468" width="0.2678%" height="15" fill="rgb(251,123,47)" fg:x="89719" fg:w="244"/><text x="98.7287%" y="478.50"></text></g><g><title>parse_block_node_or_indentless_sequence (yaml/parser.py:271) (241 samples, 0.26%)</title><rect x="98.4820%" y="484" width="0.2645%" height="15" fill="rgb(221,13,13)" fg:x="89722" fg:w="241"/><text x="98.7320%" y="494.50"></text></g><g><title>compose_scalar_node (yaml/composer.py:92) (110 samples, 0.12%)</title><rect x="98.7805%" y="452" width="0.1207%" height="15" fill="rgb(238,131,9)" fg:x="89994" fg:w="110"/><text x="99.0305%" y="462.50"></text></g><g><title>compose_node (yaml/composer.py:80) (137 samples, 0.15%)</title><rect x="98.7706%" y="436" width="0.1504%" height="15" fill="rgb(211,50,8)" fg:x="89985" fg:w="137"/><text x="99.0206%" y="446.50"></text></g><g><title>compose_mapping_node (yaml/composer.py:133) (1,081 samples, 1.19%)</title><rect x="97.7422%" y="420" width="1.1865%" height="15" fill="rgb(245,182,24)" fg:x="89048" fg:w="1081"/><text x="97.9922%" y="430.50"></text></g><g><title>compose_node (yaml/composer.py:84) (2,302 samples, 2.53%)</title><rect x="96.4063%" y="404" width="2.5268%" height="15" fill="rgb(242,14,37)" fg:x="87831" fg:w="2302"/><text x="96.6563%" y="414.50">co..</text></g><g><title>compose_mapping_node (yaml/composer.py:133) (2,860 samples, 3.14%)</title><rect x="95.7961%" y="388" width="3.1392%" height="15" fill="rgb(246,228,12)" fg:x="87275" fg:w="2860"/><text x="96.0461%" y="398.50">com..</text></g><g><title>compose_node (yaml/composer.py:84) (3,147 samples, 3.45%)</title><rect x="95.4854%" y="372" width="3.4543%" height="15" fill="rgb(213,55,15)" fg:x="86992" fg:w="3147"/><text x="95.7354%" y="382.50">com..</text></g><g><title>compose_node (yaml/composer.py:84) (3,962 samples, 4.35%)</title><rect x="94.5941%" y="340" width="4.3488%" height="15" fill="rgb(209,9,3)" fg:x="86180" fg:w="3962"/><text x="94.8441%" y="350.50">compo..</text></g><g><title>compose_mapping_node (yaml/composer.py:133) (3,675 samples, 4.03%)</title><rect x="94.9092%" y="356" width="4.0338%" height="15" fill="rgb(230,59,30)" fg:x="86467" fg:w="3675"/><text x="95.1592%" y="366.50">comp..</text></g><g><title>compose_document (yaml/composer.py:55) (4,875 samples, 5.35%)</title><rect x="93.5931%" y="292" width="5.3510%" height="15" fill="rgb(209,121,21)" fg:x="85268" fg:w="4875"/><text x="93.8431%" y="302.50">compose..</text></g><g><title>compose_node (yaml/composer.py:84) (4,826 samples, 5.30%)</title><rect x="93.6469%" y="308" width="5.2972%" height="15" fill="rgb(220,109,13)" fg:x="85317" fg:w="4826"/><text x="93.8969%" y="318.50">compos..</text></g><g><title>compose_mapping_node (yaml/composer.py:133) (4,707 samples, 5.17%)</title><rect x="93.7775%" y="324" width="5.1666%" height="15" fill="rgb(232,18,1)" fg:x="85436" fg:w="4707"/><text x="94.0275%" y="334.50">compos..</text></g><g><title>get_single_node (yaml/composer.py:36) (4,886 samples, 5.36%)</title><rect x="93.5909%" y="276" width="5.3630%" height="15" fill="rgb(215,41,42)" fg:x="85266" fg:w="4886"/><text x="93.8409%" y="286.50">get_sin..</text></g><g><title>get_single_data (yaml/constructor.py:49) (5,074 samples, 5.57%)</title><rect x="93.3911%" y="260" width="5.5694%" height="15" fill="rgb(224,123,36)" fg:x="85084" fg:w="5074"/><text x="93.6411%" y="270.50">get_sin..</text></g><g><title>construct_mapping (yaml/constructor.py:143) (118 samples, 0.13%)</title><rect x="99.1910%" y="324" width="0.1295%" height="15" fill="rgb(240,125,3)" fg:x="90368" fg:w="118"/><text x="99.4410%" y="334.50"></text></g><g><title>construct_yaml_map (yaml/constructor.py:413) (310 samples, 0.34%)</title><rect x="98.9891%" y="292" width="0.3403%" height="15" fill="rgb(205,98,50)" fg:x="90184" fg:w="310"/><text x="99.2391%" y="302.50"></text></g><g><title>construct_mapping (yaml/constructor.py:218) (278 samples, 0.31%)</title><rect x="99.0242%" y="308" width="0.3051%" height="15" fill="rgb(205,185,37)" fg:x="90216" fg:w="278"/><text x="99.2742%" y="318.50"></text></g><g><title>construct_document (yaml/constructor.py:60) (353 samples, 0.39%)</title><rect x="98.9825%" y="276" width="0.3875%" height="15" fill="rgb(238,207,15)" fg:x="90178" fg:w="353"/><text x="99.2325%" y="286.50"></text></g><g><title>load (yaml/__init__.py:81) (5,488 samples, 6.02%)</title><rect x="93.3494%" y="244" width="6.0238%" height="15" fill="rgb(213,199,42)" fg:x="85046" fg:w="5488"/><text x="93.5994%" y="254.50">load (ya..</text></g><g><title>get_single_data (yaml/constructor.py:51) (376 samples, 0.41%)</title><rect x="98.9605%" y="260" width="0.4127%" height="15" fill="rgb(235,201,11)" fg:x="90158" fg:w="376"/><text x="99.2105%" y="270.50"></text></g><g><title>load_from_yaml (matchmaking/models/config.py:45) (5,680 samples, 6.23%)</title><rect x="93.1398%" y="212" width="6.2346%" height="15" fill="rgb(207,46,11)" fg:x="84855" fg:w="5680"/><text x="93.3898%" y="222.50">load_fro..</text></g><g><title>safe_load (yaml/__init__.py:125) (5,678 samples, 6.23%)</title><rect x="93.1420%" y="228" width="6.2324%" height="15" fill="rgb(241,35,35)" fg:x="84857" fg:w="5678"/><text x="93.3920%" y="238.50">safe_loa..</text></g><g><title>get_selection_configuration (matchmaking/core/utils.py:71) (6,154 samples, 6.75%)</title><rect x="92.7863%" y="196" width="6.7548%" height="15" fill="rgb(243,32,47)" fg:x="84533" fg:w="6154"/><text x="93.0363%" y="206.50">get_selec..</text></g><g><title>load_from_yaml (matchmaking/models/config.py:47) (152 samples, 0.17%)</title><rect x="99.3743%" y="212" width="0.1668%" height="15" fill="rgb(247,202,23)" fg:x="90535" fg:w="152"/><text x="99.6243%" y="222.50"></text></g><g><title>model_validate (pydantic/main.py:732) (139 samples, 0.15%)</title><rect x="99.3886%" y="228" width="0.1526%" height="15" fill="rgb(219,102,11)" fg:x="90548" fg:w="139"/><text x="99.6386%" y="238.50"></text></g><g><title>select_job (matchmaking/core/main.py:40) (6,161 samples, 6.76%)</title><rect x="92.7831%" y="180" width="6.7625%" height="15" fill="rgb(243,110,44)" fg:x="84530" fg:w="6161"/><text x="93.0331%" y="190.50">select_jo..</text></g><g><title>evaluate_select_job (benchmark/locustfile.py:173) (9,647 samples, 10.59%)</title><rect x="89.1663%" y="164" width="10.5889%" height="15" fill="rgb(222,74,54)" fg:x="81235" fg:w="9647"/><text x="89.4163%" y="174.50">evaluate_select..</text></g><g><title>run (locust/user/task.py:363) (90,672 samples, 99.52%)</title><rect x="0.3128%" y="116" width="99.5247%" height="15" fill="rgb(216,99,12)" fg:x="285" fg:w="90672"/><text x="0.5628%" y="126.50">run (locust/user/task.py:363)</text></g><g><title>execute_next_task (locust/user/task.py:396) (90,671 samples, 99.52%)</title><rect x="0.3139%" y="132" width="99.5236%" height="15" fill="rgb(226,22,26)" fg:x="286" fg:w="90671"/><text x="0.5639%" y="142.50">execute_next_task (locust/user/task.py:396)</text></g><g><title>execute_task (locust/user/task.py:513) (90,670 samples, 99.52%)</title><rect x="0.3150%" y="148" width="99.5225%" height="15" fill="rgb(217,163,10)" fg:x="287" fg:w="90670"/><text x="0.5650%" y="158.50">execute_task (locust/user/task.py:513)</text></g><g><title>_sleep (locust/user/task.py:471) (108 samples, 0.12%)</title><rect x="99.8474%" y="148" width="0.1185%" height="15" fill="rgb(213,25,53)" fg:x="90966" fg:w="108"/><text x="100.0974%" y="158.50"></text></g><g><title>wait (locust/user/task.py:465) (128 samples, 0.14%)</title><rect x="99.8452%" y="132" width="0.1405%" height="15" fill="rgb(252,105,26)" fg:x="90964" fg:w="128"/><text x="100.0952%" y="142.50"></text></g><g><title>run_user (locust/user/users.py:199) (90,834 samples, 99.70%)</title><rect x="0.2876%" y="84" width="99.7025%" height="15" fill="rgb(220,39,43)" fg:x="262" fg:w="90834"/><text x="0.5376%" y="94.50">run_user (locust/user/users.py:199)</text></g><g><title>run (locust/user/users.py:167) (90,833 samples, 99.70%)</title><rect x="0.2887%" y="100" width="99.7014%" height="15" fill="rgb(229,68,48)" fg:x="263" fg:w="90833"/><text x="0.5387%" y="110.50">run (locust/user/users.py:167)</text></g><g><title>run (locust/user/task.py:369) (139 samples, 0.15%)</title><rect x="99.8376%" y="116" width="0.1526%" height="15" fill="rgb(252,8,32)" fg:x="90957" fg:w="139"/><text x="100.0876%" y="126.50"></text></g><g><title>all (91,105 samples, 100%)</title><rect x="0.0000%" y="52" width="100.0000%" height="15" fill="rgb(223,20,43)" fg:x="0" fg:w="91105"/><text x="0.2500%" y="62.50"></text></g><g><title>process 307411:&quot;&quot; (91,105 samples, 100.00%)</title><rect x="0.0000%" y="68" width="100.0000%" height="15" fill="rgb(229,81,49)" fg:x="0" fg:w="91105"/><text x="0.2500%" y="78.50">process 307411:&quot;&quot;</text></g></svg></svg>

@@ -21,7 +21,7 @@ def main():
     parser.add_argument(
         "--log-level",
         default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
         help="Logging verbosity level.",
     )
 
@@ -43,5 +43,5 @@ def main():
         logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()

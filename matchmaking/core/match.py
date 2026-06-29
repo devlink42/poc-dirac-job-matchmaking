@@ -23,11 +23,11 @@ def is_valid_job(job: str) -> bool:
     try:
         job_obj = Job.load_from_yaml(job)
         job_id = job_obj.job_id or Path(job).stem
-        logger.info(f"Job {job_id} is VALID.")
+        logger.info("Job %s is VALID.", job_id)
 
         return True
     except Exception as e:
-        logger.error(f"Error validating job specification: {e}")
+        logger.error("Error validating job specification: %s", e)
 
         return False
 
@@ -43,11 +43,11 @@ def is_valid_node(node: str) -> bool:
     """
     try:
         Node.load_from_yaml(node)
-        logger.info(f"Node file {node} is VALID.")
+        logger.info("Node file %s is VALID.", node)
 
         return True
     except Exception as e:
-        logger.error(f"Error validating node: {e}")
+        logger.error("Error validating node: %s", e)
 
         return False
 
@@ -70,41 +70,45 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     """
     # Site check
     if job_specs.site and job_specs.site != node.site:
-        logger.warning(f"Job {job_id} requires to be on site {job_specs.site}, skipping...")
+        logger.info("Job %s requires to be on site %s, skipping...", job_id, job_specs.site)
 
         return False
 
     # System check
     if job_specs.system.name != node.system.name:
-        logger.warning(f"Job {job_id} requires to be on system {job_specs.system.name}, skipping...")
+        logger.info("Job %s requires to be on system %s, skipping...", job_id, job_specs.system.name)
 
         return False
 
     if job_specs.system.glibc and node.system.glibc < job_specs.system.glibc:
-        logger.warning(f"Job {job_id} requires glibc >= {job_specs.system.glibc}, skipping...")
+        logger.info("Job %s requires glibc >= %s, skipping...", job_id, job_specs.system.glibc)
 
         return False
 
     if job_specs.system.user_namespaces and not node.system.user_namespaces:
-        logger.warning(f"Job {job_id} requires user namespaces to be {job_specs.system.user_namespaces}, skipping...")
+        logger.info(
+            "Job %s requires user namespaces to be %s, skipping...",
+            job_id,
+            job_specs.system.user_namespaces,
+        )
 
         return False
 
     # Wall time check
     if job_specs.wall_time and node.wall_time < job_specs.wall_time:
-        logger.warning(f"Job {job_id} requires {job_specs.wall_time} wall time, skipping...")
+        logger.info("Job %s requires %s wall time, skipping...", job_id, job_specs.wall_time)
 
         return False
 
     # CPU work check
     if job_specs.cpu_work and node.cpu_work < job_specs.cpu_work:
-        logger.warning(f"Job {job_id} requires {job_specs.cpu_work} CPU work, skipping...")
+        logger.info("Job %s requires %s CPU work, skipping...", job_id, job_specs.cpu_work)
 
         return False
 
     # CPU Cores check
     if node.cpu.num_cores < job_specs.cpu.num_cores.min:
-        logger.warning(f"Job {job_id} requires at least {job_specs.cpu.num_cores.min} CPU cores, skipping...")
+        logger.info("Job %s requires at least %s CPU cores, skipping...", job_id, job_specs.cpu.num_cores.min)
 
         return False
 
@@ -115,7 +119,7 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
             required_ram_request += job_specs.cpu.ram_mb.request.per_core * job_specs.cpu.num_cores.min
 
         if node.cpu.ram_mb < required_ram_request:
-            logger.warning(f"Job {job_id} requires at least {required_ram_request} MB RAM, skipping...")
+            logger.info("Job %s requires at least %s MB RAM, skipping...", job_id, required_ram_request)
 
             return False
 
@@ -124,20 +128,21 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
             ram_limit += job_specs.cpu.ram_mb.limit.per_core * job_specs.cpu.num_cores.min
 
         if node.cpu.ram_mb < ram_limit:
-            logger.warning(f"Job {job_id} requires at least {ram_limit} MB RAM, skipping...")
+            logger.info("Job %s requires at least %s MB RAM, skipping...", job_id, ram_limit)
 
             return False
 
     # Architecture check
     if job_specs.cpu.architecture.name != node.cpu.architecture.name:
-        logger.warning(f"Job {job_id} requires architecture {job_specs.cpu.architecture.name}, skipping...")
+        logger.info("Job %s requires architecture %s, skipping...", job_id, job_specs.cpu.architecture.name)
 
         return False
 
     if node.cpu.architecture.microarchitecture_level < job_specs.cpu.architecture.microarchitecture_level.min:
-        logger.warning(
-            f"Job {job_id} requires at least microarchitecture level "
-            f"{job_specs.cpu.architecture.microarchitecture_level.min}, skipping..."
+        logger.info(
+            "Job %s requires at least microarchitecture level %s, skipping...",
+            job_id,
+            job_specs.cpu.architecture.microarchitecture_level.min,
         )
 
         return False
@@ -146,9 +151,10 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
         job_specs.cpu.architecture.microarchitecture_level.max
         and node.cpu.architecture.microarchitecture_level > job_specs.cpu.architecture.microarchitecture_level.max
     ):
-        logger.warning(
-            f"Job {job_id} requires at most microarchitecture level "
-            f"{job_specs.cpu.architecture.microarchitecture_level.max}, skipping..."
+        logger.info(
+            "Job %s requires at most microarchitecture level %s, skipping...",
+            job_id,
+            job_specs.cpu.architecture.microarchitecture_level.max,
         )
 
         return False
@@ -156,23 +162,23 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     # GPU check (if required)
     if job_specs.gpu:
         if node.gpu.count < job_specs.gpu.count.min:
-            logger.warning(f"Job {job_id} requires at least {job_specs.gpu.count.min} GPUs, skipping...")
+            logger.info("Job %s requires at least %s GPUs, skipping...", job_id, job_specs.gpu.count.min)
 
             return False
 
         if job_specs.gpu.count.max is not None and node.gpu.count > job_specs.gpu.count.max:
-            logger.warning(f"Job {job_id} requires at most {job_specs.gpu.count.max} GPUs, skipping...")
+            logger.info("Job %s requires at most %s GPUs, skipping...", job_id, job_specs.gpu.count.max)
 
             return False
 
         if node.gpu.count > 0:
             if job_specs.gpu.ram_mb and node.gpu.ram_mb and node.gpu.ram_mb < job_specs.gpu.ram_mb:
-                logger.warning(f"Job {job_id} requires at least {job_specs.gpu.ram_mb} MB GPU RAM, skipping...")
+                logger.info("Job %s requires at least %s MB GPU RAM, skipping...", job_id, job_specs.gpu.ram_mb)
 
                 return False
 
             if job_specs.gpu.vendor != node.gpu.vendor:
-                logger.warning(f"Job {job_id} requires GPU vendor {job_specs.gpu.vendor}, skipping...")
+                logger.info("Job %s requires GPU vendor %s, skipping...", job_id, job_specs.gpu.vendor)
 
                 return False
 
@@ -181,9 +187,10 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability < job_specs.gpu.compute_capability.min
             ):
-                logger.warning(
-                    f"Job {job_id} requires at least compute capability {job_specs.gpu.compute_capability.min}, "
-                    f"skipping..."
+                logger.info(
+                    "Job %s requires at least compute capability %s, skipping...",
+                    job_id,
+                    job_specs.gpu.compute_capability.min,
                 )
 
                 return False
@@ -193,9 +200,10 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
                 and node.gpu.compute_capability
                 and node.gpu.compute_capability > job_specs.gpu.compute_capability.max
             ):
-                logger.warning(
-                    f"Job {job_id} requires at most compute capability {job_specs.gpu.compute_capability.max}, "
-                    f"skipping..."
+                logger.info(
+                    "Job %s requires at most compute capability %s, skipping...",
+                    job_id,
+                    job_specs.gpu.compute_capability.max,
                 )
 
                 return False
@@ -205,8 +213,10 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
                 and node.gpu.driver_version
                 and node.gpu.driver_version < job_specs.gpu.driver_version
             ):
-                logger.warning(
-                    f"Job {job_id} requires at least driver version {job_specs.gpu.driver_version}, skipping..."
+                logger.info(
+                    "Job %s requires at least driver version %s, skipping...",
+                    job_id,
+                    job_specs.gpu.driver_version,
                 )
 
                 return False
@@ -214,18 +224,18 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     # IO check
     if job_specs.io and node.io:
         if node.io.scratch_mb < job_specs.io.scratch_mb:
-            logger.warning(f"Job {job_id} requires at least {job_specs.io.scratch_mb} MB scratch space, skipping...")
+            logger.info("Job %s requires at least %s MB scratch space, skipping...", job_id, job_specs.io.scratch_mb)
 
             return False
 
     # Tags check (all job tags must be present in node tags)
     if job_specs.tags:
         node_tags = set(node.tags)
-        logger.debug(f"Node {node.node_id} has tags: {node_tags}")
-        logger.debug(f"Job {job_id} has tags: {job_specs.tags}")
+        logger.debug("Node %s has tags: %s", node.node_id, node_tags)
+        logger.debug("Job %s has tags: %s", job_id, job_specs.tags)
 
         if not evaluate_tag_expression(job_specs.tags, node_tags):
-            logger.warning(f"Job {job_id} has invalid tag expression, skipping...")
+            logger.info("Job %s has invalid tag expression, skipping...", job_id)
 
             return False
 
@@ -244,7 +254,7 @@ def is_matching(job: Job, node: Node) -> bool:
     """
     for i, job_spec in enumerate(job.matching_specs):
         if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node):
-            logger.info(f"Job: {job.job_id}-{i} matches Node: {node.node_id}.")
+            logger.info("Job: %s-%s matches Node: %s.", job.job_id, i, node.node_id)
 
             return True
 
