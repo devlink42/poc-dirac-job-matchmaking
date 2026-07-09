@@ -14,11 +14,11 @@ the storage layer differs. Equivalence therefore reduces to:
 
 Workflow:
     1. Populate both stores from the same generator seed:
-           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
-           pixi run data_loader --num-jobs 10000000 --num-nodes 50000
+        pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+        pixi run data_loader --num-jobs 10000000 --num-nodes 50000
 
     2. Run the check:
-           pixi run verify_consistency --sample-jobs 5000 --sample-nodes 1000 --pipeline-rounds 200
+        pixi run verify_consistency --sample-jobs 1000000 --sample-nodes 10000 --pipeline-rounds 500
 """
 
 from __future__ import annotations
@@ -33,8 +33,8 @@ import redis
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
-from matchmaking.core import scheduler
-from matchmaking.core.scheduler import select_job
+from matchmaking.core import utils
+from matchmaking.core.main import select_job
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
@@ -251,9 +251,9 @@ def check_pipeline(
         sqlite_candidates = [sqlite_jobs_map[j] for j in candidate_ids if j in sqlite_jobs_map]
         redis_candidates = [redis_jobs_map[j] for j in candidate_ids if j in redis_jobs_map]
 
-        scheduler.JOBS = sqlite_candidates
+        utils.JOBS = sqlite_candidates
         sqlite_selected = select_job(sqlite_node)
-        scheduler.JOBS = redis_candidates
+        utils.JOBS = redis_candidates
         redis_selected = select_job(redis_node)
 
         sqlite_id = sqlite_selected.job_id if sqlite_selected else None
@@ -286,7 +286,8 @@ def main() -> int:
     parser.add_argument(
         "--log-level",
         default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
     )
 
     args = parser.parse_args()

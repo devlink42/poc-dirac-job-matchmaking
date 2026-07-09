@@ -19,6 +19,7 @@ Workflow:
 from __future__ import annotations
 
 import argparse
+import sqlite3
 
 import redis
 
@@ -29,6 +30,55 @@ from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_
 # Number of HSET commands buffered in the pipeline before flushing to Redis.
 # Keeps per-request memory bounded to O(_BATCH_SIZE) regardless of total volume.
 _BATCH_SIZE = 10000
+
+
+def load_data_from_sqlite(redis_client: redis.Redis, db_path: str) -> None:
+    """Load jobs and nodes into Redis from an existing SQLite benchmark database."""
+    logger.info("Loading Redis data from SQLite database: %s", db_path)
+
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        pipe = redis_client.pipeline(transaction=False)
+        pending = 0
+
+        logger.info("Loading jobs from SQLite into Redis...")
+
+        for i, row in enumerate(conn.execute("SELECT job_id, data FROM jobs"), 1):
+            job_id, data = row
+            pipe.hset(PY_REDIS_JOB_KEY, job_id, data)
+            pending += 1
+
+            if pending >= _BATCH_SIZE:
+                pipe.execute()
+                pending = 0
+
+                logger.info("Loaded %s jobs into Redis", i)
+
+        if pending:
+            pipe.execute()
+
+        pipe = redis_client.pipeline(transaction=False)
+        pending = 0
+
+        logger.info("Loading nodes from SQLite into Redis...")
+
+        for i, row in enumerate(conn.execute("SELECT node_id, data FROM nodes"), 1):
+            node_id, data = row
+            pipe.hset(PY_REDIS_NODES_KEY, node_id, data)
+            pending += 1
+
+            if pending >= _BATCH_SIZE:
+                pipe.execute()
+                pending = 0
+
+                logger.info("Loaded %s nodes into Redis", i)
+
+        if pending:
+            pipe.execute()
+
+        logger.info("SQLite data loaded into Redis successfully.")
+    finally:
+        conn.close()
 
 
 def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
@@ -89,6 +139,12 @@ def main() -> None:
         "--num-jobs", type=int, default=1000000, help="Number of jobs to generate (default: 1 000 000)."
     )
     parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to generate (default: 10 000).")
+    parser.add_argument(
+        "--db-path",
+        default=None,
+        help="Optional SQLite benchmark database path. "
+        "If provided, Redis is loaded from SQLite instead of regenerating data.",
+    )
     parser.add_argument("--redis-host", default="localhost", help="Redis host.")
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port.")
     parser.add_argument("--redis-db", type=int, default=0, help="Redis DB index.")
@@ -128,9 +184,14 @@ def main() -> None:
     r.delete(PY_REDIS_JOB_KEY)
     r.delete(PY_REDIS_NODES_KEY)
 
-    logger.info("Loading %d jobs and %d nodes into Redis", args.num_jobs, args.num_nodes)
+    if args.db_path:
+        logger.info("Loading data from SQLite database at %s", args.db_path)
 
-    load_data(r, args.num_jobs, args.num_nodes)
+        load_data_from_sqlite(r, args.db_path)
+    else:
+        logger.info("Loading %d jobs and %d nodes into Redis", args.num_jobs, args.num_nodes)
+
+        load_data(r, args.num_jobs, args.num_nodes)
 
 
 if __name__ == "__main__":
