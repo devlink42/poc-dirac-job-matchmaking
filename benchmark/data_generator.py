@@ -63,6 +63,14 @@ def generate_mock_job(job_id: str) -> Job:
         A populated Job model.
     """
     roll = _rng.random()
+    if roll < 0.80:
+        owner, group = "lbprods", "lhcb_mc"
+    elif roll < 0.98:
+        owner, group = "lbprods", "lhcb_data"
+    else:
+        owner, group = _rng.choice(_OWNERS), "lhcb_user"
+
+    roll = _rng.random()
     if roll < 0.60:
         job_type = Type.MCSIMULATION
     elif roll < 0.81:
@@ -73,12 +81,12 @@ def generate_mock_job(job_id: str) -> Job:
         job_type = _rng.choice(_RARE_JOB_TYPES)
 
     roll = _rng.random()
-    if roll < 0.80:
-        owner, group = "lbprods", "lhcb_mc"
-    elif roll < 0.98:
-        owner, group = "lbprods", "lhcb_data"
+    if roll < 0.85:
+        site = None
     else:
-        owner, group = _rng.choice(_OWNERS), "lhcb_user"
+        site = _rng.choice(_SITES)
+
+    cpu_work = _rng.choice(_CPU_WORK_OPTIONS)
 
     tags = ["cvmfs:lhcb", "os:el9"]
     if _rng.random() < 0.3:
@@ -86,8 +94,6 @@ def generate_mock_job(job_id: str) -> Job:
     tag_expr = " & ".join(tags)
     if _rng.random() < 0.1:
         tag_expr += " & (feature:A | feature:B)"
-
-    cpu_work = _rng.choice(_CPU_WORK_OPTIONS)
 
     return Job(
         job_id=job_id,
@@ -98,7 +104,7 @@ def generate_mock_job(job_id: str) -> Job:
         matching_specs=[
             MatchingSpecs(
                 **{
-                    "site": _rng.choice(_SITES),
+                    "site": site,
                     "system": System(name=SystemName.LINUX),
                     "wall-time": cpu_work + 3600,
                     "cpu-work": cpu_work // 100,

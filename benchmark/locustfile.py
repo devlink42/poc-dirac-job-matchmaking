@@ -29,11 +29,22 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
-_rng = random.Random()  # noqa: S311
-
 MAX_JOB_ID_IN_DB = 0
+JOB_POOL_SIZE = 0
 NODES_POOL = []
-SCHEDULING_CONFIG = SchedulingConfig()
+
+
+def _resolve_job_pool_size(num_jobs: int, max_job_id_in_db: int) -> int:
+    """Return the effective job pool size used by the benchmark.
+
+    Args:
+        num_jobs: Requested job pool size from the CLI.
+        max_job_id_in_db: Maximum job identifier available in the SQLite database.
+
+    Returns:
+        The number of jobs effectively available to the benchmark.
+    """
+    return min(num_jobs, max_job_id_in_db)
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -69,6 +80,12 @@ def _(parser):
         help="Number of candidate jobs to evaluate per select_job call",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Seed for the random number generator",
+    )
+    parser.add_argument(
         "--config-path",
         type=str,
         default="matchmaking/config/scheduling.yaml",
@@ -95,12 +112,13 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
+    global JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL
 
     configure_logger(opts.log_level)
 
     try:
-        SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
+        utils.CONFIG_PATH = opts.config_path
+        utils._CONFIG_CACHE = SchedulingConfig.load_from_yaml(opts.config_path)
         logger.info("Loaded scheduling config from %s", opts.config_path)
     except Exception as e:
         logger.error("Failed to load scheduling config: %s", e)
@@ -114,14 +132,24 @@ def on_test_start(environment, **kwargs):
         logger.error("Generate the database first: pixi run generate_db")
         raise SystemExit(1) from e
 
-    if MAX_JOB_ID_IN_DB < opts.candidates_count:
+    JOB_POOL_SIZE = _resolve_job_pool_size(opts.num_jobs, MAX_JOB_ID_IN_DB)
+
+    if JOB_POOL_SIZE != opts.num_jobs:
+        logger.warning(
+            "Database contains %s jobs, but --num-jobs is %s. Benchmark will use %s jobs.",
+            MAX_JOB_ID_IN_DB,
+            opts.num_jobs,
+            JOB_POOL_SIZE,
+        )
+
+    if JOB_POOL_SIZE < opts.candidates_count:
         logger.warning(
             "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
-            MAX_JOB_ID_IN_DB,
+            JOB_POOL_SIZE,
             opts.candidates_count,
         )
 
-    logger.info("Ready: %s nodes, %s jobs available from %s.", len(NODES_POOL), MAX_JOB_ID_IN_DB, opts.db_path)
+    logger.info("Ready: %s nodes, %s jobs available from %s.", len(NODES_POOL), JOB_POOL_SIZE, opts.db_path)
 
 
 class MatchmakingUser(User):
@@ -131,19 +159,21 @@ class MatchmakingUser(User):
 
     def __init__(self, environment):
         super().__init__(environment)
-        self._candidates_count = None
         self._db_conn = None
+        self._rng = None
+        self._candidates_count = None
 
     def on_start(self):
         """Cache per-user options to avoid repeated attribute lookups in the hot path."""
-        if not MAX_JOB_ID_IN_DB or not NODES_POOL:
+        if not JOB_POOL_SIZE or not NODES_POOL:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
+        self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
+        self._rng = random.Random(self.environment.parsed_options.seed)  # noqa: S311
         self._candidates_count = min(
             self.environment.parsed_options.candidates_count,
-            MAX_JOB_ID_IN_DB,
+            JOB_POOL_SIZE,
         )
-        self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
 
     def on_stop(self):
         if self._db_conn:
@@ -157,9 +187,9 @@ class MatchmakingUser(User):
         from the database and deserialize them. The IO/Parse times are excluded
         from the final benchmark latency reported to Locust.
         """
-        node = _rng.choice(NODES_POOL)
+        node = self._rng.choice(NODES_POOL)
 
-        candidate_ids = _rng.sample(range(1, MAX_JOB_ID_IN_DB + 1), self._candidates_count)
+        candidate_ids = self._rng.sample(range(1, JOB_POOL_SIZE + 1), self._candidates_count)
         placeholders = ",".join("?" * len(candidate_ids))
         cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 

@@ -15,10 +15,10 @@ def normalize_tag_expression(expr: str) -> str:
     """Normalize a tag expression by replacing shorthand operators with Python keywords.
 
     Args:
-        expr (str): The tag expression to normalize (e.g., 'a & b').
+        expr: The tag expression to normalize (e.g., 'a & b').
 
     Returns:
-        str: The normalized expression (e.g., 'a and b').
+        The normalized expression (e.g., 'a and b').
     """
     return expr.replace("&", " and ").replace("|", " or ").replace("~", " not ")
 
@@ -27,7 +27,7 @@ def validate_tag_expression(expr: str) -> None:
     """Validate the syntax and safety of a tag expression.
 
     Args:
-        expr (str): The tag expression to validate.
+        expr: The tag expression to validate.
 
     Raises:
         ValueError: If the expression is syntactically invalid or contains unsupported operations.
@@ -102,11 +102,11 @@ def evaluate_tag_expression(expr: str, node_tags: set[str]) -> bool:
       - Operators: '&' for AND, '|' for OR, '~' for NOT, parentheses for grouping
 
     Args:
-        expr (str): The tag expression to evaluate.
-        node_tags (set[str]): The set of tags available on the node.
+        expr: The tag expression to evaluate.
+        node_tags: The set of tags available on the node.
 
     Returns:
-        bool: True if the expression evaluates to True, False otherwise.
+        True if the expression evaluates to True, False otherwise.
     """
     expr_norm = normalize_tag_expression(expr)
     logger.debug("Evaluating tag expression: %s", expr_norm)

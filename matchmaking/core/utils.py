@@ -20,7 +20,7 @@ def get_jobs() -> list[Job]:
     """Load job examples from the specified path.
 
     Returns:
-        list[Job]: List of job examples.
+        List of job examples.
 
     Raises:
         ValueError: If the job examples file is not found or fails to load.
@@ -63,7 +63,7 @@ def get_selection_configuration() -> SchedulingConfig:
     """Load scheduling configuration from the specified path.
 
     Returns:
-        SchedulingConfig: Scheduling configuration.
+        Scheduling configuration.
 
     Raises:
         ValueError: If the scheduling config file is not found or fails to load.

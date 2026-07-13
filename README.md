@@ -11,7 +11,7 @@ Lua).
 
 ### Features
 
-- Evaluates the core `valid_job_with_node` algorithm.
+- Evaluates the core `select_job` algorithm.
 - Simulates realistic distributions (LHCb production distributions).
 - Measures **throughput (matches/sec)** and **latency distributions**.
 - Configurable scale parameters (number of jobs, nodes, users, arrival rate).
@@ -30,7 +30,8 @@ pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
 #### Headless Mode (Quick Baseline)
 
-To run a 15 minutes benchmark directly in your terminal with 100 concurrent users generating load:
+To run a 15 minutes benchmark directly in your terminal with 100 concurrent users (pilot that runs `select_job`)
+generating load:
 
 ```bash
 pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
