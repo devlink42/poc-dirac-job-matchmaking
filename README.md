@@ -24,9 +24,22 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 
 #### Generate data
 
+You need to generate a database with a large number of jobs and nodes before running the benchmark.
+You can do this using the following command:
+
 ```bash
 pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 ```
+
+And this is the list of available parameters for the `generate_db` command:
+
+- `--num-jobs`: Number of jobs to generate. (Default: 10000000)
+- `--num-nodes`: Number of nodes to generate. (Default: 50000)
+- `--seed`: Random seed for reproducibility. (Default: 0)
+- `--output`: Output database path. (Default: `benchmark/benchmark.db`)
+- `--overwrite`: Overwrite an existing database.
+- `--log-level`: Logging verbosity level, it can be `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. To have better results, set it
+  to `ERROR` or `CRITICAL`. (Default: `INFO`).
 
 #### Headless Mode (Quick Baseline)
 
@@ -71,18 +84,20 @@ pixi run benchmark-dist-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 5
 
 Then, open your browser at http://localhost:8089.
 
-#### Configurable Parameters
+#### Configurable parameters for the benchmark
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
-- `--num-jobs`: Defines the size of the job pool to generate (Default: 1000000).
-- `--num-nodes`: Defines the size of the node/pilot pool to generate (Default: 10000).
-- `--candidates-count`: Number of jobs to evaluate in each selection cycle (Default: 500).
-- `--config-path`: Path to the scheduling configuration (Default: `config/scheduling.yaml`).
-- `--db-path`: Path to the SQLite benchmark database (generate with `benchmark/generate_db.py`, default:
-  `benchmark/benchmark.db`).
-- `--log-level`: Log level, it can be `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. To have better results, set it
-  to `ERROR` or `CRITICAL`. (Default: `INFO`).
+- `--num-jobs`: Defines the total number of jobs available in the persistent database (SQLite). (Default: 10000000)
+- `--num-nodes`: Defines the total number of nodes available in the persistent database. (Default: 50000)
+- `--candidates-count`: Number of jobs pulled from the database and evaluated in each selection cycle.
+  This simulates the number of "Waiting" jobs the matcher considers. (Default: 800000)
+- `--seed`: Random seed for reproducibility. (Default: 0)
+- `--config-path`: Path to the scheduling configuration. (Default: `config/scheduling.yaml`)
+- `--db-path`: Path to the SQLite benchmark database. (generate with `benchmark/generate_db.py`, default:
+  `benchmark/benchmark.db`)
+- `--log-level`: Logging verbosity level, it can be `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. To have better results, set it
+  to `ERROR` or `CRITICAL`. (Default: `INFO`)
 
 Locust core parameters:
 
@@ -126,6 +141,9 @@ latency.
 | **100 candidates** (10 workers)* | 174,694       | ~194 req/s         | 1.43 ms   | 4 ms         | 5 ms      | 21 ms     | 600.5 ms  |
 | **100 candidates** (5 workers)   | 174,834       | ~194 req/s         | 1.31 ms   | 3 ms         | 4 ms      | 5 ms      | 128.3 ms  |
 | **500 candidates** (5 workers)   | 35,954        | ~40 req/s          | 0.05 ms   | 0.05 ms      | 0 ms      | 1 ms      | 1.3 ms    |
+| **500,000 candidates** (1 user) | 1             | ~0.26 req/s        | 3813 ms   | 3813 ms      | 3813 ms   | 3813 ms   | 3813 ms   |
+
+*\*Note: The 500,000 candidates run highlights the scalability limit of the pure Python implementation when processing massive waiting job pools.*
 
 *\*Note: The second 100 candidates run appears to have experienced temporary system load/spikes, resulting in anomalous
 maximum values.*

@@ -71,12 +71,12 @@ def _get_max_job_id(db_path: str) -> int:
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
-    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to load from the database")
+    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to load from the database")
     parser.add_argument(
         "--candidates-count",
         type=int,
-        default=500,
+        default=800000,
         help="Number of candidate jobs to evaluate per select_job call",
     )
     parser.add_argument(
@@ -190,10 +190,18 @@ class MatchmakingUser(User):
         node = self._rng.choice(NODES_POOL)
 
         candidate_ids = self._rng.sample(range(1, JOB_POOL_SIZE + 1), self._candidates_count)
-        placeholders = ",".join("?" * len(candidate_ids))
-        cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
 
-        utils.JOBS = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
+        # SQLite has a limit on the number of host parameters (variables).
+        # We batch the selection to avoid 'too many SQL variables' error.
+        batch_size = 32000
+        rows = []
+        for i in range(0, len(candidate_ids), batch_size):
+            batch = candidate_ids[i : i + batch_size]
+            placeholders = ",".join("?" * len(batch))
+            cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", batch)  # noqa: S608
+            rows.extend(cur.fetchall())
+
+        utils.JOBS = [Job.model_validate_json(row[0]) for row in rows]
 
         start_time = time.perf_counter()
         selected_job = None

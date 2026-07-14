@@ -62,8 +62,8 @@ def _populate(conn: sqlite3.Connection, num_jobs: int, num_nodes: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Pre-generate benchmark data into a SQLite database.")
-    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to generate")
-    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to generate")
+    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to generate")
+    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to generate")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
     parser.add_argument("--output", type=str, default=_DEFAULT_DB, help="Output database path")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing database")
