@@ -14,7 +14,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from benchmark.data_generator import job_generator, node_generator
+from benchmark.data_generator import job_generator, node_generator, set_seed
 from matchmaking.config.logger import configure_logger, logger
 
 _DEFAULT_DB = "benchmark/benchmark.db"
@@ -64,6 +64,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Pre-generate benchmark data into a SQLite database.")
     parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to generate")
     parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to generate")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
     parser.add_argument("--output", type=str, default=_DEFAULT_DB, help="Output database path")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing database")
     parser.add_argument(
@@ -76,6 +77,8 @@ def main() -> None:
     args = parser.parse_args()
 
     configure_logger(args.log_level)
+
+    set_seed(args.seed)
 
     db_path = Path(args.output)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,9 +96,11 @@ def main() -> None:
 
         _create_schema(conn)
         _populate(conn, args.num_jobs, args.num_nodes)
+
         conn.commit()
 
         total_time = time.perf_counter() - start_time
+
         logger.info("Database generation completed in %.2f seconds.", total_time)
 
         size_kb = db_path.stat().st_size / 1024

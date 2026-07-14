@@ -53,6 +53,15 @@ _RARE_JOB_TYPES = [
 _OWNERS = ["sharmar", "jdoe", "asmith"]
 
 
+def set_seed(seed: int) -> None:
+    """Set the seed for the random number generator.
+
+    Args:
+        seed: The seed value to use.
+    """
+    _rng.seed(seed)
+
+
 def generate_mock_job(job_id: str) -> Job:
     """Generate a mock Job object based on hypothetical LHCb distributions.
 
@@ -91,6 +100,7 @@ def generate_mock_job(job_id: str) -> Job:
     tags = ["cvmfs:lhcb", "os:el9"]
     if _rng.random() < 0.3:
         tags.extend(_rng.sample(_TAG_POOL, _rng.randint(1, 3)))
+
     tag_expr = " & ".join(tags)
     if _rng.random() < 0.1:
         tag_expr += " & (feature:A | feature:B)"
@@ -142,6 +152,7 @@ def generate_mock_node(node_id: str) -> Node:
     node_tags = ["cvmfs:lhcb", "os:el9", "production", "tier1"]
     if _rng.random() < 0.5:
         node_tags.extend(_rng.sample(_TAG_POOL, _rng.randint(10, 20)))
+
     if _rng.random() < 0.2:
         node_tags.append("feature:A")
 

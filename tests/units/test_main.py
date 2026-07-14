@@ -93,7 +93,7 @@ def test_select_job_priority_handling(priorities: list, expected_job_id: str, lo
         patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=mock_config),
     ):
-        selected = select_job(node, rng=rng)
+        selected = select_job(node, rng)
 
         assert selected is not None
         assert selected.job_id == expected_job_id
