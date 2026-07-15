@@ -20,12 +20,12 @@ import sys
 import time
 from collections.abc import Iterable
 
-from locust import User, between, events, task
+from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
 from matchmaking.core import utils
-from matchmaking.core.main import select_job
+from matchmaking.logic.indexed_selector import IndexedJobSelector
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -34,6 +34,7 @@ MAX_JOB_ID_IN_DB = 0
 JOB_POOL_SIZE = 0
 NODES_POOL: list[Node] = []
 CANDIDATE_POOL: list[Job] = []
+SELECTOR: IndexedJobSelector | None = None
 
 _CANDIDATE_WINDOW_QUERY = """
     SELECT data
@@ -172,7 +173,7 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global CANDIDATE_POOL, JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL
+    global CANDIDATE_POOL, JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL, SELECTOR
 
     configure_logger(opts.log_level)
 
@@ -213,6 +214,7 @@ def on_test_start(environment, **kwargs):
     start_id = random.Random(opts.seed).randint(1, JOB_POOL_SIZE)  # noqa: S311
     CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, candidate_count, JOB_POOL_SIZE)
     utils.JOBS = CANDIDATE_POOL
+    SELECTOR = IndexedJobSelector(CANDIDATE_POOL, utils._CONFIG_CACHE)
 
     logger.info(
         "Ready: %s nodes, %s candidates loaded from %s available jobs in %s.",
@@ -226,7 +228,7 @@ def on_test_start(environment, **kwargs):
 class MatchmakingUser(User):
     """Simulates a scheduler process matching jobs to nodes."""
 
-    wait_time = between(0.001, 1.0)
+    wait_time = constant(0)
 
     def __init__(self, environment):
         super().__init__(environment)
@@ -234,7 +236,7 @@ class MatchmakingUser(User):
 
     def on_start(self):
         """Create the per-user random generator outside the hot path."""
-        if not JOB_POOL_SIZE or not NODES_POOL:
+        if not JOB_POOL_SIZE or not NODES_POOL or SELECTOR is None:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
         self._rng = random.Random(self.environment.parsed_options.seed)  # noqa: S311
@@ -253,7 +255,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            selected_job = select_job(node)
+            selected_job = SELECTOR.select(node)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
