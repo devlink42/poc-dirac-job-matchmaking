@@ -18,6 +18,7 @@ import random
 import sqlite3
 import sys
 import time
+from collections.abc import Iterable
 
 from locust import User, between, events, task
 from locust.runners import MasterRunner
@@ -31,7 +32,18 @@ from matchmaking.models.node import Node
 
 MAX_JOB_ID_IN_DB = 0
 JOB_POOL_SIZE = 0
-NODES_POOL = []
+NODES_POOL: list[Node] = []
+CANDIDATE_POOL: list[Job] = []
+
+_CANDIDATE_WINDOW_QUERY = """
+    SELECT data
+    FROM jobs
+    WHERE id BETWEEN ? AND ?
+    UNION ALL
+    SELECT data
+    FROM jobs
+    WHERE id BETWEEN 1 AND ?
+"""
 
 
 def _resolve_job_pool_size(num_jobs: int, max_job_id_in_db: int) -> int:
@@ -66,6 +78,54 @@ def _get_max_job_id(db_path: str) -> int:
         return conn.execute("SELECT MAX(id) FROM jobs").fetchone()[0] or 0
     finally:
         conn.close()
+
+
+def _load_candidate_data(
+    connection: sqlite3.Connection,
+    start_id: int,
+    candidate_count: int,
+    pool_size: int,
+) -> Iterable[tuple[str]]:
+    """Load one circular candidate window with a single indexed query.
+
+    Args:
+        connection: Read-only benchmark database connection.
+        start_id: First job identifier in the window.
+        candidate_count: Exact number of jobs to load.
+        pool_size: Number of densely indexed jobs available to the benchmark.
+
+    Returns:
+        An iterable over the serialized jobs in circular key order.
+
+    Raises:
+        ValueError: If the requested window cannot fit the configured pool.
+    """
+    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= candidate_count <= pool_size:
+        raise ValueError("Invalid candidate window for the configured job pool.")
+
+    if candidate_count == 0:
+        return ()
+
+    last_unwrapped_id = start_id + candidate_count - 1
+    first_range_end = min(last_unwrapped_id, pool_size)
+    second_range_end = max(last_unwrapped_id - pool_size, 0)
+
+    return connection.execute(
+        _CANDIDATE_WINDOW_QUERY,
+        (start_id, first_range_end, second_range_end),
+    )
+
+
+def _load_candidate_jobs(db_path: str, start_id: int, candidate_count: int, pool_size: int) -> list[Job]:
+    """Load and validate the candidate pool once before the benchmark starts."""
+    connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        return [
+            Job.model_validate_json(row[0])
+            for row in _load_candidate_data(connection, start_id, candidate_count, pool_size)
+        ]
+    finally:
+        connection.close()
 
 
 @events.init_command_line_parser.add_listener
@@ -112,7 +172,7 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL
+    global CANDIDATE_POOL, JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL
 
     configure_logger(opts.log_level)
 
@@ -149,7 +209,18 @@ def on_test_start(environment, **kwargs):
             opts.candidates_count,
         )
 
-    logger.info("Ready: %s nodes, %s jobs available from %s.", len(NODES_POOL), JOB_POOL_SIZE, opts.db_path)
+    candidate_count = min(opts.candidates_count, JOB_POOL_SIZE)
+    start_id = random.Random(opts.seed).randint(1, JOB_POOL_SIZE)  # noqa: S311
+    CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, candidate_count, JOB_POOL_SIZE)
+    utils.JOBS = CANDIDATE_POOL
+
+    logger.info(
+        "Ready: %s nodes, %s candidates loaded from %s available jobs in %s.",
+        len(NODES_POOL),
+        len(CANDIDATE_POOL),
+        JOB_POOL_SIZE,
+        opts.db_path,
+    )
 
 
 class MatchmakingUser(User):
@@ -159,49 +230,23 @@ class MatchmakingUser(User):
 
     def __init__(self, environment):
         super().__init__(environment)
-        self._db_conn = None
         self._rng = None
-        self._candidates_count = None
 
     def on_start(self):
-        """Cache per-user options to avoid repeated attribute lookups in the hot path."""
+        """Create the per-user random generator outside the hot path."""
         if not JOB_POOL_SIZE or not NODES_POOL:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
-        self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
         self._rng = random.Random(self.environment.parsed_options.seed)  # noqa: S311
-        self._candidates_count = min(
-            self.environment.parsed_options.candidates_count,
-            JOB_POOL_SIZE,
-        )
-
-    def on_stop(self):
-        if self._db_conn:
-            self._db_conn.close()
 
     @task
     def evaluate_select_job(self):
         """Simulate a pilot requesting a job: filter compatible candidates, then rank.
 
-        Instead of holding all jobs in RAM, we pick random IDs, load their JSON
-        from the database and deserialize them. The IO/Parse times are excluded
-        from the final benchmark latency reported to Locust.
+        The candidate pool is loaded and validated once at test startup so both
+        Locust latency and throughput measure the same matchmaking operation.
         """
         node = self._rng.choice(NODES_POOL)
-
-        candidate_ids = self._rng.sample(range(1, JOB_POOL_SIZE + 1), self._candidates_count)
-
-        # SQLite has a limit on the number of host parameters (variables).
-        # We batch the selection to avoid 'too many SQL variables' error.
-        batch_size = 32000
-        rows = []
-        for i in range(0, len(candidate_ids), batch_size):
-            batch = candidate_ids[i : i + batch_size]
-            placeholders = ",".join("?" * len(batch))
-            cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", batch)  # noqa: S608
-            rows.extend(cur.fetchall())
-
-        utils.JOBS = [Job.model_validate_json(row[0]) for row in rows]
 
         start_time = time.perf_counter()
         selected_job = None
