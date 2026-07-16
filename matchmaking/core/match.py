@@ -15,10 +15,10 @@ def is_valid_job(job: str) -> bool:
     """Validate a job against a set of requirements.
 
     Args:
-        job (str): Path to the job YAML file.
+        job: Path to the job YAML file.
 
     Returns:
-        bool: True if the job is valid, False otherwise.
+        True if the job is valid, False otherwise.
     """
     try:
         job_obj = Job.load_from_yaml(job)
@@ -36,10 +36,10 @@ def is_valid_node(node: str) -> bool:
     """Validate a node against a set of requirements.
 
     Args:
-        node (str): Path to the node YAML file.
+        node: Path to the node YAML file.
 
     Returns:
-        bool: True if the node is valid, False otherwise.
+        True if the node is valid, False otherwise.
     """
     try:
         Node.load_from_yaml(node)
@@ -61,12 +61,12 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     attributes, IO bandwidth, and specific tags.
 
     Args:
-        job_id (str | Any): The unique identifier of the job.
-        job_specs (Job): The job object containing the requirements for execution.
-        node (Node): The node object representing the computational resource.
+        job_id: The unique identifier of the job.
+        job_specs: The job object containing the requirements for execution.
+        node: The node object representing the computational resource.
 
     Returns:
-        bool: True if the job is compatible with the node, otherwise False.
+        True if the job is compatible with the node, otherwise False.
     """
     # Site check
     if job_specs.site and job_specs.site != node.site:
@@ -246,11 +246,11 @@ def is_matching(job: Job, node: Node) -> bool:
     """Perform matchmaking between jobs in a file and a node.
 
     Args:
-        job (Job): The job object containing the requirements for execution.
-        node (Node): The node object representing the computational resource.
+        job: The job object containing the requirements for execution.
+        node: The node object representing the computational resource.
 
     Returns:
-        bool: True if a matching job and node are found, False otherwise.
+        True if a matching job and node are found, False otherwise.
     """
     for i, job_spec in enumerate(job.matching_specs):
         if is_valid_job_specs_with_node(f"{job.job_id}-{i}", job_spec, node):

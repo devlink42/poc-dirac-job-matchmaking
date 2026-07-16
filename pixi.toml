@@ -56,17 +56,17 @@ py-spy = ">=0.4.2,<0.5"
 [feature.benchmark.target.win-64.dependencies]
 m2-bash = ">=5.2.37.2,<5.3"
 
-[feature.benchmark.tasks]
-# Benchmark Linux
+[target.linux-64.tasks]
 benchmark = "bash ./benchmark/run_benchmark.sh --headless"
 benchmark-ui = "bash ./benchmark/run_benchmark.sh --ui"
 benchmark-dist = "bash ./benchmark/run_benchmark.sh --distributed --headless"
 benchmark-dist-ui = "bash ./benchmark/run_benchmark.sh --distributed --ui"
-# Benchmark Windows
-win-benchmark = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --headless"
-win-benchmark-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --ui"
-win-benchmark-dist = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --headless"
-win-benchmark-dist-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --ui"
+
+[target.win-64.tasks]
+benchmark = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --headless"
+benchmark-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --ui"
+benchmark-dist = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --headless"
+benchmark-dist-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --distributed --ui"
 
 # ---------------------------------------------------------
 # FEATURE: ANALYSIS

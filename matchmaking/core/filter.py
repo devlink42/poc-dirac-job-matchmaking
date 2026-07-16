@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 from random import Random
 
+from matchmaking.config.logger import logger
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
@@ -15,28 +16,26 @@ def filter(
     site_limits: dict[str, int],
     config: SchedulingConfig,
     rng: Random | None,
-) -> list[Job]:
+) -> list[Job] | None:
     """Filter waiting jobs based on running job type counts and site limits.
 
     Args:
-        waiting_jobs (list[Job]): List of waiting jobs.
-        running_job_type_counts (dict[str, int]): Dict of running job type counts.
-        site_limits (dict[str, int]): Dict of site limits.
-        config (SchedulingConfig): Scheduling configuration.
-        rng (Random | None): Random number generator.
+        waiting_jobs: List of waiting jobs.
+        running_job_type_counts: Dict of running job type counts.
+        site_limits: Dict of site limits.
+        config: Scheduling configuration.
+        rng: Random number generator.
 
     Returns:
-        list[Job]: List of filtered jobs.
-
-    Raises:
-        ValueError: If no allowed jobs are found.
+        List of filtered jobs or None if no jobs are found.
     """
     allowed_jobs = [
         job for job in waiting_jobs if running_job_type_counts[job.type] < site_limits.get(job.type, float("inf"))
     ]
 
     if not allowed_jobs:
-        raise ValueError("No allowed jobs found")
+        logger.info("No allowed jobs found")
+        return None
 
     selected_job_type = None
 
