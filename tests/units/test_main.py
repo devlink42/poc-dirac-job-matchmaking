@@ -35,8 +35,9 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
         patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_reached),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        with pytest.raises(ValueError):
-            select_job(node)
+        selected = select_job(node)
+
+        assert selected is None
 
     # Limit not reached -> returns Job
     candidate_jobs_limit_ok = [running_job] * 499 + [job]
@@ -45,6 +46,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
+
         assert selected is not None
         assert selected.job_id == job.job_id
 
@@ -91,7 +93,7 @@ def test_select_job_priority_handling(priorities: list, expected_job_id: str, lo
         patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=mock_config),
     ):
-        selected = select_job(node, rng=rng)
+        selected = select_job(node, rng)
 
         assert selected is not None
         assert selected.job_id == expected_job_id
@@ -316,11 +318,10 @@ def test_select_job_hardware_and_system_matching(
         patch("matchmaking.core.main.get_jobs", return_value=[job]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        if expected_selected:
-            selected = select_job(node)
+        selected = select_job(node)
 
+        if expected_selected:
             assert selected is not None
             assert selected.job_id == job.job_id
         else:
-            with pytest.raises(ValueError):
-                select_job(node)
+            assert selected is None

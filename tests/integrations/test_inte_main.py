@@ -162,8 +162,9 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
 
         mock_load_job.side_effect = queue
 
-        with pytest.raises(ValueError):
-            select_job(node)
+        selected = select_job(node)
+
+        assert selected is None
 
     with (
         patch("matchmaking.core.utils.Path.glob") as mock_glob,
@@ -179,7 +180,7 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         mock_load_job.side_effect = q
         job = select_job(node)
 
-    assert job is not None
+        assert job is not None
 
 
 def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load_job, load_node):
