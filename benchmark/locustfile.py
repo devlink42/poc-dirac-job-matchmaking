@@ -49,6 +49,8 @@ _CANDIDATE_WINDOW_QUERY = """
     WHERE id BETWEEN 1 AND ?
 """
 
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
 
 def _resolve_job_pool_size(num_jobs: int, max_job_id_in_db: int) -> int:
     """Return the effective job pool size used by the benchmark.
@@ -61,8 +63,6 @@ def _resolve_job_pool_size(num_jobs: int, max_job_id_in_db: int) -> int:
         The number of jobs effectively available to the benchmark.
     """
     return min(num_jobs, max_job_id_in_db)
-
-redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
