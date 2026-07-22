@@ -12,7 +12,6 @@ T_VAL=900  # 15min
 
 NUM_JOBS=10000000
 NUM_NODES=50000
-CANDIDATES_COUNT=800000
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -51,10 +50,6 @@ while [[ $# -gt 0 ]]; do
       NUM_NODES="$2"
       shift 2
       ;;
-    --candidates-count)
-      CANDIDATES_COUNT="$2"
-      shift 2
-      ;;
     *)
       LOCUST_ARGS="$LOCUST_ARGS $1"
       shift
@@ -63,7 +58,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 CURRENT_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
-PREFIX_BASE="locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_cc-${CANDIDATES_COUNT}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
+PREFIX_BASE="locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
 
 CSV_PREFIX="benchmark/results/${PREFIX_BASE}"
 HTML_PREFIX="benchmark/results/html/${PREFIX_BASE}.html"
@@ -71,7 +66,7 @@ FLAMEGRAPH_PATH="benchmark/results/html/svg/${PREFIX_BASE}_flamegraph.svg"
 
 mkdir -p benchmark/results/html/svg
 
-BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES} --candidates-count ${CANDIDATES_COUNT}"
+BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES}"
 
 if [[ "$PROFILE" == true ]]; then
   echo "Profiling enabled. FlameGraph will be saved to: $FLAMEGRAPH_PATH"

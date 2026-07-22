@@ -28,12 +28,13 @@ You need to generate a database with a large number of jobs and nodes before run
 You can do this using the following command:
 
 ```bash
-pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+pixi run generate_db --num-jobs 800000 --num-nodes 50000
 ```
 
 And this is the list of available parameters for the `generate_db` command:
 
-- `--num-jobs`: Number of jobs to generate. (Default: 10000000)
+- `--num-jobs`: Number of jobs to generate. Use at least the benchmark `--num-jobs`; additional jobs only
+  increase the diversity of the sampled circular window. (Default: 800000)
 - `--num-nodes`: Number of nodes to generate. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--output`: Output database path. (Default: `benchmark/benchmark.db`)
@@ -47,20 +48,22 @@ To run a 15 minutes benchmark directly in your terminal with 100 concurrent user
 generating load:
 
 ```bash
-pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000
 ```
 
-`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
+`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as
+many jobs as requested by `--num-jobs`.
 
 #### Web UI Mode (Interactive Exploration)
 
 To explore latency graphs, throughput curves, and easily tweak the user load:
 
 ```bash
-pixi run benchmark-ui -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000
+pixi run benchmark-ui -u 100 -r 50 -t 15m --num-nodes 50000
 ```
 
-`--num-jobs` and `--num-nodes` have to be set to the same value as the generated data.
+`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as
+many jobs as requested by `--num-jobs`.
 
 Then, open your browser at http://localhost:8089.
 
@@ -68,10 +71,10 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
-- `--num-jobs`: Defines the total number of jobs available in the persistent database (SQLite). (Default: 10000000)
+- `--num-jobs`: Number of jobs pulled from the database and evaluated in each selection cycle. In the benchmark
+  command, this is the candidate-window size and must not exceed the number of jobs generated in the database.
+  (Default: 800000)
 - `--num-nodes`: Defines the total number of nodes available in the persistent database. (Default: 50000)
-- `--candidates-count`: Number of jobs pulled from the database and evaluated in each selection cycle.
-  This simulates the number of "Waiting" jobs the matcher considers. (Default: 800000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--config-path`: Path to the scheduling configuration. (Default: `config/scheduling.yaml`)
 - `--db-path`: Path to the SQLite benchmark database. (generate with `benchmark/generate_db.py`, default:

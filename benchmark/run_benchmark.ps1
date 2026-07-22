@@ -23,8 +23,6 @@ param(
     [long]$NumJobs = 10000000,
     [Alias("num-nodes")]
     [long]$NumNodes = 50000,
-    [Alias("candidates-count")]
-    [int]$CandidatesCount = 500,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$RemainingArgs
@@ -38,7 +36,7 @@ if ($Ui) {
 
 # Generate timestamp and format prefixes for benchmarking output files
 $CurrentDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$PrefixBase = "locust_${CurrentDate}_jobs-${NumJobs}_nodes-${NumNodes}_cc-${CandidatesCount}_u-${Users}_r-${SpawnRate}_t-${RunTime}"
+$PrefixBase = "locust_${CurrentDate}_jobs-${NumJobs}_nodes-${NumNodes}_u-${Users}_r-${SpawnRate}_t-${RunTime}"
 
 $CsvPrefix = "benchmark/results/${PrefixBase}"
 $HtmlPrefix = "benchmark/results/html/${PrefixBase}.html"
@@ -54,7 +52,6 @@ $LocustArgs = @(
     "-f", "benchmark/locustfile.py",
     "--num-jobs", $NumJobs.ToString(),
     "--num-nodes", $NumNodes.ToString(),
-    "--candidates-count", $CandidatesCount.ToString(),
     "-u", $Users.ToString(),
     "-r", $SpawnRate.ToString(),
     "-t", $RunTime.ToString()

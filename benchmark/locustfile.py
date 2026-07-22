@@ -6,17 +6,16 @@ by directly firing events to Locust's metric system.
 
 Workflow:
     1. Generate the benchmark database once:
-           pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+           pixi run generate_db --num-jobs 800000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --num-jobs 10000000 --num-nodes 50000 --log-level ERROR
+           pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
 
 import random
 import sqlite3
-import sys
 import time
 from collections.abc import Iterable
 
@@ -30,33 +29,25 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 
-MAX_JOB_ID_IN_DB = 0
 JOB_POOL_SIZE = 0
 NODES_POOL: list[Node] = []
 CANDIDATE_POOL: list[Job] = []
+SCHEDULING_CONFIG: SchedulingConfig | None = None
 
 _CANDIDATE_WINDOW_QUERY = """
+    WITH candidate_window AS (
+        SELECT data, id, 0 AS window_segment
+        FROM jobs
+        WHERE id BETWEEN ? AND ?
+        UNION ALL
+        SELECT data, id, 1 AS window_segment
+        FROM jobs
+        WHERE id BETWEEN 1 AND ?
+    )
     SELECT data
-    FROM jobs
-    WHERE id BETWEEN ? AND ?
-    UNION ALL
-    SELECT data
-    FROM jobs
-    WHERE id BETWEEN 1 AND ?
+    FROM candidate_window
+    ORDER BY window_segment, id
 """
-
-
-def _resolve_job_pool_size(num_jobs: int, max_job_id_in_db: int) -> int:
-    """Return the effective job pool size used by the benchmark.
-
-    Args:
-        num_jobs: Requested job pool size from the CLI.
-        max_job_id_in_db: Maximum job identifier available in the SQLite database.
-
-    Returns:
-        The number of jobs effectively available to the benchmark.
-    """
-    return min(num_jobs, max_job_id_in_db)
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -131,10 +122,9 @@ def _load_candidate_jobs(db_path: str, start_id: int, candidate_count: int, pool
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to load from the database")
     parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to load from the database")
     parser.add_argument(
-        "--candidates-count",
+        "--num-jobs",
         type=int,
         default=800000,
         help="Number of candidate jobs to evaluate per select_job call",
@@ -172,46 +162,35 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global CANDIDATE_POOL, JOB_POOL_SIZE, MAX_JOB_ID_IN_DB, NODES_POOL
+    global CANDIDATE_POOL, JOB_POOL_SIZE, NODES_POOL, SCHEDULING_CONFIG
 
     configure_logger(opts.log_level)
 
     try:
-        utils.CONFIG_PATH = opts.config_path
-        utils._CONFIG_CACHE = SchedulingConfig.load_from_yaml(opts.config_path)
+        SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
         logger.info("Loaded scheduling config from %s", opts.config_path)
     except Exception as e:
         logger.error("Failed to load scheduling config: %s", e)
         raise SystemExit(1) from e
 
     try:
-        MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
+        JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
         NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
     except Exception as e:
         logger.error("Failed to load pools from %s: %s", opts.db_path, e)
         logger.error("Generate the database first: pixi run generate_db")
         raise SystemExit(1) from e
 
-    JOB_POOL_SIZE = _resolve_job_pool_size(opts.num_jobs, MAX_JOB_ID_IN_DB)
-
-    if JOB_POOL_SIZE != opts.num_jobs:
-        logger.warning(
-            "Database contains %s jobs, but --num-jobs is %s. Benchmark will use %s jobs.",
-            MAX_JOB_ID_IN_DB,
+    if JOB_POOL_SIZE < opts.num_jobs:
+        logger.error(
+            "Database contains %s jobs, but --num-jobs requires %s.",
+            JOB_POOL_SIZE,
             opts.num_jobs,
-            JOB_POOL_SIZE,
         )
+        raise SystemExit(1)
 
-    if JOB_POOL_SIZE < opts.candidates_count:
-        logger.warning(
-            "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
-            JOB_POOL_SIZE,
-            opts.candidates_count,
-        )
-
-    candidate_count = min(opts.candidates_count, JOB_POOL_SIZE)
     start_id = random.Random(opts.seed).randint(1, JOB_POOL_SIZE)  # noqa: S311
-    CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, candidate_count, JOB_POOL_SIZE)
+    CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, opts.num_jobs, JOB_POOL_SIZE)
     utils.JOBS = CANDIDATE_POOL
 
     logger.info(
@@ -234,14 +213,14 @@ class MatchmakingUser(User):
 
     def on_start(self):
         """Create the per-user random generator outside the hot path."""
-        if not JOB_POOL_SIZE or not NODES_POOL:
+        if not JOB_POOL_SIZE or not NODES_POOL or SCHEDULING_CONFIG is None:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
         self._rng = random.Random(self.environment.parsed_options.seed)  # noqa: S311
 
     @task
     def evaluate_select_job(self):
-        """Simulate a pilot requesting a job: filter compatible candidates, then rank.
+        """Simulate a pilot requesting a job: filter_by_job_type compatible candidates, then rank.
 
         The candidate pool is loaded and validated once at test startup so both
         Locust latency and throughput measure the same matchmaking operation.
@@ -253,7 +232,7 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            selected_job = select_job(node)
+            selected_job = select_job(node, rng=self._rng, config=SCHEDULING_CONFIG)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
@@ -264,7 +243,6 @@ class MatchmakingUser(User):
             request_type="Python",
             name="select_job_cycle",
             response_time=total_time_ms,
-            response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,
             context={"matched": selected_job is not None},
         )

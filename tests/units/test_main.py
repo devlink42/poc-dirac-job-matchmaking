@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from matchmaking.config.logger import configure_logger
+from matchmaking.core.filter import filter
 from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
@@ -120,6 +121,40 @@ def test_select_job_tiebreaker_is_fifo(load_job, load_node, example_config):
 
         assert selected is not None
         assert selected.job_id == "old"
+
+
+def test_select_job_accepts_explicit_configuration(load_job, load_node, example_config):
+    """Test that an explicitly supplied configuration bypasses the global configuration loader."""
+    node = load_node("node_01_cern_typical")
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
+
+    with (
+        patch("matchmaking.core.main.get_jobs", return_value=[job]),
+        patch(
+            "matchmaking.core.main.get_selection_configuration",
+            side_effect=AssertionError("The injected configuration must be used."),
+        ),
+    ):
+        selected = select_job(node, config=example_config)
+
+    assert selected is job
+
+
+def test_filter_ignores_weighted_priority_without_eligible_type(load_job):
+    """Test that an unmatched weighted priority level falls back to allowed candidates."""
+    job = load_job("job_01_mcsimulation_any_site")
+    config = SchedulingConfig(job_type_priorities=[{Type.USER: 1}])
+
+    candidates = filter(
+        [job],
+        running_job_type_counts={job.type: 0},
+        site_limits={},
+        config=config,
+        rng=None,
+    )
+
+    assert candidates == [job]
 
 
 def test_select_job_applies_round_robin_fairshare(load_job, load_node, example_config):
