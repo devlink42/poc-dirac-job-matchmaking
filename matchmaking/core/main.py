@@ -6,7 +6,7 @@ import random
 from collections import Counter
 
 from matchmaking.config.logger import logger
-from matchmaking.core.filter import filter
+from matchmaking.core.filter import filter_jobs
 from matchmaking.core.match import is_matching
 from matchmaking.core.rank import rank
 from matchmaking.core.utils import assign_job_to_site, get_jobs, get_selection_configuration
@@ -51,7 +51,7 @@ def select_job(node: Node, rng: random.Random | None = None, config: SchedulingC
     running_by_job_owner = Counter(job.owner for job in running_jobs)
 
     # Filtering: Filter by job type priority
-    candidates = filter(waiting_matching_jobs, running_job_type_counts, site_limits, config, rng)
+    candidates = filter_jobs(waiting_matching_jobs, running_job_type_counts, site_limits, config, rng)
     if not candidates:
         return None
 

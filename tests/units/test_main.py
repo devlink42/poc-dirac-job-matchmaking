@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from matchmaking.config.logger import configure_logger
-from matchmaking.core.filter import filter
+from matchmaking.core.filter import filter_jobs
 from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
@@ -146,7 +146,7 @@ def test_filter_ignores_weighted_priority_without_eligible_type(load_job):
     job = load_job("job_01_mcsimulation_any_site")
     config = SchedulingConfig(job_type_priorities=[{Type.USER: 1}])
 
-    candidates = filter(
+    candidates = filter_jobs(
         [job],
         running_job_type_counts={job.type: 0},
         site_limits={},
