@@ -21,6 +21,7 @@ import sys
 import time
 from collections.abc import Iterable
 
+import gevent
 from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
@@ -30,6 +31,7 @@ from matchmaking.core.main import select_job
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
+from matchmaking.models.utils import JobStatus
 
 JOB_POOL_SIZE = 0
 NODES_POOL: list[Node] = []
@@ -51,6 +53,12 @@ _CANDIDATE_WINDOW_QUERY = """
     FROM candidate_window
     ORDER BY window_segment, id
 """
+
+
+def _reset_job(job: Job) -> None:
+    """Reset a running job back to WAITING so it can be picked up again."""
+    job.status = JobStatus.WAITING
+    job.assigned_site = None
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -156,6 +164,12 @@ def _(parser):
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
         help="Logging verbosity level.",
     )
+    parser.add_argument(
+        "--reset-delay",
+        type=float,
+        default=5.0,
+        help="Delay in seconds before resetting a RUNNING job back to WAITING.",
+    )
 
 
 @events.test_start.add_listener
@@ -236,6 +250,10 @@ class MatchmakingUser(User):
 
         try:
             selected_job = select_job(node, rng=self._rng, config=SCHEDULING_CONFIG)
+            if selected_job is not None:
+                delay = self.environment.parsed_options.reset_delay
+                if delay > 0:
+                    gevent.spawn_later(delay, _reset_job, selected_job)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
