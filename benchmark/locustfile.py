@@ -14,12 +14,14 @@ Workflow:
 
 from __future__ import annotations
 
+import itertools
 import random
 import sqlite3
+import sys
 import time
 from collections.abc import Iterable
 
-from locust import User, between, events, task
+from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
@@ -34,6 +36,7 @@ NODES_POOL: list[Node] = []
 CANDIDATE_POOL: list[Job] = []
 SCHEDULING_CONFIG: SchedulingConfig | None = None
 
+_USER_SEQ = itertools.count()
 _CANDIDATE_WINDOW_QUERY = """
     WITH candidate_window AS (
         SELECT data, id, 0 AS window_segment
@@ -205,7 +208,7 @@ def on_test_start(environment, **kwargs):
 class MatchmakingUser(User):
     """Simulates a scheduler process matching jobs to nodes."""
 
-    wait_time = between(0.001, 1.0)
+    wait_time = constant(0)
 
     def __init__(self, environment):
         super().__init__(environment)
@@ -216,7 +219,7 @@ class MatchmakingUser(User):
         if not JOB_POOL_SIZE or not NODES_POOL or SCHEDULING_CONFIG is None:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
-        self._rng = random.Random(self.environment.parsed_options.seed)  # noqa: S311
+        self._rng = random.Random(self.environment.parsed_options.seed + next(_USER_SEQ))  # noqa: S311
 
     @task
     def evaluate_select_job(self):
@@ -243,6 +246,7 @@ class MatchmakingUser(User):
             request_type="Python",
             name="select_job_cycle",
             response_time=total_time_ms,
+            response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,
             context={"matched": selected_job is not None},
         )

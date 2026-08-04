@@ -33,7 +33,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
     # Limit reached -> raises ValueError
     candidate_jobs_limit_reached = [running_job] * 500 + [job]
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_reached),
+        patch("matchmaking.core.utils.JOBS", candidate_jobs_limit_reached),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -43,7 +43,7 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
     # Limit not reached -> returns Job
     candidate_jobs_limit_ok = [running_job] * 499 + [job]
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_ok),
+        patch("matchmaking.core.utils.JOBS", candidate_jobs_limit_ok),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -91,7 +91,7 @@ def test_select_job_priority_handling(priorities: list, expected_job_id: str, lo
     rng = random.Random(42)  # noqa: S311
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.utils.JOBS", candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=mock_config),
     ):
         selected = select_job(node, rng)
@@ -114,7 +114,7 @@ def test_select_job_tiebreaker_is_fifo(load_job, load_node, example_config):
     job_new.status = JobStatus.WAITING
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job_new, job_old]),
+        patch("matchmaking.core.utils.JOBS", [job_new, job_old]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -130,7 +130,7 @@ def test_select_job_accepts_explicit_configuration(load_job, load_node, example_
     job.status = JobStatus.WAITING
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job]),
+        patch("matchmaking.core.utils.JOBS", [job]),
         patch(
             "matchmaking.core.main.get_selection_configuration",
             side_effect=AssertionError("The injected configuration must be used."),
@@ -183,7 +183,7 @@ def test_select_job_applies_round_robin_fairshare(load_job, load_node, example_c
     candidate_jobs = running_jobs + [job_a, job_b]
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.utils.JOBS", candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         # Because Group2 has fewer running jobs (0) than Group1 (2), Charlie's job should be selected first!
@@ -212,7 +212,7 @@ def test_select_job_unknown_type_fallback(load_job, load_node, example_config):
     example_config.job_type_priorities = [Type.MCSIMULATION]
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job_unknown, job_older]),
+        patch("matchmaking.core.utils.JOBS", [job_unknown, job_older]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -222,11 +222,16 @@ def test_select_job_unknown_type_fallback(load_job, load_node, example_config):
         assert selected.job_id == "older"
 
 
-def test_select_job_propagates_loader_exceptions(load_node):
+def test_select_job_propagates_loader_exceptions(load_node, load_job):
     """Test that exceptions from loader functions propagate naturally."""
     node = load_node("node_01_cern_typical")
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
 
-    with patch("matchmaking.core.main.get_jobs", side_effect=ValueError("Failed to load jobs")):
+    with (
+        patch("matchmaking.core.utils.JOBS", [job]),
+        patch("matchmaking.core.main.get_selection_configuration", side_effect=ValueError("Failed to load jobs")),
+    ):
         with pytest.raises(ValueError, match="Failed to load jobs"):
             select_job(node)
 
@@ -251,7 +256,7 @@ def test_select_job_ignores_running_limits_from_other_sites(example_config, load
     candidate_jobs = [running_job_other_site] * 10 + [waiting_job]
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
+        patch("matchmaking.core.utils.JOBS", candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node_site_a)
@@ -350,8 +355,8 @@ def test_select_job_hardware_and_system_matching(
             spec.cpu_work = 1  # Bypass maximum cpu work limit
 
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job]),
-        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
+        patch("matchmaking.core.utils.JOBS", [job]),
+        patch("matchmaking.core.utils.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
 
