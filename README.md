@@ -28,13 +28,13 @@ You need to generate a database with a large number of jobs and nodes before run
 You can do this using the following command:
 
 ```bash
-pixi run generate_db --num-jobs 800000 --num-nodes 50000
+pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 ```
 
 And this is the list of available parameters for the `generate_db` command:
 
 - `--num-jobs`: Number of jobs to generate. Use at least the benchmark `--num-jobs`; additional jobs only
-  increase the diversity of the sampled circular window. (Default: 800000)
+  increase the diversity of the sampled circular window. (Default: 1000000)
 - `--num-nodes`: Number of nodes to generate. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--output`: Output database path. (Default: `benchmark/benchmark.db`)
@@ -73,7 +73,7 @@ You can pass custom arguments to adjust the scale of the pre-loaded data:
 
 - `--num-jobs`: Number of jobs pulled from the database and evaluated in each selection cycle. In the benchmark
   command, this is the candidate-window size and must not exceed the number of jobs generated in the database.
-  (Default: 800000)
+  (Default: 10000000)
 - `--num-nodes`: Defines the total number of nodes available in the persistent database. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--config-path`: Path to the scheduling configuration. (Default: `config/scheduling.yaml`)
