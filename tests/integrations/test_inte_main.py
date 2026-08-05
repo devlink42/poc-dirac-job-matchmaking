@@ -3,20 +3,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from matchmaking.core import utils
 from matchmaking.core.main import select_job
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.utils import JobStatus, Type
-
-
-@pytest.fixture(autouse=True)
-def clear_jobs_cache() -> None:
-    """Automatically clear the job cache before every test to prevent state leakage."""
-    utils._JOBS_CACHE = None
 
 
 def create_mock_job(load_job, job_id, submit_time, owner, group, type, status=JobStatus.WAITING):
@@ -64,16 +55,12 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
     running_jobs = []
 
     while queue:
+        all_jobs = running_jobs + queue
+        set_jobs(all_jobs)
         with (
-            patch("matchmaking.core.utils.Path.glob") as mock_glob,
-            patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
+            patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
         ):
-            all_jobs = running_jobs + queue
-            mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(all_jobs))]
-            mock_load_job.side_effect = all_jobs
-
-            with patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config):
-                job = select_job(node)
+            job = select_job(node)
 
         assert job is not None
 
@@ -116,13 +103,10 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
 
     job1 = None
 
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(queue))]
-        mock_load_job.side_effect = queue
         job1 = select_job(node)
 
     assert job1 is not None
@@ -146,38 +130,31 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
             )
         )
 
+    for i, j in enumerate(queue):
+        if i < 20:
+            j.status = JobStatus.RUNNING
+            j.assigned_site = node.site
+        else:
+            j.status = JobStatus.WAITING
+
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(queue))]
-
-        for i, j in enumerate(queue):
-            if i < 20:
-                j.status = JobStatus.RUNNING
-                j.assigned_site = node.site
-            else:
-                j.status = JobStatus.WAITING
-
-        mock_load_job.side_effect = queue
-
         selected = select_job(node)
 
         assert selected is None
 
+    q = queue[:19]
+    for i, j in enumerate(q):
+        j.status = JobStatus.RUNNING if i < 18 else JobStatus.WAITING
+        if j.status == JobStatus.RUNNING:
+            j.assigned_site = node.site
+
+    set_jobs(q)
     with (
-        patch("matchmaking.core.utils.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        q = queue[:19]
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(q))]
-
-        for i, j in enumerate(q):
-            j.status = JobStatus.RUNNING if i < 18 else JobStatus.WAITING
-
-        mock_load_job.side_effect = q
         job = select_job(node)
 
         assert job is not None
@@ -208,13 +185,10 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
 
     job = None
 
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.Path.glob") as mock_glob,
-        patch("matchmaking.models.job.Job.load_from_yaml") as mock_load_job,
-        patch("matchmaking.models.config.SchedulingConfig.load_from_yaml", return_value=example_config),
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
-        mock_glob.return_value = [Path(f"job_{i}.yaml") for i in range(len(queue))]
-        mock_load_job.side_effect = queue
         job = select_job(node)
 
     assert job is not None

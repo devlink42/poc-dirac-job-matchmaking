@@ -6,21 +6,23 @@ import random
 from collections import Counter
 
 from matchmaking.config.logger import logger
-from matchmaking.core.filter import filter
+from matchmaking.core.filter import filter_jobs
 from matchmaking.core.match import is_matching
 from matchmaking.core.rank import rank
 from matchmaking.core.utils import assign_job_to_site, get_jobs, get_selection_configuration
+from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
 from matchmaking.models.utils import JobStatus
 
 
-def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
+def select_job(node: Node, rng: random.Random | None = None, config: SchedulingConfig | None = None) -> Job | None:
     """Select a job from the matching jobs based on scheduling criteria.
 
     Args:
         node: The node on which the job will be executed.
         rng: The random number generator to use for selection. Defaults to None.
+        config: Explicit scheduling configuration. Defaults to the configured global source.
 
     Returns:
         The selected job.
@@ -36,7 +38,8 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
         logger.info("No waiting jobs match the node specifications.")
         return None
 
-    config = get_selection_configuration()
+    if config is None:
+        config = get_selection_configuration()
 
     site_config = config.by_site.get(node.site, None)
     site_limits = site_config.running_limits if site_config else {}
@@ -48,7 +51,7 @@ def select_job(node: Node, rng: random.Random | None = None) -> Job | None:
     running_by_job_owner = Counter(job.owner for job in running_jobs)
 
     # Filtering: Filter by job type priority
-    candidates = filter(waiting_matching_jobs, running_job_type_counts, site_limits, config, rng)
+    candidates = filter_jobs(waiting_matching_jobs, running_job_type_counts, site_limits, config, rng)
     if not candidates:
         return None
 

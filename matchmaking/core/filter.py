@@ -10,7 +10,7 @@ from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 
 
-def filter(
+def filter_jobs(
     waiting_jobs: list[Job],
     running_job_type_counts: dict[str, int],
     site_limits: dict[str, int],
