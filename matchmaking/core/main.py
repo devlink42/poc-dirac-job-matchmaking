@@ -6,11 +6,10 @@ import random
 from collections import Counter
 
 from matchmaking.config.logger import logger
-from matchmaking.core import utils
 from matchmaking.core.filter import filter_jobs
 from matchmaking.core.match import is_matching
 from matchmaking.core.rank import rank
-from matchmaking.core.utils import assign_job_to_site, get_selection_configuration
+from matchmaking.core.utils import assign_job_to_site, get_jobs, get_selection_configuration
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -28,7 +27,7 @@ def select_job(node: Node, rng: random.Random | None = None, config: SchedulingC
     Returns:
         The selected job.
     """
-    jobs = utils.JOBS
+    jobs = get_jobs()
 
     # Match-making: Filter jobs that are compatible with the node's resources
     # and requirements, only in WAITING status jobs.

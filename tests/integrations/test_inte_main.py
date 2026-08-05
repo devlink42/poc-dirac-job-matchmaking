@@ -6,6 +6,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from matchmaking.core.main import select_job
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.utils import JobStatus, Type
 
 
@@ -55,8 +56,8 @@ def test_integration_fair_distribution_round_robin_across_owners(example_config,
 
     while queue:
         all_jobs = running_jobs + queue
+        set_jobs(all_jobs)
         with (
-            patch("matchmaking.core.utils.JOBS", all_jobs),
             patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
         ):
             job = select_job(node)
@@ -102,8 +103,8 @@ def test_integration_type_priority_overrides_fair_share(example_config, base_tim
 
     job1 = None
 
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.JOBS", queue),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         job1 = select_job(node)
@@ -136,8 +137,8 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         else:
             j.status = JobStatus.WAITING
 
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.JOBS", queue),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -150,8 +151,8 @@ def test_integration_dynamic_limits_stop_scheduling(example_config, base_time, l
         if j.status == JobStatus.RUNNING:
             j.assigned_site = node.site
 
+    set_jobs(q)
     with (
-        patch("matchmaking.core.utils.JOBS", q),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         job = select_job(node)
@@ -184,8 +185,8 @@ def test_integration_fifo_tiebreaker_same_counts(example_config, base_time, load
 
     job = None
 
+    set_jobs(queue)
     with (
-        patch("matchmaking.core.utils.JOBS", queue),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         job = select_job(node)

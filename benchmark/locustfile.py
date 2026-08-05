@@ -6,10 +6,10 @@ by directly firing events to Locust's metric system.
 
 Workflow:
     1. Generate the benchmark database once:
-           pixi run generate_db --num-jobs 800000 --num-nodes 50000
+        pixi run generate_db --num-jobs 800000 --num-nodes 50000
 
     2. Run the benchmark:
-           pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000 --log-level ERROR
+        pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
@@ -20,14 +20,15 @@ import sqlite3
 import sys
 import time
 from collections.abc import Iterable
+from datetime import UTC, datetime
 
 import gevent
 from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core import utils
 from matchmaking.core.main import select_job
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -59,6 +60,7 @@ def _reset_job(job: Job) -> None:
     """Reset a running job back to WAITING so it can be picked up again."""
     job.status = JobStatus.WAITING
     job.assigned_site = None
+    job.submit_time = datetime.now(tz=UTC)
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -208,7 +210,7 @@ def on_test_start(environment, **kwargs):
 
     start_id = random.Random(opts.seed).randint(1, JOB_POOL_SIZE)  # noqa: S311
     CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, opts.num_jobs, JOB_POOL_SIZE)
-    utils.JOBS = CANDIDATE_POOL
+    set_jobs(CANDIDATE_POOL)
 
     logger.info(
         "Ready: %s nodes, %s candidates loaded from %s available jobs in %s.",
@@ -262,7 +264,7 @@ class MatchmakingUser(User):
 
         events.request.fire(
             request_type="Python",
-            name="select_job_cycle",
+            name="select_job[match]" if selected_job else "select_job[no_match]",
             response_time=total_time_ms,
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,

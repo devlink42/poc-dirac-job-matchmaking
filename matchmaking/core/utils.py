@@ -13,6 +13,28 @@ JOBS: list[Job] = []
 _CONFIG_CACHE: SchedulingConfig | None = None
 
 
+def set_jobs(jobs: list[Job]) -> None:
+    """Set the list of jobs.
+
+    Args:
+        jobs: List of jobs to set.
+    """
+    global JOBS
+
+    JOBS = jobs
+
+    logger.debug("Set %d jobs in memory.", len(JOBS))
+
+
+def get_jobs() -> list[Job]:
+    """Get the list of jobs.
+
+    Returns:
+        List of jobs.
+    """
+    return JOBS
+
+
 def get_selection_configuration() -> SchedulingConfig:
     """Load scheduling configuration from the specified path.
 
