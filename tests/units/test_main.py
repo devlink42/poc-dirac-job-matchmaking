@@ -8,9 +8,14 @@ from unittest.mock import patch
 
 import pytest
 
+from matchmaking.config.logger import configure_logger
+from matchmaking.core.filter import filter_jobs
 from matchmaking.core.main import select_job
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig, Site
 from matchmaking.models.utils import JobStatus, Type
+
+configure_logger("ERROR")
 
 
 def test_select_job_respects_site_limits(example_config, load_job, load_node):
@@ -28,20 +33,22 @@ def test_select_job_respects_site_limits(example_config, load_job, load_node):
 
     # Limit reached -> raises ValueError
     candidate_jobs_limit_reached = [running_job] * 500 + [job]
+    set_jobs(candidate_jobs_limit_reached)
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_reached),
-        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
-    ):
-        with pytest.raises(ValueError):
-            select_job(node)
-
-    # Limit not reached -> returns Job
-    candidate_jobs_limit_ok = [running_job] * 499 + [job]
-    with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs_limit_ok),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
+
+        assert selected is None
+
+    # Limit not reached -> returns Job
+    candidate_jobs_limit_ok = [running_job] * 499 + [job]
+    set_jobs(candidate_jobs_limit_ok)
+    with (
+        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
+    ):
+        selected = select_job(node)
+
         assert selected is not None
         assert selected.job_id == job.job_id
 
@@ -84,11 +91,11 @@ def test_select_job_priority_handling(priorities: list, expected_job_id: str, lo
     # Use a deterministic random seed for robust weighted algorithm testing
     rng = random.Random(42)  # noqa: S311
 
+    set_jobs(candidate_jobs)
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=mock_config),
     ):
-        selected = select_job(node, rng=rng)
+        selected = select_job(node, rng)
 
         assert selected is not None
         assert selected.job_id == expected_job_id
@@ -107,14 +114,48 @@ def test_select_job_tiebreaker_is_fifo(load_job, load_node, example_config):
     job_new.job_id = "new"
     job_new.status = JobStatus.WAITING
 
+    set_jobs([job_new, job_old])
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job_new, job_old]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
 
         assert selected is not None
         assert selected.job_id == "old"
+
+
+def test_select_job_accepts_explicit_configuration(load_job, load_node, example_config):
+    """Test that an explicitly supplied configuration bypasses the global configuration loader."""
+    node = load_node("node_01_cern_typical")
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
+
+    set_jobs([job])
+    with (
+        patch(
+            "matchmaking.core.main.get_selection_configuration",
+            side_effect=AssertionError("The injected configuration must be used."),
+        ),
+    ):
+        selected = select_job(node, config=example_config)
+
+    assert selected is job
+
+
+def test_filter_ignores_weighted_priority_without_eligible_type(load_job):
+    """Test that an unmatched weighted priority level falls back to allowed candidates."""
+    job = load_job("job_01_mcsimulation_any_site")
+    config = SchedulingConfig(job_type_priorities=[{Type.USER: 1}])
+
+    candidates = filter_jobs(
+        [job],
+        running_job_type_counts={job.type: 0},
+        site_limits={},
+        config=config,
+        rng=None,
+    )
+
+    assert candidates == [job]
 
 
 def test_select_job_applies_round_robin_fairshare(load_job, load_node, example_config):
@@ -142,8 +183,8 @@ def test_select_job_applies_round_robin_fairshare(load_job, load_node, example_c
 
     candidate_jobs = running_jobs + [job_a, job_b]
 
+    set_jobs(candidate_jobs)
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         # Because Group2 has fewer running jobs (0) than Group1 (2), Charlie's job should be selected first!
@@ -171,8 +212,8 @@ def test_select_job_unknown_type_fallback(load_job, load_node, example_config):
     # Override config so priorities only explicitly target MCSIMULATION
     example_config.job_type_priorities = [Type.MCSIMULATION]
 
+    set_jobs([job_unknown, job_older])
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job_unknown, job_older]),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node)
@@ -182,11 +223,16 @@ def test_select_job_unknown_type_fallback(load_job, load_node, example_config):
         assert selected.job_id == "older"
 
 
-def test_select_job_propagates_loader_exceptions(load_node):
+def test_select_job_propagates_loader_exceptions(load_node, load_job):
     """Test that exceptions from loader functions propagate naturally."""
     node = load_node("node_01_cern_typical")
+    job = load_job("job_01_mcsimulation_any_site")
+    job.status = JobStatus.WAITING
 
-    with patch("matchmaking.core.main.get_jobs", side_effect=ValueError("Failed to load jobs")):
+    set_jobs([job])
+    with (
+        patch("matchmaking.core.main.get_selection_configuration", side_effect=ValueError("Failed to load jobs")),
+    ):
         with pytest.raises(ValueError, match="Failed to load jobs"):
             select_job(node)
 
@@ -210,8 +256,8 @@ def test_select_job_ignores_running_limits_from_other_sites(example_config, load
     # If the limit was global, the limit of 1 for node_site_a would be falsely triggered.
     candidate_jobs = [running_job_other_site] * 10 + [waiting_job]
 
+    set_jobs(candidate_jobs)
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=candidate_jobs),
         patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
     ):
         selected = select_job(node_site_a)
@@ -309,15 +355,14 @@ def test_select_job_hardware_and_system_matching(
             spec.wall_time = 1  # Bypass maximum wall time limit
             spec.cpu_work = 1  # Bypass maximum cpu work limit
 
+    set_jobs([job])
     with (
-        patch("matchmaking.core.main.get_jobs", return_value=[job]),
-        patch("matchmaking.core.main.get_selection_configuration", return_value=example_config),
+        patch("matchmaking.core.utils.get_selection_configuration", return_value=example_config),
     ):
-        if expected_selected:
-            selected = select_job(node)
+        selected = select_job(node)
 
+        if expected_selected:
             assert selected is not None
             assert selected.job_id == job.job_id
         else:
-            with pytest.raises(ValueError):
-                select_job(node)
+            assert selected is None

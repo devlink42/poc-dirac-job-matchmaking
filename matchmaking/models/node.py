@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, model_validator
 
 from matchmaking.models.base import YamlLoadableModel
 from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, SystemName
@@ -10,6 +10,8 @@ from matchmaking.models.utils import ArchitectureName, CustomVersion, Io, System
 
 class System(BaseModel):
     """System information of a node."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: SystemName
     glibc: CustomVersion
@@ -19,12 +21,16 @@ class System(BaseModel):
 class Architecture(BaseModel):
     """CPU architecture of a node."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     name: ArchitectureName
     microarchitecture_level: PositiveInt = Field(validation_alias="microarchitecture-level")
 
 
 class Cpu(BaseModel):
     """CPU resources of a node."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     num_cores: PositiveInt = Field(validation_alias="num-cores")
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
@@ -33,6 +39,8 @@ class Cpu(BaseModel):
 
 class Gpu(BaseModel):
     """GPU resources of a node."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: NonNegativeInt
     ram_mb: PositiveInt | None = Field(default=None, validation_alias="ram-mb")
@@ -61,6 +69,8 @@ class Gpu(BaseModel):
 
 class Node(YamlLoadableModel):
     """Data model representing a compute node."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     version: CustomVersion = Field(default=CustomVersion("0.1"))
     node_id: str | None = None

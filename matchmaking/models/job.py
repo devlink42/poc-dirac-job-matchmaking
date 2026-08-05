@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Self
 
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
 from matchmaking.models.base import YamlLoadableModel
@@ -25,6 +25,8 @@ from matchmaking.models.utils import (
 class System(BaseModel):
     """System requirements for a job."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     name: SystemName
     glibc: CustomVersion | None = None
     user_namespaces: bool | None = Field(default=None, validation_alias="user-namespaces")
@@ -33,12 +35,16 @@ class System(BaseModel):
 class ComputeMemory(BaseModel):
     """Memory requirements for computation."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     request: ResourceSpec
     limit: ResourceSpec
 
 
 class Architecture(BaseModel):
     """CPU architecture requirements."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: ArchitectureName
     microarchitecture_level: Range[PositiveInt] = Field(validation_alias="microarchitecture-level")
@@ -47,6 +53,8 @@ class Architecture(BaseModel):
 class Cpu(BaseModel):
     """CPU core and RAM requirements."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
     ram_mb: ComputeMemory | None = Field(default=None, validation_alias="ram-mb")
     architecture: Architecture
@@ -54,6 +62,8 @@ class Cpu(BaseModel):
 
 class Gpu(BaseModel):
     """GPU requirements for a job."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: StrictRange[NonNegativeInt]
     ram_mb: PositiveInt = Field(validation_alias="ram-mb")
@@ -64,6 +74,8 @@ class Gpu(BaseModel):
 
 class MatchingSpecs(BaseModel):
     """Specification of requirements for matching a job with a node."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     site: str | None = None
     system: System

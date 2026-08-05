@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
@@ -54,3 +55,10 @@ def load_config():
 @pytest.fixture
 def base_time():
     return datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def cleanup_jobs():
+    """Automatically clean up jobs after each test."""
+    yield
+    set_jobs([])

@@ -8,6 +8,7 @@ from typing import Annotated, Any, Generic, Self, TypeVar
 from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     GetCoreSchemaHandler,
     NonNegativeInt,
@@ -103,6 +104,8 @@ class Range(StrictRange, Generic[T]):
 class ResourceSpec(BaseModel):
     """Specification of resources, potentially per-core."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     overhead: NonNegativeInt = 0
     per_core: NonNegativeInt = Field(default=0, validation_alias="per-core")
 
@@ -117,6 +120,8 @@ class ArchitectureName(StrEnum):
 
 class Io(BaseModel):
     """Input/Output resource requirements."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")
     # We don't test scratch IOPS because we are unable to accurately obtain
