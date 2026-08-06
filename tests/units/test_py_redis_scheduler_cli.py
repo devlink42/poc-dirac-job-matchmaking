@@ -22,7 +22,7 @@ JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
 
 @pytest.fixture(autouse=True)
 def reset_scheduler_state(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(utils, "_JOBS_CACHE", None)
+    utils.set_jobs([])
     monkeypatch.setattr(utils, "_CONFIG_CACHE", None)
 
 
