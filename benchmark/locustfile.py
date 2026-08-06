@@ -93,7 +93,7 @@ def _get_max_job_id(db_path: str) -> int:
 def _load_candidate_data(
     connection: sqlite3.Connection,
     start_id: int,
-    candidate_count: int,
+    number_of_jobs: int,
     pool_size: int,
 ) -> Iterable[tuple[str]]:
     """Load one circular candidate window with a single indexed query.
@@ -101,7 +101,7 @@ def _load_candidate_data(
     Args:
         connection: Read-only benchmark database connection.
         start_id: First job identifier in the window.
-        candidate_count: Exact number of jobs to load.
+        number_of_jobs: Exact number of jobs to load.
         pool_size: Number of densely indexed jobs available to the benchmark.
 
     Returns:
@@ -110,13 +110,13 @@ def _load_candidate_data(
     Raises:
         ValueError: If the requested window cannot fit the configured pool.
     """
-    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= candidate_count <= pool_size:
+    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= number_of_jobs <= pool_size:
         raise ValueError("Invalid candidate window for the configured job pool.")
 
-    if candidate_count == 0:
+    if number_of_jobs == 0:
         return ()
 
-    last_unwrapped_id = start_id + candidate_count - 1
+    last_unwrapped_id = start_id + number_of_jobs - 1
     first_range_end = min(last_unwrapped_id, pool_size)
     second_range_end = max(last_unwrapped_id - pool_size, 0)
 
@@ -126,13 +126,13 @@ def _load_candidate_data(
     )
 
 
-def _load_candidate_jobs(db_path: str, start_id: int, candidate_count: int, pool_size: int) -> list[Job]:
+def _load_candidate_jobs(db_path: str, start_id: int, number_of_jobs: int, pool_size: int) -> list[Job]:
     """Load and validate the candidate pool once before the benchmark starts."""
     connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         return [
             Job.model_validate_json(row[0])
-            for row in _load_candidate_data(connection, start_id, candidate_count, pool_size)
+            for row in _load_candidate_data(connection, start_id, number_of_jobs, pool_size)
         ]
     finally:
         connection.close()
@@ -203,12 +203,14 @@ def on_test_start(environment, **kwargs):
     try:
         if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
             raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
-            NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
             JOB_POOL_SIZE = redis_client.hlen(PY_REDIS_JOB_KEY)
+            NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
+
             logger.info("Loaded from Redis")
         elif MatchMode(opts.match_mode) is MatchMode.PYTHON:
             JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
             NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
+
             logger.info("Loaded from SQLite")
         else:
             raise ValueError(f"Unsupported match mode: {opts.match_mode}")

@@ -14,27 +14,27 @@ _DEFAULT_CANDIDATE_JOBS_COUNT = 1000
 
 def fetch_candidate_jobs(
     redis_client: redis.Redis,
-    candidate_jobs_count: int,
+    number_of_jobs: int,
 ) -> list[Job]:
     """Sample random jobs from Redis without loading the full key space into memory.
 
-    Uses ``HRANDFIELD`` to obtain *candidate_jobs_count* unique random job IDs in a
+    Uses ``HRANDFIELD`` to obtain *number_of_jobs* unique random job IDs in a
     single O(count) operation, then fetches their JSON payloads via ``HMGET``.
-    Memory consumption is therefore proportional to *candidate_jobs_count*, not to
+    Memory consumption is therefore proportional to *number_of_jobs*, not to
     the total number of jobs stored — critical when the job hash has millions of
     entries and many Locust users run concurrently.
 
     Args:
         redis_client: A connected Redis client with ``decode_responses=True``.
-        candidate_jobs_count: How many jobs to sample. When the hash contains fewer
+        number_of_jobs: How many jobs to sample. When the hash contains fewer
             entries than requested, all available jobs are returned.
 
     Returns:
         A list of validated :class:`~matchmaking.models.job.Job` objects.  May
-        be shorter than *candidate_jobs_count* if some stored payloads are missing
+        be shorter than *number_of_jobs* if some stored payloads are missing
         or fail Pydantic validation (those are silently skipped with a warning).
     """
-    job_ids: list[str] = redis_client.hrandfield(PY_REDIS_JOB_KEY, candidate_jobs_count)
+    job_ids: list[str] = redis_client.hrandfield(PY_REDIS_JOB_KEY, number_of_jobs)
     if not job_ids:
         return []
 
