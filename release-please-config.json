@@ -1,9 +1,9 @@
 {
   "changelog-path": "CHANGELOG.md",
   "release-type": "python",
-  "versioning": "prerelease",
-  "bump-minor-pre-major": true,
-  "bump-patch-for-minor-pre-major": true,
+  "versioning": "default",
+  "bump-minor-pre-major": false,
+  "bump-patch-for-minor-pre-major": false,
   "draft": false,
   "prerelease": false,
   "include-v-in-tag": true,
