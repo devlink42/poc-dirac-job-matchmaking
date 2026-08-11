@@ -37,6 +37,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.repository == 'devlink42/poc-dirac-job-matchmaking' && github.ref_name == 'main' }}
+    env:
+      NODE_OPTIONS: "--use-system-ca"
     permissions:
       contents: write
       pull-requests: write
