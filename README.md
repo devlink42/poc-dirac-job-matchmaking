@@ -5,9 +5,8 @@
 
 ## Matchmaking Performance Benchmark
 
-This directory contains the performance test suite using Locust to benchmark the matchmaking system.
-This framework establishes the baseline for the Python prototype and will be reused for subsequent phases (e.g., Redis,
-Lua).
+This directory contains the performance test suite using Locust to benchmark the matchmaking system. This framework
+establishes the baseline for the Python prototype and will be reused for subsequent phases (e.g., Redis, Lua).
 
 ### Features
 
@@ -24,8 +23,8 @@ Ensure your environment is properly set up using Pixi. Locust is already include
 
 #### Generate data
 
-You need to generate a database with a large number of jobs and nodes before running the benchmark.
-You can do this using the following command:
+You need to generate a database with a large number of jobs and nodes before running the benchmark. You can do this
+using the following command:
 
 ```bash
 pixi run generate_db --num-jobs 10000000 --num-nodes 50000
@@ -33,8 +32,8 @@ pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
 And this is the list of available parameters for the `generate_db` command:
 
-- `--num-jobs`: Number of jobs to generate. Use at least the benchmark `--num-jobs`; additional jobs only
-  increase the diversity of the sampled circular window. (Default: 1000000)
+- `--num-jobs`: Number of jobs to generate. Use at least the benchmark `--num-jobs`; additional jobs only increase the
+  diversity of the sampled circular window. (Default: 1000000)
 - `--num-nodes`: Number of nodes to generate. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--output`: Output database path. (Default: `benchmark/benchmark.db`)
@@ -51,8 +50,8 @@ generating load:
 pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000
 ```
 
-`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as
-many jobs as requested by `--num-jobs`.
+`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as many
+jobs as requested by `--num-jobs`.
 
 #### Web UI Mode (Interactive Exploration)
 
@@ -62,8 +61,8 @@ To explore latency graphs, throughput curves, and easily tweak the user load:
 pixi run benchmark-ui -u 100 -r 50 -t 15m --num-nodes 50000
 ```
 
-`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as
-many jobs as requested by `--num-jobs`.
+`--num-nodes` must not exceed the number of nodes in the generated database. The database must contain at least as many
+jobs as requested by `--num-jobs`.
 
 Then, open your browser at http://localhost:8089.
 
@@ -71,9 +70,9 @@ Then, open your browser at http://localhost:8089.
 
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
-- `--num-jobs`: Number of jobs pulled from the database and evaluated in each selection cycle. In the benchmark
-  command, this is the candidate-window size and must not exceed the number of jobs generated in the database.
-  (Default: 10000000)
+- `--num-jobs`: Number of jobs pulled from the database and evaluated in each selection cycle. In the benchmark command,
+  this is the candidate-window size and must not exceed the number of jobs generated in the database. (Default:
+  10000000)
 - `--num-nodes`: Defines the total number of nodes available in the persistent database. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--config-path`: Path to the scheduling configuration. (Default: `config/scheduling.yaml`)
@@ -95,7 +94,6 @@ benchmark executions generate comprehensive CSV and HTML reports.*
 ### Baseline Benchmark Results (Python Prototype)
 
 **Test Context:** 10,000,000 Jobs, 50,000 Nodes.
-
 
 ## Redis Data Model Design
 
@@ -133,7 +131,7 @@ nodes), ensuring atomicity and efficiency.
       hundreds of jobs) will block the entire Redis instance, delaying all other operations and pilots.
     - **Data fetching overhead:** Performing `HMGET` for every candidate job during the evaluation loop accumulates
       significant latency relative to in-memory evaluations.
-    - **Costly priority updates:** Updating job priorities requires modifying the `ZSET` score, which is an O(log N)
+    - **Costly priority updates:** Updating job priorities requires modifying the `ZSET` score, which is an O (log N)
       operation. At 10 million jobs, frequent priority reassessments can cause CPU spikes.
 
 #### Alternative B: RedisJSON & RediSearch (Indexed Matching)
@@ -145,7 +143,7 @@ nodes), ensuring atomicity and efficiency.
   Once a job is found, a small Lua script attempts to "lock" it atomically.
 - **Pros:**
     - Delegates complex multi-criteria filtering to the database engine.
-    - O(1) or O(log N) search time regardless of queue shape.
+    - O (1) or O (log N) search time regardless of queue shape.
     - Highly scalable for complex Dirac JDL requirements.
 - **Cons:**
     - Requires the RediSearch module.
@@ -162,7 +160,7 @@ nodes), ensuring atomicity and efficiency.
 - **Matching flow:** A Pilot checks the specific queues that match its capabilities. If a Pilot is at the LCG site and
   has a GPU, it directly pops (`LPOP` or `ZPOPMIN`) from `jobs:pending:site:LCG` or `jobs:pending:gpu`.
 - **Pros:**
-    - Extremely fast read operations (O(1) or O(log N)).
+    - Extremely fast read operations (O (1) or O (log N)).
     - Zero "head-of-line blocking" since Pilots only look at pre-validated compatible queues.
     - No complex Lua iteration required.
 - **Cons:**
@@ -197,6 +195,9 @@ nodes), ensuring atomicity and efficiency.
       Interface) boundary can still crash the entire Redis host.
 
 ### 4. Memory Estimate at Target Scale (10M Jobs, 1000 Sites)
+
+All of these estimates are fictive and non-tested. It's probably an order of magnitude off, and it's likely that the
+actual memory usage will be higher due to Redis's internal data structures and overhead.
 
 | Component                    | Alt A: ZSET + Hash      | Alt B: RediSearch             | Alt C: Categorized Queues         | Alt D: Custom Native Module     |
 |:-----------------------------|:------------------------|:------------------------------|:----------------------------------|:--------------------------------|
