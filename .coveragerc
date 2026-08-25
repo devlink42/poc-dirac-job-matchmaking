@@ -1,6 +1,0 @@
-[run]
-branch = True
-source = matchmaking
-
-[report]
-show_missing = True

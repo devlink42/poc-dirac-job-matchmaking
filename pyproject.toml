@@ -69,6 +69,10 @@ filterwarnings = [
     "error",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["matchmaking"]
+
 [tool.coverage.report]
 exclude_also = [
     'if __name__ == .__main__.:',
