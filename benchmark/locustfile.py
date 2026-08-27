@@ -9,7 +9,7 @@ Workflow:
         pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-        pixi run benchmark -u 100 -r 50 -t 15m --num-nodes 50000 --log-level ERROR
+        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
@@ -23,11 +23,15 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import gevent
+import redis
 from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
 from matchmaking.core.main import select_job
+from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
+from matchmaking.core.router import MatchMode
 from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
@@ -54,6 +58,8 @@ _CANDIDATE_WINDOW_QUERY = """
     FROM candidate_window
     ORDER BY window_segment, id
 """
+
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 
 def _reset_job(job: Job) -> None:
@@ -87,7 +93,7 @@ def _get_max_job_id(db_path: str) -> int:
 def _load_candidate_data(
     connection: sqlite3.Connection,
     start_id: int,
-    candidate_count: int,
+    number_of_jobs: int,
     pool_size: int,
 ) -> Iterable[tuple[str]]:
     """Load one circular candidate window with a single indexed query.
@@ -95,7 +101,7 @@ def _load_candidate_data(
     Args:
         connection: Read-only benchmark database connection.
         start_id: First job identifier in the window.
-        candidate_count: Exact number of jobs to load.
+        number_of_jobs: Exact number of jobs to load.
         pool_size: Number of densely indexed jobs available to the benchmark.
 
     Returns:
@@ -104,13 +110,13 @@ def _load_candidate_data(
     Raises:
         ValueError: If the requested window cannot fit the configured pool.
     """
-    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= candidate_count <= pool_size:
+    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= number_of_jobs <= pool_size:
         raise ValueError("Invalid candidate window for the configured job pool.")
 
-    if candidate_count == 0:
+    if number_of_jobs == 0:
         return ()
 
-    last_unwrapped_id = start_id + candidate_count - 1
+    last_unwrapped_id = start_id + number_of_jobs - 1
     first_range_end = min(last_unwrapped_id, pool_size)
     second_range_end = max(last_unwrapped_id - pool_size, 0)
 
@@ -120,13 +126,13 @@ def _load_candidate_data(
     )
 
 
-def _load_candidate_jobs(db_path: str, start_id: int, candidate_count: int, pool_size: int) -> list[Job]:
+def _load_candidate_jobs(db_path: str, start_id: int, number_of_jobs: int, pool_size: int) -> list[Job]:
     """Load and validate the candidate pool once before the benchmark starts."""
     connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         return [
             Job.model_validate_json(row[0])
-            for row in _load_candidate_data(connection, start_id, candidate_count, pool_size)
+            for row in _load_candidate_data(connection, start_id, number_of_jobs, pool_size)
         ]
     finally:
         connection.close()
@@ -135,13 +141,15 @@ def _load_candidate_jobs(db_path: str, start_id: int, candidate_count: int, pool
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
-    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to load from the database")
     parser.add_argument(
-        "--num-jobs",
-        type=int,
-        default=10000000,
-        help="Number of candidate jobs to evaluate per select_job call",
+        "--match-mode",
+        type=str,
+        choices=[mode.value for mode in MatchMode],
+        default=MatchMode.PYTHON.value,
+        help="Matchmaking algorithm to evaluate",
     )
+    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to load from the database")
     parser.add_argument(
         "--seed",
         type=int,
@@ -193,11 +201,25 @@ def on_test_start(environment, **kwargs):
         raise SystemExit(1) from e
 
     try:
-        JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
-        NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
+        if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
+            raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
+            JOB_POOL_SIZE = redis_client.hlen(PY_REDIS_JOB_KEY)
+            NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
+
+            logger.info("Loaded from Redis")
+        elif MatchMode(opts.match_mode) is MatchMode.PYTHON:
+            JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
+            NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
+
+            logger.info("Loaded from SQLite")
+        else:
+            raise ValueError(f"Unsupported match mode: {opts.match_mode}")
     except Exception as e:
-        logger.error("Failed to load pools from %s: %s", opts.db_path, e)
-        logger.error("Generate the database first: pixi run generate_db")
+        logger.error(
+            "Failed to load pools: %s\n"
+            "Generate the database first: pixi run generate_db --num-jobs 10000000 --num-nodes 50000",
+            e,
+        )
         raise SystemExit(1) from e
 
     if JOB_POOL_SIZE < opts.num_jobs:
@@ -229,6 +251,8 @@ class MatchmakingUser(User):
     def __init__(self, environment):
         super().__init__(environment)
         self._rng = None
+        self._db_conn = None
+        self.job_ids = []
 
     def on_start(self):
         """Create the per-user random generator outside the hot path."""
@@ -237,8 +261,23 @@ class MatchmakingUser(User):
 
         self._rng = random.Random(self.environment.parsed_options.seed + next(_USER_SEQ))  # noqa: S311
 
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
+            self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
+        else:
+            self.job_ids = list(redis_client.hkeys(PY_REDIS_JOB_KEY))
+
+    def on_stop(self):
+        if self._db_conn:
+            self._db_conn.close()
+
     @task
     def evaluate_select_job(self):
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
+            self.evaluate_select_job_python()
+        else:
+            self.evaluate_select_job_python_redis()
+
+    def evaluate_select_job_python(self):
         """Simulate a pilot requesting a job: filter_by_job_type compatible candidates, then rank.
 
         The candidate pool is loaded and validated once at test startup so both
@@ -264,6 +303,39 @@ class MatchmakingUser(User):
 
         events.request.fire(
             request_type="Python",
+            name="select_job[match]" if selected_job else "select_job[no_match]",
+            response_time=total_time_ms,
+            response_length=sys.getsizeof(selected_job) if selected_job else 0,
+            exception=error,
+            context={"matched": selected_job is not None},
+        )
+
+    def evaluate_select_job_python_redis(self):
+        if not self.job_ids:
+            return
+
+        node = self._rng.choice(NODES_POOL)
+
+        set_jobs(fetch_candidate_jobs(redis_client, self.environment.parsed_options.num_jobs))
+
+        start_time = time.perf_counter()
+        selected_job = None
+        error = None
+
+        try:
+            selected_job = select_job(node)
+            if selected_job is not None:
+                delay = self.environment.parsed_options.reset_delay
+                if delay > 0:
+                    gevent.spawn_later(delay, _reset_job, selected_job)
+        except Exception as e:
+            error = e
+            logger.error("Error during select_job: %s", e)
+
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        events.request.fire(
+            request_type="Redis-Python",
             name="select_job[match]" if selected_job else "select_job[no_match]",
             response_time=total_time_ms,
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
