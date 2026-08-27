@@ -75,6 +75,10 @@ filterwarnings = [
     "error",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["matchmaking"]
+
 [tool.coverage.report]
 omit = [
     "verify_consistency.py",
