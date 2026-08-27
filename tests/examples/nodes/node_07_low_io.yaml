@@ -1,0 +1,24 @@
+version: 0.1.0
+node_id: 'node_07_low_io'
+
+site: LCG.CERN.cern
+system:
+  name: Linux
+  glibc: 2.26
+  user-namespaces: true
+wall-time: 172800  # 2 days
+cpu-work: 300000
+cpu:
+  num-cores: 8
+  ram-mb: 16000
+  architecture:
+    name: x86_64
+    microarchitecture-level: 1
+io:
+  scratch-iops: 100
+  scratch-mb: 100
+gpu:
+  count: 0
+tags:
+  - os:el9
+  - cvmfs:lhcb

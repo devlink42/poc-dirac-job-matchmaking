@@ -11,47 +11,49 @@ job_type_priorities:
   - MCMerge
   - LbAPI
 
-running_limits:
-  # Global limit by default
-  default:
-    MCSimulation: 1000
-    User: 200
-
-  # Local limits by site
+by_site:
   LCG.CERN.cern:
-    WGProduction: 1000
-    MCSimulation: 5000
+    running_limits:
+      WGProduction: 1000
+      MCSimulation: 5000
 
   LCG.IN2P3.fr:
-    MCSimulation: 800
-    User: 50
+    running_limits:
+      MCSimulation: 800
+      User: 50
 
   LCG.NCBJ.pl:
-    WGProduction: 1000
-    MCFastSimulation: 1000
-    User: 200
-    Merge: 100
+    running_limits:
+      WGProduction: 1000
+      MCFastSimulation: 1000
+      User: 200
+      Merge: 100
 
   LCG.GRIDKA.de:
-    MCSimulation: 1000
-    User: 200
-    APMerge: 100
+    running_limits:
+      MCSimulation: 1000
+      User: 200
+      APMerge: 100
 
   LCG.CSCS.ch:
-    WGProduction: 2000
-    MCSimulation: 1000
+    running_limits:
+      WGProduction: 2000
+      MCSimulation: 1000
 
   LCG.RAL.uk:
-    MCSimulation: 1000
-    User: 200
-    LbAPI: 100
+    running_limits:
+      MCSimulation: 1000
+      User: 200
+      LbAPI: 100
 
   LCG.Beijing.cn:
-    WGProduction: 1000
-    MCSimulation: 700
-    User: 400
+    running_limits:
+      WGProduction: 1000
+      MCSimulation: 700
+      User: 400
 
   LCG.CNAF.it:
-    WGProduction: 500
-    MCSimulation: 1000
-    User: 100
+    running_limits:
+      WGProduction: 500
+      MCSimulation: 1000
+      User: 100

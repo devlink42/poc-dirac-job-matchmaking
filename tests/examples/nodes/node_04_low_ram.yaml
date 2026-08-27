@@ -1,9 +1,12 @@
 # Node: Low RAM node
 
-site: "LCG.GRIDKA.de"
+version: 0.1.0
+node_id: 'node_04_low_ram'
+
+site: LCG.GRIDKA.de
 system:
   name: Linux
-  glibc: "2.12"
+  glibc: 2.12
   user-namespaces: true
 wall-time: 86400
 cpu-work: 2000000

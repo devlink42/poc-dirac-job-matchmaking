@@ -3,98 +3,92 @@
 from __future__ import annotations
 
 import sys
+from datetime import UTC, datetime
+from unittest.mock import Mock
 
 import pytest
 
 from matchmaking.cli import match_making
+from matchmaking.models.node import Node
 
-JOB_01 = "tests/examples/jobs/job_01_mcsimulation_any_site.yaml"
-JOB_04 = "tests/examples/jobs/job_04_wgproduction_with_ram.yaml"
-JOB_INVALID = "tests/examples/jobs/invalid_01_job_min_gt_max.yaml"
 NODE_01 = "tests/examples/nodes/node_01_cern_typical.yaml"
 
 
-def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
-    monkeypatch.setattr(sys, "argv", ["match_making.py", *args])
+def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str] | None = None) -> None:
+    monkeypatch.setattr(sys, "argv", ["match.py", *(args or [])])
     match_making.main()
 
 
 def test_main_without_args_prints_help(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [])
+    _run_main(monkeypatch)
     captured = capsys.readouterr()
 
-    assert "Matchmaking and validation for DIRAC jobs and pilots" in captured.out
+    assert "usage:" in captured.out.lower() or "usage:" in captured.err.lower()
 
 
-def test_main_validate_job_requires_path(monkeypatch: pytest.MonkeyPatch):
-    with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, ["--validate-job"])
+def test_main_scheduler_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
+    selected_job = Mock()
+    selected_job.job_id = "job_01"
+    selected_job.submit_time = datetime(2024, 1, 1, tzinfo=UTC)
 
-    assert exc.value.code == 1
+    monkeypatch.setattr(match_making, "select_job", lambda _node: selected_job)
 
-
-def test_main_validate_node_requires_path(monkeypatch: pytest.MonkeyPatch):
-    with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, ["--validate-node"])
-
-    assert exc.value.code == 1
-
-
-def test_main_validate_job_success_output(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_01, "--validate-job"])
+    _run_main(monkeypatch, [NODE_01])
     captured = capsys.readouterr()
 
-    assert "Job job_01_mcsimulation_any_site is VALID." in captured.out
+    output = captured.out + captured.err
+
+    assert "Job job_01 selected for execution on LCG.CERN.cern." in output
 
 
-def test_main_validate_job_invalid_file_content_logs_error(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-):
-    _run_main(monkeypatch, [JOB_INVALID, "--validate-job"])
+def test_main_scheduler_no_allowed_job_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
+    def _mock_no_waiting_jobs(*_args, **_kwargs):
+        raise ValueError("No waiting jobs match the node specifications.")
+
+    monkeypatch.setattr(match_making, "select_job", _mock_no_waiting_jobs)
+
+    # Expect the CLI to exit with status code 1
+    with pytest.raises(SystemExit) as exc_info:
+        _run_main(monkeypatch, [NODE_01])
+
+    assert exc_info.value.code == 1
+
+    # Verify that the specific domain error is logged
     captured = capsys.readouterr()
+    output = captured.out + captured.err
 
-    assert "Error validating job" in captured.out
-    assert "max must be greater than or equal to min" in captured.out
-
-
-def test_main_validate_job_missing_file_logs_error(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, ["tests/examples/jobs/does_not_exist.yaml", "--validate-job"])
-    captured = capsys.readouterr()
-
-    assert "Error validating job" in captured.out
-    assert "No such file or directory" in captured.out
+    assert "Error during matchmaking: No waiting jobs match the node specifications." in output
 
 
-def test_main_validate_node_uses_job_positional_as_fallback(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-):
-    _run_main(monkeypatch, [NODE_01, "--validate-node"])
-    captured = capsys.readouterr()
-
-    assert f"Node file {NODE_01} is VALID." in captured.out
-
-
-def test_main_matchmaking_success_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_01, NODE_01])
-    captured = capsys.readouterr()
-
-    assert "Match found!" in captured.out
-
-
-def test_main_matchmaking_no_match_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
-    _run_main(monkeypatch, [JOB_04, NODE_01])
-    captured = capsys.readouterr()
-
-    assert "No jobs from the job file can run on this node." in captured.out
-
-
-def test_main_matchmaking_exception_branch(monkeypatch: pytest.MonkeyPatch):
+def test_main_scheduler_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     def _raise_error(*_args, **_kwargs):
         raise RuntimeError("forced error")
 
-    monkeypatch.setattr(match_making, "match_jobs_with_node", _raise_error)
+    monkeypatch.setattr(match_making, "select_job", _raise_error)
 
     with pytest.raises(SystemExit) as exc:
-        _run_main(monkeypatch, [JOB_01, NODE_01])
+        _run_main(monkeypatch, [NODE_01])
 
     assert exc.value.code == 1
+
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+
+    assert "Error during matchmaking: forced error" in output
+
+
+def test_main_scheduler_node_load_exception_branch(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
+    def _raise_error(*_args, **_kwargs):
+        raise RuntimeError("node parse error")
+
+    monkeypatch.setattr(Node, "load_from_yaml", _raise_error)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(monkeypatch, [NODE_01])
+
+    assert exc.value.code == 1
+
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+
+    assert "Error during matchmaking: node parse error" in output

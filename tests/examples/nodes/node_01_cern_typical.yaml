@@ -3,10 +3,13 @@
 # x86_64 v4 (skylake+), 16 cores, 24 GB RAM, 3 days wall time
 # Has cvmfs:lhcb, os:el9 tags
 
-site: "LCG.CERN.cern"
+version: 0.1.0
+node_id: 'node_01_cern_typical'
+
+site: LCG.CERN.cern
 system:
   name: Linux
-  glibc: "2.28"
+  glibc: 2.28
   user-namespaces: true
 wall-time: 259200  # 3 days
 cpu-work: 600000

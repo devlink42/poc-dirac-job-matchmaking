@@ -16,6 +16,7 @@ redis-py = ">=7.4.0,<7.5"
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }
 
+
 # ---------------------------------------------------------
 # FEATURE: DEVELOPMENT
 # Tools strictly required for local coding and formatting
@@ -30,7 +31,7 @@ packaging = ">=26.2,<26.3"
 [feature.dev.tasks]
 check-lint-format = "ruff check . && ruff format --check ."
 fix-lint-format = "ruff check --fix . && ruff format ."
-pc-run-all = "pre-commit run --all-files --show-diff-on-failure"
+pc-run-all = "pre-commit run --all-files"
 
 # ---------------------------------------------------------
 # FEATURE: TESTING
@@ -41,7 +42,7 @@ pytest = ">=9.0.3,<9.1"
 pytest-cov = ">=7.1.0,<7.2"
 
 [feature.test.tasks]
-tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
+tests = "pytest --cov --cov-report=html --cov-report=markdown --cov-report=xml tests/ --cache-clear"
 
 # ---------------------------------------------------------
 # FEATURE: BENCHMARK
@@ -49,17 +50,20 @@ tests = "pytest --cov=matchmaking --cov-report=html --cov-report=markdown --cov-
 # ---------------------------------------------------------
 [feature.benchmark.dependencies]
 locust = ">=2.44.0,<2.45"
+py-spy = ">=0.4.2,<0.5"
 
 # TARGET-SPECIFIC DEPENDENCIES
 # The following dependencies will only be resolved and installed on Windows.
 [feature.benchmark.target.win-64.dependencies]
 m2-bash = ">=5.2.37.2,<5.3"
 
-[feature.benchmark.tasks]
-benchmark = "sh ./benchmark/run_benchmark.sh --headless"
-benchmark-ui = "sh ./benchmark/run_benchmark.sh --ui"
-benchmark-dist = "sh ./benchmark/run_benchmark.sh --distributed --headless"
-benchmark-dist-ui = "sh ./benchmark/run_benchmark.sh --distributed --ui"
+[target.linux-64.tasks]
+benchmark = "bash ./benchmark/run_benchmark.sh --headless"
+benchmark-ui = "bash ./benchmark/run_benchmark.sh --ui"
+
+[target.win-64.tasks]
+benchmark = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --headless"
+benchmark-ui = "powershell -NoProfile -ExecutionPolicy Bypass -File .\\benchmark\\run_benchmark.ps1 --ui"
 
 # ---------------------------------------------------------
 # FEATURE: ANALYSIS

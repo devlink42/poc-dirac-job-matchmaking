@@ -1,0 +1,31 @@
+version: 0.1.0
+job_id: 'job_11_high_io'
+submit_time: '2026-01-01T10:35:00Z'
+
+owner: sharmar
+group: lhcb_user
+type: User
+status: Waiting
+
+matching_specs:
+  - site: LCG.CERN.cern
+    system:
+      name: Linux
+    wall-time: 86400
+    cpu-work: 150000
+    cpu:
+      num-cores: {min: 1, max: 1}
+      ram-mb:
+        request:
+          overhead: 1536  # 1.5 GB base for 1 thread
+          per-core: 0
+        limit:
+          overhead: 4096
+          per-core: 0
+      architecture:
+        name: x86_64
+        microarchitecture-level: {min: 1, max: null}
+    io:
+      scratch-iops: 1000000
+      scratch-mb: 5000000
+    tags: ''

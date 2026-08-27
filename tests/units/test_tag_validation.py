@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
 
 import ast
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -9,14 +11,14 @@ from pydantic import ValidationError
 
 from matchmaking.logic.tags import evaluate_tag_expression, validate_tag_expression
 from matchmaking.models.job import Job
-from matchmaking.models.utils import JobGroup, JobType, SystemName
+from matchmaking.models.utils import SystemName, Type
 
 BASE_JOB_DATA = {
     "job_id": "test-job",
     "owner": "test-owner",
-    "group": JobGroup.LHCB_MC,
-    "job_type": JobType.USER,
-    "submission_time": datetime.now(tz=timezone.utc),
+    "group": "lhcb_mc",
+    "type": Type.USER,
+    "submit_time": datetime.now(tz=UTC),
     "matching_specs": [
         {
             "system": {"name": SystemName.LINUX},
@@ -58,6 +60,35 @@ def test_empty_tag_expression():
     Job.model_validate(job_data)
 
     validate_tag_expression("")
+
+
+def test_tag_expression_is_compiled_once():
+    expression = "cache:first & (cache:second | ~cache:third)"
+
+    with patch("ast.parse", wraps=ast.parse) as mock_parse:
+        validate_tag_expression(expression)
+        validate_tag_expression(expression)
+
+        assert evaluate_tag_expression(expression, {"cache:first", "cache:second"})
+        assert not evaluate_tag_expression(expression, {"cache:first", "cache:third"})
+
+    mock_parse.assert_called_once()
+
+
+def test_evaluate_empty_tag_expression():
+    assert not evaluate_tag_expression("", set())
+
+
+def test_evaluate_boolean_constant():
+    with patch("ast.parse", return_value=ast.Expression(body=ast.Constant(value=True))):
+        assert evaluate_tag_expression("constant:true", set())
+
+
+def test_evaluate_rejects_unsupported_compiled_node():
+    unsupported_node = ast.BinOp(left=ast.Constant(value=True), op=ast.Add(), right=ast.Constant(value=True))
+
+    with patch("matchmaking.logic.tags._compile_tag_expression", return_value=(unsupported_node, ())):
+        assert not evaluate_tag_expression("unsupported:evaluation", set())
 
 
 @pytest.mark.parametrize("operator", ["+", "-", "*", "/", "%", "**", "//", ","])

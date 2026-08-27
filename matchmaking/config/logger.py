@@ -9,7 +9,11 @@ logger = logging.getLogger(__name__)
 
 
 def configure_logger(log_level: str = "WARNING") -> None:
-    """Configure CLI logging output and level."""
+    """Configure CLI logging output and level.
+
+    Args:
+        log_level (str): The logging level to set (e.g., 'INFO', 'DEBUG'). Defaults to 'WARNING'.
+    """
     level = getattr(logging, log_level.upper(), logging.WARNING)
     logging.basicConfig(
         level=level,

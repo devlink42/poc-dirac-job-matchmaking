@@ -1,10 +1,13 @@
 # INVALID: GPU count is 1 but no GPU information is specified
 # Expected: validation error
 
-site: "LCG.CERN.cern"
+version: 0.1.0
+node_id: 'invalid_node_09_gpu_empty'
+
+site: LCG.CERN.cern
 system:
   name: Linux
-  glibc: "2.28"
+  glibc: 2.28
 wall-time: 259200
 cpu-work: 600000
 cpu:

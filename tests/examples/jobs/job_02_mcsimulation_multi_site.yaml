@@ -4,19 +4,23 @@
 # Owner: lbprods / Group: lhcb_mc / Type: MCSimulation
 # 3 days CPU time, accepts multiple x86_64 microarchitecture levels
 
+version: 0.1.0
+job_id: 'job_02_mcsimulation_multi_site'
+submit_time: '2026-03-28T09:30:00Z'
+
 owner: lbprods
 group: lhcb_mc
-job_type: MCSimulation
-submission_time: "2026-03-28T09:30:00Z"
+type: MCSimulation
+status: Waiting
 
 matching_specs:
-  - site: "LCG.CERN.cern"
+  - site: LCG.CERN.cern
     system:
       name: Linux
     wall-time: 259200  # 3 days
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536
@@ -26,16 +30,16 @@ matching_specs:
           per-core: 256
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb & (os:el9 | os:alma9)
 
-  - site: "LCG.RAL.uk"
+  - site: LCG.RAL.uk
     system:
       name: Linux
     wall-time: 259200
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536
@@ -45,16 +49,16 @@ matching_specs:
           per-core: 256
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb & (os:el9 | os:alma9)
 
-  - site: "LCG.GRIDKA.de"
+  - site: LCG.GRIDKA.de
     system:
       name: Linux
     wall-time: 259200
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536
@@ -64,16 +68,16 @@ matching_specs:
           per-core: 256
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb & (os:el9 | os:alma9)
 
-  - site: "LCG.CNAF.it"
+  - site: LCG.CNAF.it
     system:
       name: Linux
     wall-time: 259200
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536
@@ -83,16 +87,16 @@ matching_specs:
           per-core: 256
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb & (os:el9 | os:alma9)
 
-  - site: "LCG.IN2P3.fr"
+  - site: LCG.IN2P3.fr
     system:
       name: Linux
     wall-time: 259200
     cpu-work: 500000
     cpu:
-      num-cores: {"min": 1, "max": 1}
+      num-cores: {min: 1, max: 1}
       ram-mb:
         request:
           overhead: 1536
@@ -102,5 +106,5 @@ matching_specs:
           per-core: 256
       architecture:
         name: x86_64
-        microarchitecture-level: {"min": 2, "max": null}
-    tags: "cvmfs:lhcb & (os:el9 | os:alma9)"
+        microarchitecture-level: {min: 2, max: null}
+    tags: cvmfs:lhcb & (os:el9 | os:alma9)

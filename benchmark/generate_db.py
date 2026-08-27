@@ -2,7 +2,7 @@
 """Pre-generate benchmark data into a SQLite database.
 
 Run once before benchmarking so no data is generated at test runtime:
-    pixi run generate_db --num-jobs 10000000 --num-nodes 50000
+  pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
 The database is then consumed by locustfile.py via --db-path.
 """
@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+import time
 from pathlib import Path
 
-from benchmark.data_generator import job_generator, node_generator
+from benchmark.data_generator import job_generator, node_generator, set_seed
 from matchmaking.config.logger import configure_logger, logger
 
 _DEFAULT_DB = "benchmark/benchmark.db"
@@ -61,13 +62,23 @@ def _populate(conn: sqlite3.Connection, num_jobs: int, num_nodes: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Pre-generate benchmark data into a SQLite database.")
-    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to generate")
-    parser.add_argument("--num-nodes", type=int, default=1000, help="Number of nodes to generate")
+    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to generate")
+    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to generate")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
     parser.add_argument("--output", type=str, default=_DEFAULT_DB, help="Output database path")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing database")
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
+    )
+
     args = parser.parse_args()
 
-    configure_logger("INFO")
+    configure_logger(args.log_level)
+
+    set_seed(args.seed)
 
     db_path = Path(args.output)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,11 +92,24 @@ def main() -> None:
 
     conn = sqlite3.connect(db_path)
     try:
+        start_time = time.perf_counter()
+
         _create_schema(conn)
         _populate(conn, args.num_jobs, args.num_nodes)
+
         conn.commit()
+
+        total_time = time.perf_counter() - start_time
+
+        logger.info("Database generation completed in %.2f seconds.", total_time)
+
         size_kb = db_path.stat().st_size / 1024
-        logger.info("Done. Database written to %s (%.0s KB).", db_path, size_kb)
+        if size_kb >= 1048576:
+            logger.info("Done! Database written to %s (%.2f GB).", db_path, size_kb / 1048576)
+        elif size_kb >= 1024:
+            logger.info("Done! Database written to %s (%.2f MB).", db_path, size_kb / 1024)
+        else:
+            logger.info("Done! Database written to %s (%.0f KB).", db_path, size_kb)
     finally:
         conn.close()
 

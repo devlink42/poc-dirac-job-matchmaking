@@ -1,17 +1,23 @@
 [project]
 authors = [{name = "ychabani", email = "yan.chabanis@cern.ch"}]
 dependencies = [
-    "pydantic >= 2.12",
-    "pyyaml >= 6",
+    "pydantic >=2.13.4,<2.14",
+    "pyyaml >=6.0,<6.1",
 ]
 name = "matchmaking"
 requires-python = ">=3.11,<3.12"
-version = "0.1.0"
+version = "0.3.0"
 
 [project.scripts]
+# CLI Match
 matchmaking = "matchmaking.cli.match_making:main"
-scheduler = "matchmaking.cli.scheduler:main"
+# DB for Locust
 generate_db = "benchmark.generate_db:main"
+# Redis DB for Locust
+data_loader = "benchmark.py_redis.data_loader:main"
+# Verify consistency between SQLite and Redis
+verify_consistency = "matchmaking.cli.verify_consistency:main"
+#
 seed_redis_alt_a = "matchmaking.core.lua.alt_a.seed_redis:main"
 
 [build-system]
@@ -30,15 +36,15 @@ select = [
     "I",   # isort
     "PLE", # pylint errors
     "D",   # pydocstyle
-    # "UP",   # pyUpgrade
+    "UP",   # pyUpgrade
     "FLY", # flynt
     "DTZ", # flake8-datetimez
     "S",   # flake8-bandit
     "N",   # pep8-naming
 ]
 ignore = [
-    "B905",
     "B006",
+    "B905",
     "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
     # TODO: Maybe enable these
     "D100",
@@ -71,12 +77,15 @@ filterwarnings = [
     "error",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["matchmaking"]
+omit = [
+    "verify_consistency.py",
+    "seed_redis.py",
+]
+
 [tool.coverage.report]
 exclude_also = [
     'if __name__ == .__main__.:',
-]
-
-[tool.coverage.run]
-omit = [
-    "seed_redis.py",
 ]

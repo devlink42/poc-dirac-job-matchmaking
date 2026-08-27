@@ -9,34 +9,64 @@ Workflow:
         pixi run generate_db --num-jobs 10000000 --num-nodes 50000
 
     2. Run the benchmark:
-        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-jobs 10000000 --num-nodes 50000
+        pixi run benchmark -u 100 -r 50 -t 15m --match-mode python --num-nodes 50000 --log-level ERROR
 """
 
 from __future__ import annotations
 
+import itertools
 import random
 import sqlite3
 import sys
 import time
+from collections.abc import Iterable
+from datetime import UTC, datetime
 
+import gevent
 import redis
-from locust import User, between, events, task
+from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.core.match_making import valid_job_specs_with_node
-from matchmaking.core.scheduler import select_job
+from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.core.main import select_job
+from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
+from matchmaking.core.router import MatchMode
+from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig
 from matchmaking.models.job import Job
 from matchmaking.models.node import Node
+from matchmaking.models.utils import JobStatus
 
-configure_logger("INFO")
+JOB_POOL_SIZE = 0
+NODES_POOL: list[Node] = []
+CANDIDATE_POOL: list[Job] = []
+SCHEDULING_CONFIG: SchedulingConfig | None = None
 
-_rng = random.Random()  # noqa: S311
+_USER_SEQ = itertools.count()
+_CANDIDATE_WINDOW_QUERY = """
+    WITH candidate_window AS (
+        SELECT data, id, 0 AS window_segment
+        FROM jobs
+        WHERE id BETWEEN ? AND ?
+        UNION ALL
+        SELECT data, id, 1 AS window_segment
+        FROM jobs
+        WHERE id BETWEEN 1 AND ?
+    )
+    SELECT data
+    FROM candidate_window
+    ORDER BY window_segment, id
+"""
 
-MAX_JOB_ID_IN_DB = 0
-NODES_POOL = []
-SCHEDULING_CONFIG = SchedulingConfig()
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+
+def _reset_job(job: Job) -> None:
+    """Reset a running job back to WAITING so it can be picked up again."""
+    job.status = JobStatus.WAITING
+    job.assigned_site = None
+    job.submit_time = datetime.now(tz=UTC)
 
 redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
@@ -65,23 +95,71 @@ def _get_max_job_id(db_path: str) -> int:
         conn.close()
 
 
+def _load_candidate_data(
+    connection: sqlite3.Connection,
+    start_id: int,
+    number_of_jobs: int,
+    pool_size: int,
+) -> Iterable[tuple[str]]:
+    """Load one circular candidate window with a single indexed query.
+
+    Args:
+        connection: Read-only benchmark database connection.
+        start_id: First job identifier in the window.
+        number_of_jobs: Exact number of jobs to load.
+        pool_size: Number of densely indexed jobs available to the benchmark.
+
+    Returns:
+        An iterable over the serialized jobs in circular key order.
+
+    Raises:
+        ValueError: If the requested window cannot fit the configured pool.
+    """
+    if pool_size <= 0 or not 1 <= start_id <= pool_size or not 0 <= number_of_jobs <= pool_size:
+        raise ValueError("Invalid candidate window for the configured job pool.")
+
+    if number_of_jobs == 0:
+        return ()
+
+    last_unwrapped_id = start_id + number_of_jobs - 1
+    first_range_end = min(last_unwrapped_id, pool_size)
+    second_range_end = max(last_unwrapped_id - pool_size, 0)
+
+    return connection.execute(
+        _CANDIDATE_WINDOW_QUERY,
+        (start_id, first_range_end, second_range_end),
+    )
+
+
+def _load_candidate_jobs(db_path: str, start_id: int, number_of_jobs: int, pool_size: int) -> list[Job]:
+    """Load and validate the candidate pool once before the benchmark starts."""
+    connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        return [
+            Job.model_validate_json(row[0])
+            for row in _load_candidate_data(connection, start_id, number_of_jobs, pool_size)
+        ]
+    finally:
+        connection.close()
+
+
 @events.init_command_line_parser.add_listener
 def _(parser):
     """Register custom benchmark arguments."""
     parser.add_argument(
         "--match-mode",
         type=str,
-        choices=["python", "lua_alt_a", "lua_alt_b", "lua_alt_c"],
-        default="python",
+        choices=[mode.value for mode in MatchMode],
+        default=MatchMode.PYTHON.value,
         help="Matchmaking algorithm to evaluate",
     )
-    parser.add_argument("--num-jobs", type=int, default=100000, help="Number of jobs to load from the database")
-    parser.add_argument("--num-nodes", type=int, default=10000, help="Number of nodes to load from the database")
+    parser.add_argument("--num-jobs", type=int, default=10000000, help="Number of jobs to load from the database")
+    parser.add_argument("--num-nodes", type=int, default=50000, help="Number of nodes to load from the database")
     parser.add_argument(
-        "--candidates-count",
+        "--seed",
         type=int,
-        default=500,
-        help="Number of candidate jobs to evaluate per select_job call",
+        default=0,
+        help="Seed for the random number generator",
     )
     parser.add_argument(
         "--config-path",
@@ -95,6 +173,18 @@ def _(parser):
         default="benchmark/benchmark.db",
         help="Path to the SQLite benchmark database (generate with benchmark/generate_db.py)",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"],
+        help="Logging verbosity level.",
+    )
+    parser.add_argument(
+        "--reset-delay",
+        type=float,
+        default=5.0,
+        help="Delay in seconds before resetting a RUNNING job back to WAITING.",
+    )
 
 
 @events.test_start.add_listener
@@ -104,7 +194,9 @@ def on_test_start(environment, **kwargs):
         return
 
     opts = environment.parsed_options
-    global MAX_JOB_ID_IN_DB, NODES_POOL, SCHEDULING_CONFIG
+    global CANDIDATE_POOL, JOB_POOL_SIZE, NODES_POOL, SCHEDULING_CONFIG
+
+    configure_logger(opts.log_level)
 
     try:
         SCHEDULING_CONFIG = SchedulingConfig.load_from_yaml(opts.config_path)
@@ -114,43 +206,70 @@ def on_test_start(environment, **kwargs):
         raise SystemExit(1) from e
 
     try:
-        MAX_JOB_ID_IN_DB = _get_max_job_id(opts.db_path)
-        NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
+        if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
+            raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
+            JOB_POOL_SIZE = redis_client.hlen(PY_REDIS_JOB_KEY)
+            NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
+
+            logger.info("Loaded from Redis")
+        elif MatchMode(opts.match_mode) is MatchMode.PYTHON:
+            JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
+            NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
+
+            logger.info("Loaded from SQLite")
+        else:
+            raise ValueError(f"Unsupported match mode: {opts.match_mode}")
     except Exception as e:
-        logger.error("Failed to load pools from %s: %s", opts.db_path, e)
-        logger.error("Generate the database first: pixi run python -m benchmark.generate_db")
+        logger.error(
+            "Failed to load pools: %s\n"
+            "Generate the database first: pixi run generate_db --num-jobs 10000000 --num-nodes 50000",
+            e,
+        )
         raise SystemExit(1) from e
 
-    if MAX_JOB_ID_IN_DB < opts.candidates_count:
-        logger.warning(
-            "Job pool (%s) is smaller than --candidates-count (%s). Candidates will be capped to pool size.",
-            MAX_JOB_ID_IN_DB,
-            opts.candidates_count,
+    if JOB_POOL_SIZE < opts.num_jobs:
+        logger.error(
+            "Database contains %s jobs, but --num-jobs requires %s.",
+            JOB_POOL_SIZE,
+            opts.num_jobs,
         )
+        raise SystemExit(1)
 
-    logger.info("Ready: %s nodes, %s jobs available from %s.", len(NODES_POOL), MAX_JOB_ID_IN_DB, opts.db_path)
+    start_id = random.Random(opts.seed).randint(1, JOB_POOL_SIZE)  # noqa: S311
+    CANDIDATE_POOL = _load_candidate_jobs(opts.db_path, start_id, opts.num_jobs, JOB_POOL_SIZE)
+    set_jobs(CANDIDATE_POOL)
+
+    logger.info(
+        "Ready: %s nodes, %s candidates loaded from %s available jobs in %s.",
+        len(NODES_POOL),
+        len(CANDIDATE_POOL),
+        JOB_POOL_SIZE,
+        opts.db_path,
+    )
 
 
 class MatchmakingUser(User):
     """Simulates a scheduler process matching jobs to nodes."""
 
-    wait_time = between(0.001, 1.0)
+    wait_time = constant(0)
 
     def __init__(self, environment):
         super().__init__(environment)
-        self._candidates_count = None
+        self._rng = None
         self._db_conn = None
+        self.job_ids = []
 
     def on_start(self):
-        """Cache per-user options to avoid repeated attribute lookups in the hot path."""
-        if not MAX_JOB_ID_IN_DB or not NODES_POOL:
+        """Create the per-user random generator outside the hot path."""
+        if not JOB_POOL_SIZE or not NODES_POOL or SCHEDULING_CONFIG is None:
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
-        self._candidates_count = min(
-            self.environment.parsed_options.candidates_count,
-            MAX_JOB_ID_IN_DB,
-        )
-        self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
+        self._rng = random.Random(self.environment.parsed_options.seed + next(_USER_SEQ))  # noqa: S311
+
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
+            self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
+        else:
+            self.job_ids = list(redis_client.hkeys(PY_REDIS_JOB_KEY))
 
     def on_stop(self):
         if self._db_conn:
@@ -158,47 +277,29 @@ class MatchmakingUser(User):
 
     @task
     def evaluate_select_job(self):
-        match_mode = self.environment.parsed_options.match_mode
-
-        if match_mode == "python":
+        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
             self.evaluate_select_job_python()
-        elif match_mode == "lua_alt_a":
-            self.evaluate_select_job_redis_alt_a()
-        elif match_mode == "lua_alt_b":
-            # self.evaluate_select_job_redis_alt_b()
-            pass
-        elif match_mode == "lua_alt_c":
-            # self.evaluate_select_job_redis_alt_c()
-            pass
         else:
-            logger.error(f"Mode inconnu: {match_mode}")
+            self.evaluate_select_job_python_redis()
 
     def evaluate_select_job_python(self):
-        """Simulate a pilot requesting a job: filter compatible candidates, then rank.
+        """Simulate a pilot requesting a job: filter_by_job_type compatible candidates, then rank.
 
-        Instead of holding all jobs in RAM, we pick random IDs, load their JSON
-        from the database and deserialize them. The IO/Parse times are excluded
-        from the final benchmark latency reported to Locust.
+        The candidate pool is loaded and validated once at test startup so both
+        Locust latency and throughput measure the same matchmaking operation.
         """
-        node = _rng.choice(NODES_POOL)
-
-        candidate_ids = _rng.sample(range(1, MAX_JOB_ID_IN_DB + 1), self._candidates_count)
-        placeholders = ",".join("?" * len(candidate_ids))
-        cur = self._db_conn.execute(f"SELECT data FROM jobs WHERE id IN ({placeholders})", candidate_ids)  # noqa: S608
-
-        candidates = [Job.model_validate_json(row[0]) for row in cur.fetchall()]
+        node = self._rng.choice(NODES_POOL)
 
         start_time = time.perf_counter()
         selected_job = None
         error = None
 
         try:
-            compatible = [
-                job for job in candidates if valid_job_specs_with_node(job.job_id, job.matching_specs[0], node)
-            ]
-            if compatible:
-                selected_job = select_job(node, compatible, SCHEDULING_CONFIG)
-
+            selected_job = select_job(node, rng=self._rng, config=SCHEDULING_CONFIG)
+            if selected_job is not None:
+                delay = self.environment.parsed_options.reset_delay
+                if delay > 0:
+                    gevent.spawn_later(delay, _reset_job, selected_job)
         except Exception as e:
             error = e
             logger.error("Error during select_job: %s", e)
@@ -207,7 +308,40 @@ class MatchmakingUser(User):
 
         events.request.fire(
             request_type="Python",
-            name="select_job_cycle",
+            name="select_job[match]" if selected_job else "select_job[no_match]",
+            response_time=total_time_ms,
+            response_length=sys.getsizeof(selected_job) if selected_job else 0,
+            exception=error,
+            context={"matched": selected_job is not None},
+        )
+
+    def evaluate_select_job_python_redis(self):
+        if not self.job_ids:
+            return
+
+        node = self._rng.choice(NODES_POOL)
+
+        set_jobs(fetch_candidate_jobs(redis_client, self.environment.parsed_options.num_jobs))
+
+        start_time = time.perf_counter()
+        selected_job = None
+        error = None
+
+        try:
+            selected_job = select_job(node)
+            if selected_job is not None:
+                delay = self.environment.parsed_options.reset_delay
+                if delay > 0:
+                    gevent.spawn_later(delay, _reset_job, selected_job)
+        except Exception as e:
+            error = e
+            logger.error("Error during select_job: %s", e)
+
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        events.request.fire(
+            request_type="Redis-Python",
+            name="select_job[match]" if selected_job else "select_job[no_match]",
             response_time=total_time_ms,
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,
@@ -216,7 +350,7 @@ class MatchmakingUser(User):
 
     def evaluate_select_job_redis_alt_a(self):
         """Simulate a pilot requesting a job using Redis Lua script."""
-        node = _rng.choice(NODES_POOL)
+        node = self._rng.choice(NODES_POOL)
 
         args = [
             node.cpu.ram_mb,

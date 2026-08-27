@@ -19,7 +19,7 @@ from pydantic import (
 from pydantic_core import core_schema
 
 
-class JobType(StrEnum):
+class Type(StrEnum):
     MCSIMULATION = "MCSimulation"
     MCFASTSIMULATION = "MCFastSimulation"
     WGPRODUCTION = "WGProduction"
@@ -33,15 +33,22 @@ class JobType(StrEnum):
     LBAPI = "LbAPI"
 
 
-class JobOwner(StrEnum):
-    LBPRODS = "lbprods"
-
-
-class JobGroup(StrEnum):
-    LHCB_MC = "lhcb_mc"
-    LHCB_DATA = "lhcb_data"
-    LHCB_MCPROC = "lhcb_mproc"
-    LHCB_USER = "lhcb_user"
+class JobStatus(StrEnum):
+    SUBMITTING = "Submitting"
+    RECEIVED = "Received"
+    CHECKING = "Checking"
+    STAGING = "Staging"
+    SCOUTING = "Scouting"
+    WAITING = "Waiting"
+    MATCHED = "Matched"
+    RUNNING = "Running"
+    STALLED = "Stalled"
+    COMPLETING = "Completing"
+    DONE = "Done"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    DELETED = "Deleted"
+    KILLED = "Killed"
 
 
 class SystemName(StrEnum):
@@ -55,6 +62,8 @@ class SystemName(StrEnum):
 
 
 class VersionPydanticAnnotation:
+    """Pydantic annotation for the Version class from packaging.version."""
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
         def validate(value: Any) -> Version:
@@ -68,10 +77,13 @@ class VersionPydanticAnnotation:
 
 CustomVersion = Annotated[Version, VersionPydanticAnnotation, PlainSerializer(lambda v: str(v), return_type=str)]
 
+
 T = TypeVar("T")
 
 
 class StrictRange(BaseModel, Generic[T]):
+    """A range with mandatory min and max values."""
+
     min: T
     max: T
 
@@ -84,10 +96,14 @@ class StrictRange(BaseModel, Generic[T]):
 
 
 class Range(StrictRange, Generic[T]):
+    """A range with mandatory min and optional max value."""
+
     max: T | None = None
 
 
 class ResourceSpec(BaseModel):
+    """Specification of resources, potentially per-core."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     overhead: NonNegativeInt = 0
@@ -103,6 +119,8 @@ class ArchitectureName(StrEnum):
 
 
 class Io(BaseModel):
+    """Input/Output resource requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     scratch_mb: PositiveInt = Field(validation_alias="scratch-mb")

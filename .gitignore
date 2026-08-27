@@ -220,6 +220,7 @@ analysis/**/plots/
 
 # SQLite
 *.db
+*.db-journal
 
 # Locust
 *_exceptions.csv

@@ -3,27 +3,28 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from typing import Self
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 
 from matchmaking.logic.tags import validate_tag_expression
+from matchmaking.models.base import YamlLoadableModel
 from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
     Io,
-    JobGroup,
-    JobOwner,
-    JobType,
+    JobStatus,
     Range,
     ResourceSpec,
     StrictRange,
     SystemName,
+    Type,
 )
 
 
 class System(BaseModel):
+    """System requirements for a job."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: SystemName
@@ -32,11 +33,17 @@ class System(BaseModel):
 
 
 class ComputeMemory(BaseModel):
+    """Memory requirements for computation."""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     request: ResourceSpec
     limit: ResourceSpec
 
 
 class Architecture(BaseModel):
+    """CPU architecture requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     name: ArchitectureName
@@ -44,6 +51,8 @@ class Architecture(BaseModel):
 
 
 class Cpu(BaseModel):
+    """CPU core and RAM requirements."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     num_cores: StrictRange[NonNegativeInt] = Field(validation_alias="num-cores")
@@ -52,6 +61,8 @@ class Cpu(BaseModel):
 
 
 class Gpu(BaseModel):
+    """GPU requirements for a job."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     count: StrictRange[NonNegativeInt]
@@ -62,6 +73,8 @@ class Gpu(BaseModel):
 
 
 class MatchingSpecs(BaseModel):
+    """Specification of requirements for matching a job with a node."""
+
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
 
     site: str | None = None
@@ -87,33 +100,27 @@ class MatchingSpecs(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_job(self):
+    def validate_job(self) -> Self:
         if self.wall_time is None and self.cpu_work is None:
             raise ValueError("At least one of 'wall-time' or 'cpu-work' must be provided")
 
         return self
 
 
-class Job(BaseModel):
+class Job(YamlLoadableModel):
+    """Data model representing a job in the matchmaking system."""
+
+    version: CustomVersion = Field(default=CustomVersion("0.1"))
     job_id: str | None = None
+    submit_time: datetime
 
     # Job information
-    owner: JobOwner | str
-    group: JobGroup
-    job_type: JobType
-    submission_time: datetime
+    owner: str
+    group: str
+    type: Type
+    status: JobStatus = JobStatus.WAITING
 
     # Matching specs
     matching_specs: list[MatchingSpecs] = Field(min_length=1)
 
-    @classmethod
-    def load_from_yaml(cls, path: str | Path) -> Job:
-        """Load and apply the configuration from a YAML file."""
-        file_path = Path(path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
-
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return cls.model_validate(data or {})
+    assigned_site: str | None = None
