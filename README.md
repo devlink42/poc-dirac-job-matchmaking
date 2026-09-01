@@ -71,8 +71,8 @@ Then, open your browser at http://localhost:8089.
 You can pass custom arguments to adjust the scale of the pre-loaded data:
 
 - `--num-jobs`: Number of jobs pulled from the database and evaluated in each selection cycle. In the benchmark command,
-  this is the candidate-window size and must not exceed the number of jobs generated in the database. (Default:
-    10000000)
+  this is the candidate-window size and must not exceed the number of jobs generated in the database.
+  (Default: 10000000)
 - `--num-nodes`: Defines the total number of nodes available in the persistent database. (Default: 50000)
 - `--seed`: Random seed for reproducibility. (Default: 0)
 - `--config-path`: Path to the scheduling configuration. (Default: `config/scheduling.yaml`)
@@ -145,7 +145,7 @@ policy must be defined explicitly before the Redis data structures are fixed.
       hot path.
     - In Redis Cluster, all keys needed by one atomic operation must be placed in the same hash slot.
 
-#### Alternative B: RedisJSON & RediSearch
+#### Alternative B: RedisJSON & RediSearch (exploratory fallback)
 
 - **Data Model:** Requirement groups, rather than individual jobs, may be stored as JSON documents or hashes. A
   RediSearch index can cover stable matching attributes such as rounded resource requirements, architecture, tags, and
@@ -163,6 +163,12 @@ policy must be defined explicitly before the Redis data structures are fixed.
     - A search followed by a claim is not a single decision. It requires an atomic protocol or optimistic locking with
       retry.
     - RediSearch reduces the candidate set but does not replace the stateful scheduling step.
+
+No `FT.SEARCH` command is included here deliberately. The index schema and the treatment of jobs open to every site
+are not fixed by this design. If this fallback is prototyped, its exploratory documentation must define the complete
+index schema and use matching field names, pass pilot values through an explicit `PARAMS` clause, and select `DIALECT 2`
+when using tag unions. Site-agnostic jobs must either index an explicit sentinel such as `ANY` and query it together with
+the pilot site, or use a separate query branch and field model. This fallback is not part of the recommended hot path.
 
 #### Alternative C: Categorized Queues / Bucket Model
 
