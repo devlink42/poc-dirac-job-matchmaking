@@ -32,7 +32,7 @@ def _compile_tag_expression(expr: str) -> tuple[ast.expr, tuple[str, ...]] | Non
     if not expr:
         return None
 
-    expr_norm = normalize_tag_expression(expr)
+    expr_norm = normalize_tag_expression(expr).strip()
     tags: list[str] = []
 
     def repl_token(match: re.Match[str]) -> str:

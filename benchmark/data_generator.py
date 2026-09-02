@@ -39,7 +39,6 @@ _SITES = [
     "LCG.CSCS.ch",
     "LCG.Beijing.cn",
 ]
-_TAG_POOL = [f"tag:{i:03d}" for i in range(200)]
 _CPU_WORK_OPTIONS = [259200, 345600, 1080000, 21600]
 _RARE_JOB_TYPES = [
     Type.USER,
@@ -53,6 +52,65 @@ _RARE_JOB_TYPES = [
 ]
 _OWNERS = ["sharmar", "jdoe", "asmith"]
 
+_BASE_TAGS = ("cvmfs:lhcb", "os:el9")
+_TAG_CAPABILITIES = (
+    "cvmfs:lhcbdev",
+    "os:el10",
+    "os:alma9",
+    "os:alma10",
+    "os:ubuntu22",
+    "os:ubuntu24",
+    "os:ubuntu26",
+    "gpu:nvidia",
+    "gpu:amd",
+    "gpu:intel",
+)
+_TAG_CAPABILITIES_JOB = (
+    "~diracx:site:LCG.NIPNE-07.ro",
+    "~diracx:site:LCG.GRIDKA.de",
+    "~diracx:site:LCG.NCBJ.pl",
+)
+
+_BASE_TAG_REQUIREMENTS = " & ".join(_BASE_TAGS)
+
+
+def _build_tag_profiles(capabilities: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+    """Build the bounded, deterministic tag profile catalogue.
+
+    Args:
+        capabilities: Tags from which profile alternatives are selected.
+
+    Returns:
+        Profiles containing five to seven cyclically selected alternatives.
+    """
+    return tuple(
+        tuple(
+            capabilities[(profile_index + tag_index) % len(capabilities)] for tag_index in range(5 + profile_index % 3)
+        )
+        for profile_index in range(len(capabilities))
+    )
+
+
+def _format_tag_profiles(profiles: tuple[tuple[str, ...], ...]) -> tuple[str, ...]:
+    """Render tag profiles as matchmaking expressions.
+
+    Args:
+        profiles: Tag profiles to render.
+
+    Returns:
+        Fully rendered tag expressions.
+    """
+    return tuple(f"{_BASE_TAG_REQUIREMENTS} & ({' | '.join(profile)})" for profile in profiles)
+
+
+# Keeping these catalogues bounded makes aggregation experiments meaningful and
+# reproducible. Expressions are rendered once because they are reused for every
+# generated job.
+_TAG_EXPRESSION_ALTERNATIVES = _build_tag_profiles(_TAG_CAPABILITIES)
+_TAG_EXPRESSION_ALTERNATIVES_JOB = _TAG_EXPRESSION_ALTERNATIVES + _build_tag_profiles(_TAG_CAPABILITIES_JOB)
+_TAG_EXPRESSIONS = _format_tag_profiles(_TAG_EXPRESSION_ALTERNATIVES)
+_TAG_EXPRESSIONS_JOB = _format_tag_profiles(_TAG_EXPRESSION_ALTERNATIVES_JOB)
+
 
 def set_seed(seed: int) -> None:
     """Set the seed for the random number generator.
@@ -61,6 +119,21 @@ def set_seed(seed: int) -> None:
         seed: The seed value to use.
     """
     _rng.seed(seed)
+
+
+def _generate_tag_expression(tag_type: str = "general") -> str:
+    """Generate one tag expression from the bounded profile catalogue.
+
+    Args:
+        tag_type: The type of tag for which the expression is generated. Supported
+            values include "job" for job-specific tag expressions and other values for
+            general tag expressions.
+
+    Returns:
+        A string representing the generated tag expression.
+    """
+    expressions = _TAG_EXPRESSIONS_JOB if tag_type == "job" else _TAG_EXPRESSIONS
+    return _rng.choice(expressions)
 
 
 def generate_mock_job(job_id: str) -> Job:
@@ -98,13 +171,7 @@ def generate_mock_job(job_id: str) -> Job:
 
     cpu_work = _rng.choice(_CPU_WORK_OPTIONS)
 
-    tags = ["cvmfs:lhcb", "os:el9"]
-    if _rng.random() < 0.3:
-        tags.extend(_rng.sample(_TAG_POOL, _rng.randint(1, 3)))
-
-    tag_expr = " & ".join(tags)
-    if _rng.random() < 0.1:
-        tag_expr += " & (feature:A | feature:B)"
+    tag_expr = _generate_tag_expression("job")
 
     return Job(
         version=CustomVersion("0.1"),
@@ -152,12 +219,7 @@ def generate_mock_node(node_id: str) -> Node:
     Returns:
         A populated Node model.
     """
-    node_tags = ["cvmfs:lhcb", "os:el9", "production", "tier1"]
-    if _rng.random() < 0.5:
-        node_tags.extend(_rng.sample(_TAG_POOL, _rng.randint(10, 20)))
-
-    if _rng.random() < 0.2:
-        node_tags.append("feature:A")
+    node_tags = [*_BASE_TAGS, *_rng.sample(_TAG_CAPABILITIES, _rng.randint(3, 5))]
 
     return Node(
         **{

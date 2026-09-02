@@ -3,6 +3,7 @@ authors = [{name = "ychabani", email = "yan.chabanis@cern.ch"}]
 dependencies = [
     "pydantic >=2.13.4,<2.14",
     "pyyaml >=6.0,<6.1",
+    "packaging >=26.2,<26.3",
 ]
 name = "matchmaking"
 requires-python = ">=3.11,<3.12"
@@ -43,8 +44,6 @@ select = [
     "N",   # pep8-naming
 ]
 ignore = [
-    "B006",
-    "B905",
     "S101", # bandit: use of assert https://docs.astral.sh/ruff/rules/assert/
     # TODO: Maybe enable these
     "D100",
