@@ -63,23 +63,52 @@ _TAG_CAPABILITIES = (
     "gpu:nvidia",
     "gpu:amd",
     "gpu:intel",
-    "~diracx:banned:LCG.NIPNE-07.ro",
-    "~diracx:banned:LCG.GRIDKA.de",
-    "~diracx:banned:LCG.NCBJ.pl",
+)
+_TAG_CAPABILITIES_JOB = (
+    "~diracx:site:LCG.NIPNE-07.ro",
+    "~diracx:site:LCG.GRIDKA.de",
+    "~diracx:site:LCG.NCBJ.pl",
 )
 
-# Exactly 15 stable requirement profiles. Each one expresses 5 to 7
-# alternatives; a compatible node needs one of the alternatives in addition to
-# the base requirements. Keeping this catalogue bounded makes aggregation
-# experiments meaningful and reproducible.
-_TAG_EXPRESSION_ALTERNATIVES = tuple(
-    tuple(
-        _TAG_CAPABILITIES[(profile_index + tag_index) % len(_TAG_CAPABILITIES)]
-        for tag_index in range(5 + profile_index % 3)
+_BASE_TAG_REQUIREMENTS = " & ".join(_BASE_TAGS)
+
+
+def _build_tag_profiles(capabilities: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+    """Build the bounded, deterministic tag profile catalogue.
+
+    Args:
+        capabilities: Tags from which profile alternatives are selected.
+
+    Returns:
+        Profiles containing five to seven cyclically selected alternatives.
+    """
+    return tuple(
+        tuple(
+            capabilities[(profile_index + tag_index) % len(capabilities)] for tag_index in range(5 + profile_index % 3)
+        )
+        for profile_index in range(len(capabilities))
     )
-    for profile_index in range(len(_TAG_CAPABILITIES))
-)
-_tag_expression_count = len(_TAG_EXPRESSION_ALTERNATIVES)
+
+
+def _format_tag_profiles(profiles: tuple[tuple[str, ...], ...]) -> tuple[str, ...]:
+    """Render tag profiles as matchmaking expressions.
+
+    Args:
+        profiles: Tag profiles to render.
+
+    Returns:
+        Fully rendered tag expressions.
+    """
+    return tuple(f"{_BASE_TAG_REQUIREMENTS} & ({' | '.join(profile)})" for profile in profiles)
+
+
+# Keeping these catalogues bounded makes aggregation experiments meaningful and
+# reproducible. Expressions are rendered once because they are reused for every
+# generated job.
+_TAG_EXPRESSION_ALTERNATIVES = _build_tag_profiles(_TAG_CAPABILITIES)
+_TAG_EXPRESSION_ALTERNATIVES_JOB = _TAG_EXPRESSION_ALTERNATIVES + _build_tag_profiles(_TAG_CAPABILITIES_JOB)
+_TAG_EXPRESSIONS = _format_tag_profiles(_TAG_EXPRESSION_ALTERNATIVES)
+_TAG_EXPRESSIONS_JOB = _format_tag_profiles(_TAG_EXPRESSION_ALTERNATIVES_JOB)
 
 
 def set_seed(seed: int) -> None:
@@ -91,13 +120,19 @@ def set_seed(seed: int) -> None:
     _rng.seed(seed)
 
 
-def _generate_job_tag_expression() -> str:
-    """Generate one job tag expression from the bounded profile catalogue."""
-    alternatives = _rng.choice(_TAG_EXPRESSION_ALTERNATIVES[:_tag_expression_count])
-    base_requirements = " & ".join(_BASE_TAGS)
-    alternative_requirements = " | ".join(alternatives)
+def _generate_tag_expression(tag_type: str = "general") -> str:
+    """Generate one tag expression from the bounded profile catalogue.
 
-    return f"{base_requirements} & ({alternative_requirements})"
+    Args:
+        tag_type: The type of tag for which the expression is generated. Supported
+            values include "job" for job-specific tag expressions and other values for
+            general tag expressions.
+
+    Returns:
+        A string representing the generated tag expression.
+    """
+    expressions = _TAG_EXPRESSIONS_JOB if tag_type == "job" else _TAG_EXPRESSIONS
+    return _rng.choice(expressions)
 
 
 def generate_mock_job(job_id: str) -> Job:
@@ -135,7 +170,7 @@ def generate_mock_job(job_id: str) -> Job:
 
     cpu_work = _rng.choice(_CPU_WORK_OPTIONS)
 
-    tag_expr = _generate_job_tag_expression()
+    tag_expr = _generate_tag_expression("job")
 
     return Job(
         job_id=job_id,
