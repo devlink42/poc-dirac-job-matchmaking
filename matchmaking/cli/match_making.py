@@ -43,5 +43,5 @@ def main():
         logger.info("Job %s selected for execution on %s.", allowed_job.job_id, node_obj.site)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()

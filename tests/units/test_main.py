@@ -267,6 +267,23 @@ def test_select_job_ignores_running_limits_from_other_sites(example_config, load
         assert selected.job_id == waiting_job.job_id
 
 
+def test_select_job_rejects_virtual_site_tag_on_matching_site(example_config, load_job, load_node):
+    """Ensure a negated virtual site tag excludes only the named node site."""
+    node = load_node("node_01_cern_typical")
+    job = load_job("job_01_mcsimulation_any_site")
+    job.matching_specs[0].tags = f"~diracx:site:{node.site}"
+    job.status = JobStatus.WAITING
+
+    set_jobs([job])
+    with patch("matchmaking.core.main.get_selection_configuration", return_value=example_config):
+        assert select_job(node) is None
+
+    other_site_node = node.model_copy(update={"site": "LCG.RAL.uk"})
+    set_jobs([job])
+    with patch("matchmaking.core.main.get_selection_configuration", return_value=example_config):
+        assert select_job(other_site_node) is job
+
+
 @pytest.mark.parametrize(
     "job_file, node_file, expected_selected, isolate_hardware",
     [

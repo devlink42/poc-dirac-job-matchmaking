@@ -231,6 +231,7 @@ def is_valid_job_specs_with_node(job_id: str | Any, job_specs: MatchingSpecs, no
     # Tags check (all job tags must be present in node tags)
     if job_specs.tags:
         node_tags = set(node.tags)
+        node_tags.add(f"diracx:site:{node.site}")
         logger.debug("Node %s has tags: %s", node.node_id, node_tags)
         logger.debug("Job %s has tags: %s", job_id, job_specs.tags)
 

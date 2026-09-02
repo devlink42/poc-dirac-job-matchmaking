@@ -3,6 +3,7 @@ authors = [{name = "ychabani", email = "yan.chabanis@cern.ch"}]
 dependencies = [
     "pydantic >=2.13.4,<2.14",
     "pyyaml >=6.0,<6.1",
+    "packaging >=26.2,<26.3",
 ]
 name = "matchmaking"
 requires-python = ">=3.11,<3.12"
@@ -28,7 +29,7 @@ select = [
     "I",   # isort
     "PLE", # pylint errors
     "D",   # pydocstyle
-    "UP",  # pyUpgrade
+    "UP",   # pyUpgrade
     "FLY", # flynt
     "DTZ", # flake8-datetimez
     "S",   # flake8-bandit
@@ -65,4 +66,13 @@ log_cli_format = "%(asctime)s %(levelname)s [%(filename)s in %(funcName)s on lin
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 filterwarnings = [
     "error",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["matchmaking"]
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:',
 ]
