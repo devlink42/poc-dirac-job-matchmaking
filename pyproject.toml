@@ -80,6 +80,7 @@ filterwarnings = [
 branch = true
 source = ["matchmaking"]
 omit = [
+    "**/__init__.py",
     "verify_consistency.py",
     "seed_redis.py",
 ]
