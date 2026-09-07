@@ -69,10 +69,11 @@ def _reset_job(job: Job) -> None:
     job.submit_time = datetime.now(tz=UTC)
 
 
-redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
-
 with open("./matchmaking/core/lua/alt_a/match_making.lua") as file:
-    match_script = redis_client.register_script(file.read())
+    match_script_alt_a = redis_client.register_script(file.read())
+
+with open("./matchmaking/logic/lua/alt_c/match_making.lua") as file:
+    match_script_alt_c = redis_client.register_script(file.read())
 
 
 def _load_nodes(db_path: str, num_nodes: int) -> list[Node]:
@@ -207,13 +208,14 @@ def on_test_start(environment, **kwargs):
         raise SystemExit(1) from e
 
     try:
-        if MatchMode(opts.match_mode) is MatchMode.PYTHON_REDIS:
+        match_mode = MatchMode(opts.match_mode)
+        if match_mode in (MatchMode.PYTHON_REDIS, MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
             raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
             JOB_POOL_SIZE = redis_client.hlen(PY_REDIS_JOB_KEY)
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
 
             logger.info("Loaded from Redis")
-        elif MatchMode(opts.match_mode) is MatchMode.PYTHON:
+        elif match_mode is MatchMode.PYTHON:
             JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
             NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
 
@@ -259,6 +261,7 @@ class MatchmakingUser(User):
         self._rng = None
         self._db_conn = None
         self.job_ids = []
+        self._candidates_count = 0
 
     def on_start(self):
         """Create the per-user random generator outside the hot path."""
@@ -266,10 +269,12 @@ class MatchmakingUser(User):
             raise SystemExit("Pools not initialized — check on_test_start logs.")
 
         self._rng = random.Random(self.environment.parsed_options.seed + next(_USER_SEQ))  # noqa: S311
+        self._candidates_count = len(CANDIDATE_POOL)
 
-        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
+        match_mode = MatchMode(self.environment.parsed_options.match_mode)
+        if match_mode is MatchMode.PYTHON:
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
-        else:
+        elif match_mode in (MatchMode.PYTHON_REDIS, MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
             self.job_ids = list(redis_client.hkeys(PY_REDIS_JOB_KEY))
 
     def on_stop(self):
@@ -278,10 +283,15 @@ class MatchmakingUser(User):
 
     @task
     def evaluate_select_job(self):
-        if MatchMode(self.environment.parsed_options.match_mode) is MatchMode.PYTHON:
+        match_mode = MatchMode(self.environment.parsed_options.match_mode)
+        if match_mode is MatchMode.PYTHON:
             self.evaluate_select_job_python()
-        else:
+        elif match_mode is MatchMode.PYTHON_REDIS:
             self.evaluate_select_job_python_redis()
+        elif match_mode is MatchMode.LUA_ALT_A:
+            self.evaluate_select_job_redis_alt_a()
+        elif match_mode is MatchMode.LUA_ALT_C:
+            self.evaluate_select_job_redis_alt_c()
 
     def evaluate_select_job_python(self):
         """Simulate a pilot requesting a job: filter_by_job_type compatible candidates, then rank.
@@ -350,7 +360,7 @@ class MatchmakingUser(User):
         )
 
     def evaluate_select_job_redis_alt_a(self):
-        """Simulate a pilot requesting a job using Redis Lua script."""
+        """Simulate a pilot requesting a job using Redis Lua script (Alternative A)."""
         node = self._rng.choice(NODES_POOL)
 
         args = [
@@ -378,13 +388,13 @@ class MatchmakingUser(User):
         error = None
 
         try:
-            selected_job_json = match_script(
+            selected_job_json = match_script_alt_a(
                 keys=["jobs:pending", "job:"],
                 args=args,
             )
         except Exception as e:
             error = e
-            logger.error("Error during Redis select_job: %s", e)
+            logger.error("Error during Redis select_job (Alt A): %s", e)
 
         total_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -395,4 +405,41 @@ class MatchmakingUser(User):
             response_length=len(selected_job_json) if selected_job_json else 0,
             exception=error,
             context={"matched": selected_job_json is not None},
+        )
+
+    def evaluate_select_job_redis_alt_c(self):
+        """Simulate a pilot requesting a job using Redis Lua script (Alternative C)."""
+        node = self._rng.choice(NODES_POOL)
+
+        args = [
+            node.site,
+            "ANALYSIS",  # Placeholder job type
+            str(node.cpu.architecture.name),
+            "1" if node.gpu.count > 0 else "0",
+            node.cpu.ram_mb,
+            node.cpu.num_cores,
+        ]
+
+        start_time = time.perf_counter()
+        selected_job_id = None
+        error = None
+
+        try:
+            selected_job_id = match_script_alt_c(
+                keys=[],
+                args=args,
+            )
+        except Exception as e:
+            error = e
+            logger.error("Error during Redis select_job (Alt C): %s", e)
+
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        events.request.fire(
+            request_type="Redis-Lua-AltC",
+            name="select_job_cycle",
+            response_time=total_time_ms,
+            response_length=len(selected_job_id) if selected_job_id else 0,
+            exception=error,
+            context={"matched": selected_job_id is not None},
         )

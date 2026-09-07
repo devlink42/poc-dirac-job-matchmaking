@@ -19,3 +19,5 @@ class MatchMode(StrEnum):
 
     PYTHON = "python"
     PYTHON_REDIS = "python_redis"
+    LUA_ALT_A = "lua_alt_a"
+    LUA_ALT_C = "lua_alt_c"
