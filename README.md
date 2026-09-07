@@ -128,250 +128,81 @@ Redis instance and pre-seed the jobs into it using the following steps:
 
 ## Redis Data Model Design
 
-### 1. Introduction
+The supporting requirements, alternative data models, and memory estimates are maintained in
+[Data Model & Architecture Design](docs/data_model_design.md).
 
-This document outlines the design for mapping DIRAC job scheduling requirements and node characteristics to Redis data
-structures. The goal is to support high-performance matchmaking at a scale of ~10M pending jobs and ~100 sites (×500
-nodes), ensuring atomicity and efficiency.
+### Recommendation
 
-### 2. Requirements & Query Patterns
+The recommendation has two separate axes, and the alternatives are not all competing at the same level:
 
-- **Matchmaking Query:** A Pilot requests a job based on its characteristics (Available RAM, Available CPU, Tags, Site
-  Name). The system must return the highest priority job that fits these constraints.
-- **Atomicity:** Concurrent pilots must not be assigned the same job.
-- **Scale:** ~10,000,000 pending jobs, ~100 active sites ×500 nodes.
+1. **Reduce the candidate set first.** Route a Pilot to compatible drawers and collapse jobs with equivalent
+   requirements into groups. The target is a bounded number of groups to inspect, not a faster comparison over millions
+   of jobs.
+2. **Evaluate and claim atomically.** Use native Redis structures and a bounded Lua script to evaluate candidate groups,
+   apply the current scheduling state, and claim a job from the selected group.
 
-### 3. Alternative Data Models
+The first axis dominates the second: reducing the number of candidates has a much larger effect than reducing the cost
+of one individual comparison. The selection policy must therefore be computed from current state when a Pilot requests
+work. It must not be implemented as a static per-job priority score, and neither `ZPOPMAX` nor `ZPOPMIN` nor
+`SORTBY priority DESC LIMIT 0 1` represents the policy described above.
 
-#### Alternative A: ZSET Queue + Hash Data + Lua Evaluation (Classic Redis)
+The selected direction is therefore **Alternative C for candidate routing, combined with Alternative A for the
+atomic evaluation and claim**. The choices and their limits are:
 
-- **Data Model:**
-    - `jobs:pending` (ZSET): Scores represent priority, values are Job IDs.
-    - `job:<id>` (HASH): Stores job requirements (`min_ram`, `min_cpu`, `target_site`).
-- **Matching flow:** A Lua script fetches the top N jobs from the ZSET using `ZRANGE`, iterates through them, retrieves
-  requirements via `HMGET`, evaluates constraints against the Pilot's context, and atomically removes (`ZREM`) the first
-  matching job.
-- **Pros:**
-    - Uses core Redis structures (no modules).
-    - 100% atomic execution.
-    - Predictable memory footprint.
-- **Cons:**
-    - **"Head-of-line blocking" risk:** If the top 1000 jobs require GPU and the Pilot has none, the Lua script wastes
-      CPU cycles iterating over incompatible jobs.
-    - **Single-thread blocking:** Redis executes Lua scripts atomically, meaning a long-running script (iterating over
-      hundreds of jobs) will block the entire Redis instance, delaying all other operations and pilots.
-    - **Data fetching overhead:** Performing `HMGET` for every candidate job during the evaluation loop accumulates
-      significant latency relative to in-memory evaluations.
-    - **Costly priority updates:** Updating job priorities requires modifying the `ZSET` score, which is an O (log N)
-      operation. At 10 million jobs, frequent priority reassessments can cause CPU spikes.
+#### Alternative C — Categorized queues / buckets: selected as the primary organization
 
-#### Alternative B: RedisJSON & RediSearch (Indexed Matching)
+Alternative C addresses the dominant problem directly: it reduces the number of candidates before any detailed
+matching takes place. The existing `eligible:{site}:{job_type}` keyspace is already a form of bucketing, so accepting C
+does not require introducing a new principle. It means keeping that routing model and choosing its dimensions based on
+measured selectivity, for example site, job type, architecture, or GPU class where those dimensions actually separate
+the workload.
 
-- **Data Model:** Jobs are stored as JSON or Hashes, and a RediSearch Index is built on top of the scheduling
-  requirements (e.g., numeric index on `ram`, text/tag index on `site`).
-- **Matching flow:** The application executes a search query:
-  `FT.SEARCH idx:jobs "@req_ram:[-inf $pilot_ram] @target_site:{$pilot_site | ANY}" SORTBY priority DESC LIMIT 0 1`.
-  Once a job is found, a small Lua script attempts to "lock" it atomically.
-- **Pros:**
-    - Delegates complex multi-criteria filtering to the database engine.
-    - O (1) or O (log N) search time regardless of queue shape.
-    - Highly scalable for complex Dirac JDL requirements.
-- **Cons:**
-    - Requires the RediSearch module.
-    - Indexing significantly increases memory usage.
-    - Atomicity requires an optimistic locking approach (Find -> Try to Lock -> Retry if locked by another pilot).
+C is selected over a purely global search because it gives the matcher a bounded, targeted starting set. Requirements
+that are ranges or boolean expressions still have to be evaluated after routing, and adding every requirement to the
+key would create combinatorial growth. The problem is therefore the choice of key dimensions, possible duplicated
+entries, and the handling of stale references—not the bucketing approach itself. This is why C is the recommended data
+organization, subject to the measurements in the implementation plan.
 
-#### Alternative C: Categorized Queues / Bucket Model
+#### Alternative A — ZSET/hash/Lua: retain the mechanism at group granularity
 
-- **Data Model:** Instead of a single queue, jobs are pre-routed into multiple specific queues based on their
-  requirements upon submission.
-    - Examples: `jobs:pending:site:LCG`, `jobs:pending:high_mem`, `jobs:pending:gpu`.
-    - The queues can be simple `LIST`s or `ZSET`s (for priority within the bucket). Job details remain in `job:<id>`
-      (HASH).
-- **Matching flow:** A Pilot checks the specific queues that match its capabilities. If a Pilot is at the LCG site and
-  has a GPU, it directly pops (`LPOP` or `ZPOPMIN`) from `jobs:pending:site:LCG` or `jobs:pending:gpu`.
-- **Pros:**
-    - Extremely fast read operations (O (1) or O (log N)).
-    - Zero "head-of-line blocking" since Pilots only look at pre-validated compatible queues.
-    - No complex Lua iteration required.
-- **Cons:**
-    - **Combinatorial Explosion:** DIRAC job requirements are complex and multi-dimensional (Site, RAM, CPU, Tags). If a
-      job requires "Site=LCG" AND "RAM>4000", which queue does it go into?
-    - **Complex Write Logic:** The insertion logic becomes highly complex. If jobs are duplicated across multiple queues
-      to solve the combination issue, it creates a massive risk of race conditions and stale data (a job popped from the
-      GPU queue must be hunted down and removed from the LCG queue).
+Alternative A remains the execution mechanism for the selected design. Native Redis structures and a bounded Lua script
+provide the required atomic view of scheduling state, selection, and claim on one Redis instance. A group stores shared
+requirements once and keeps its pending job references behind it; Lua scans candidate groups and claims a job from the
+selected group.
 
-#### Alternative D: Custom Native Redis Module (Rust)
+A is not selected as a standalone global queue of individual jobs. Scanning millions of jobs in Lua would block Redis's
+main thread and would leave the candidate-count problem unchanged. This is also consistent with the memory table:
+Alternative A is the least costly classic Redis option in the illustrative estimate, but that does not make an
+unbounded per-job scan viable. Grouping and routing are what make the bounded A mechanism viable.
 
-- **Data Model:** Instead of generic Redis data types (ZSET, HASH), jobs and sites are mapped to highly packed memory
-  structures (`structs` in Rust). The entire matchmaking logic and queue state are managed completely in-memory by a
-  compiled Rust module loaded into the Redis server (`redis-module-rs`).
-- **Matching flow:** The Pilot calls a custom command introduced by the module, such as `DIRAC.MATCH $ram $cpu $site`.
-  The matching logic executes directly in compiled machine code within the main Redis thread, evaluating thousands of
-  constraints in microseconds, and returns the assigned Job ID.
-- **Pros:**
-    - **Absolute peak performance:** CPU execution is native, bypassing Lua interpreter overhead or RediSearch index
-      lookups.
-    - **Extreme Memory Efficiency:** Using dense Rust structs reduces the memory footprint for 10M jobs to just a few
-      hundred megabytes (no Redis dictionary or skiplist overhead).
-    - **Memory Safety:** Unlike C modules, Rust guarantees memory safety at compile time, eliminating most risks of
-      segfaults or memory leaks.
-    - 100% atomic (runs on the main Redis thread).
-- **Cons:**
-    - **Ecosystem Gap:** DIRAC is primarily a Python ecosystem. Introducing a core component in low-level Rust creates a
-      significant maintenance and contribution barrier.
-    - **Deployment Complexity:** The compiled module (`.so`) must be explicitly built for the target architecture and
-      loaded into the Redis server (`loadmodule`), complicating vanilla deployments.
-    - **Panic Risk:** While safe from segfaults, unhandled Rust `panic!` macros across the FFI (Foreign Function
-      Interface) boundary can still crash the entire Redis host.
+#### Alternative B — RedisJSON / RediSearch: reserve for groups, not the hot path
 
-### 4. Memory Estimate at Target Scale (10M Jobs, 1000 Sites)
+Alternative B is not retained for job-granularity matchmaking. Its recommendation cannot be based on an `O(1)` or
+`O(log N)` search promise: the actual cost depends on the predicates, result cardinality, sorting, document loading,
+index configuration, and topology. The search result also does not include the complete stateful scheduling decision;
+running limits, tier policy, and the final claim still need an atomic protocol.
 
-All of these estimates are fictive and non-tested. It's probably an order of magnitude off, and it's likely that the
-actual memory usage will be higher due to Redis's internal data structures and overhead.
+B remains a reasonable fallback or optional index over requirement groups if measurements show that routed, bounded Lua
+scans and caching are insufficient. At group granularity the index would contain far fewer documents than a per-job
+index, and it could reduce the groups presented to Lua. Its additional document and index overhead is why it is not the
+default hot-path choice.
 
-| Component                    | Alt A: ZSET + Hash      | Alt B: RediSearch             | Alt C: Categorized Queues         | Alt D: Custom Native Module     |
-|:-----------------------------|:------------------------|:------------------------------|:----------------------------------|:--------------------------------|
-| **1000 Sites** (50000 nodes) | ~500 KB                 | ~500 KB                       | ~500 KB                           | ~50 KB (Dense structs)          |
-| **10M Jobs Data**            | ~1.5 GB                 | ~1.5 GB                       | ~1.5 GB                           | ~600 MB (Dense structs)         |
-| **Indexing / Queues**        | ~1.1 GB (ZSET overhead) | ~3.5 to 5 GB (Search Indexes) | ~1.3 GB (Multiple ZSETs overhead) | ~200 MB (Custom internal index) |
-| **Total Estimated**          | **~2.6 GB - 3.5 GB**    | **~5 GB - 8 GB**              | **~2.8 GB - 4.0 GB**              | **~800 MB - 1.0 GB**            |
+#### Alternative D — Custom native Redis module in Rust: reject at this stage
 
-*Conclusion on Memory:*
+Alternative D optimizes the cost of an individual comparison and may reduce representation overhead, but it does not
+reduce the number of candidates. A faster comparison cannot compensate for a candidate volume that is orders of
+magnitude too large. Its packaging, deployment, maintenance, and operational complexity also require evidence that the
+standard Redis/Lua design is insufficient.
 
-- **Alternatives A and C** fit comfortably within standard, generic Redis deployments with a minimal footprint.
-- **Alternative B** trades RAM for search speed, requiring more provisioning but remaining viable on modern hardware
-  (e.g., a 16GB RAM instance).
-- **Alternative D** is by far the most memory-efficient and performant, but at the cost of significant engineering and
-  deployment complexity.
+D can be reconsidered only after grouping, bucket selection, caching, and bounded Lua execution have been measured
+against the target. Until then, the candidate-count reduction provided by C has a much better expected return than
+moving the comparison loop into native code.
 
-### 5. Recommendation
+This also resolves the apparent memory contradiction. Alternative A is the least costly classic Redis option in the
+illustrative table, so it must not be rejected for a supposedly high memory footprint. Alternative C may consume more
+memory when bucket entries are duplicated, but remains acceptable because its dimensions can be measured and tuned.
+Alternative B's additional index overhead is a reason to keep it out of the hot path, not a reason to promise a search
+complexity that has not been established.
 
-**Alternative A** is no longer viable due to its high memory footprint, limited scalability, and high latency when
-finding corresponding nodes for jobs.
-
-**Alternative B** is recommended for its balance between memory usage and search performance, making it suitable for
-moderate to large-scale deployments. It offers a good trade-off between memory efficiency and search speed, aligning
-well with the requirements of our application. However, atomicity and locking mechanisms must be carefully managed to
-safely handle concurrent access to the search index.
-
-**Alternative C** is a viable option for smaller deployments or when memory constraints are critical. It provides a
-memory-efficient solution with a straightforward implementation, making it suitable for environments with limited
-resources. However, it sacrifices some search performance compared to Alternative B.
-
-Finally, **Alternative D** is an option for deployments with very strict memory and performance requirements, offering
-absolute peak performance and extreme memory efficiency. However, this advantage comes at the cost of significant
-engineering effort and deployment complexity.
-
-## Redis Data Model Design
-
-### 1. Introduction
-
-This document outlines the design for mapping DIRAC job scheduling requirements and node characteristics to Redis data
-structures. The goal is to support high-performance matchmaking at a scale of ~10M pending jobs and ~100 sites (×500
-nodes), ensuring atomicity and efficiency.
-
-### 2. Requirements & Query Patterns
-
-- **Matchmaking Query:** A Pilot requests a job based on its characteristics (Available RAM, Available CPU, Tags, Site
-  Name). The system must return the highest priority job that fits these constraints.
-- **Atomicity:** Concurrent pilots must not be assigned the same job.
-- **Scale:** ~10,000,000 pending jobs, ~100 active sites ×500 nodes.
-
-### 3. Alternative Data Models
-
-#### Alternative A: ZSET Queue + Hash Data + Lua Evaluation (Classic Redis)
-
-- **Data Model:**
-    - `jobs:pending` (ZSET): Scores represent priority, values are Job IDs.
-    - `job:<id>` (HASH): Stores job requirements (`min_ram`, `min_cpu`, `target_site`).
-- **Matching flow:** A Lua script fetches the top N jobs from the ZSET using `ZRANGE`, iterates through them, retrieves
-  requirements via `HMGET`, evaluates constraints against the Pilot's context, and atomically removes (`ZREM`) the first
-  matching job.
-- **Pros:** Uses core Redis structures (no modules). 100% atomic execution. Predictable memory footprint.
-- **Cons:**
-    - **"Head-of-line blocking" risk:** If the top 1000 jobs require GPU and the Pilot has none, the Lua script wastes
-      CPU cycles iterating over incompatible jobs.
-    - **Single-thread blocking:** Redis executes Lua scripts atomically, meaning a long-running script (iterating over
-      hundreds of jobs) will block the entire Redis instance, delaying all other operations and pilots.
-    - **Data fetching overhead:** Performing `HMGET` for every candidate job during the evaluation loop accumulates
-      significant latency relative to in-memory evaluations.
-    - **Costly priority updates:** Updating job priorities requires modifying the `ZSET` score, which is an O(log N)
-      operation. At 10 million jobs, frequent priority reassessments can cause CPU spikes.
-
-#### Alternative B: RedisJSON & RediSearch (Indexed Matching)
-
-- **Data Model:** Jobs are stored as JSON or Hashes, and a RediSearch Index is built on top of the scheduling
-  requirements (e.g., numeric index on `ram`, text/tag index on `site`).
-- **Matching flow:** The application executes a search query:
-  `FT.SEARCH idx:jobs "@req_ram:[-inf $pilot_ram] @target_site:{$pilot_site | ANY}" SORTBY priority DESC LIMIT 0 1`.
-  Once a job is found, a small Lua script attempts to "lock" it atomically.
-- **Pros:** Delegates complex multi-criteria filtering to the database engine. O(1) or O(log N) search time regardless
-  of queue shape. Highly scalable for complex Dirac JDL requirements.
-- **Cons:** Requires the RediSearch module. Indexing significantly increases memory usage. Atomicity requires an
-  optimistic locking approach (Find -> Try to Lock -> Retry if locked by another pilot).
-
-#### Alternative C: Categorized Queues / Bucket Model
-
-- **Data Model:** Instead of a single queue, jobs are pre-routed into multiple specific queues based on their
-  requirements upon submission.
-    - Examples: `jobs:pending:site:LCG`, `jobs:pending:high_mem`, `jobs:pending:gpu`.
-    - The queues can be simple `LIST`s or `ZSET`s (for priority within the bucket). Job details remain in `job:<id>`
-      (HASH).
-- **Matching flow:** A Pilot checks the specific queues that match its capabilities. If a Pilot is at the LCG site and
-  has a GPU, it directly pops (`LPOP` or `ZPOPMIN`) from `jobs:pending:site:LCG` or `jobs:pending:gpu`.
-- **Pros:**
-    - Extremely fast read operations (O(1) or O(log N)).
-    - Zero "head-of-line blocking" since Pilots only look at pre-validated compatible queues.
-    - No complex Lua iteration required.
-- **Cons:**
-    - **Combinatorial Explosion:** DIRAC job requirements are complex and multi-dimensional (Site, RAM, CPU, Tags). If a
-      job requires "Site=LCG" AND "RAM>4000", which queue does it go into?
-    - **Complex Write Logic:** The insertion logic becomes highly complex. If jobs are duplicated across multiple queues
-      to solve the combination issue, it creates a massive risk of race conditions and stale data (a job popped from the
-      GPU queue must be hunted down and removed from the LCG queue).
-
-#### Alternative D: Custom Native Redis Module (Rust)
-
-- **Data Model:** Instead of generic Redis data types (ZSET, HASH), jobs and sites are mapped to highly packed memory
-  structures (`structs` in Rust). The entire matchmaking logic and queue state are managed completely in-memory by a
-  compiled Rust module loaded into the Redis server (`redis-module-rs`).
-- **Matching flow:** The Pilot calls a custom command introduced by the module, such as `DIRAC.MATCH $ram $cpu $site`.
-  The matching logic executes directly in compiled machine code within the main Redis thread, evaluating thousands of
-  constraints in microseconds, and returns the assigned Job ID.
-- **Pros:**
-    - **Absolute peak performance:** CPU execution is native, bypassing Lua interpreter overhead or RediSearch index
-      lookups.
-    - **Extreme Memory Efficiency:** Using dense Rust structs reduces the memory footprint for 10M jobs to just a few
-      hundred megabytes (no Redis dictionary or skiplist overhead).
-    - **Memory Safety:** Unlike C modules, Rust guarantees memory safety at compile time, eliminating most risks of
-      segfaults or memory leaks.
-    - 100% atomic (runs on the main Redis thread).
-- **Cons:**
-    - **Ecosystem Gap:** DIRAC is primarily a Python ecosystem. Introducing a core component in low-level Rust creates a
-      significant maintenance and contribution barrier.
-    - **Deployment Complexity:** The compiled module (`.so`) must be explicitly built for the target architecture and
-      loaded into the Redis server (`loadmodule`), complicating vanilla deployments.
-    - **Panic Risk:** While safe from segfaults, unhandled Rust `panic!` macros across the FFI (Foreign Function
-      Interface) boundary can still crash the entire Redis host.
-
-### 4. Memory Estimate at Target Scale (10M Jobs, 1000 Sites)
-
-| Component             | Alt A: ZSET + Hash      | Alt B: RediSearch             | Alt C: Categorized Queues         | Alt D: Custom Native Module     |
-|:----------------------|:------------------------|:------------------------------|:----------------------------------|:--------------------------------|
-| **1000 Sites**        | ~200 KB                 | ~200 KB                       | ~200 KB                           | ~50 KB (Dense structs)          |
-| **10M Jobs Data**     | ~1.5 GB                 | ~1.5 GB                       | ~1.5 GB                           | ~600 MB (Dense structs)         |
-| **Indexing / Queues** | ~1.1 GB (ZSET overhead) | ~3.5 to 5 GB (Search Indexes) | ~1.3 GB (Multiple ZSETs overhead) | ~200 MB (Custom internal index) |
-| **Total Estimated**   | **~2.6 GB - 3.5 GB**    | **~5 GB - 8 GB**              | **~2.8 GB - 4.0 GB**              | **~800 MB - 1.0 GB**            |
-
-*Conclusion on Memory:*
-
-- **Alternatives A and C** fit comfortably within standard, generic Redis deployments with a minimal footprint.
-- **Alternative B** trades RAM for search speed, requiring more provisioning but remaining viable on modern hardware
-  (e.g., a 16GB RAM instance).
-- **Alternative D** is by far the most memory-efficient and performant, but at the cost of significant engineering and
-  deployment complexity.
-
-### 5. Recommendation
-
-...
+Before fixing the schema, measure the number of groups, eligible sites per job, candidate groups per Pilot, concurrent
+claim latency, throughput, and memory per job, group, queue entry, index, replica, and cluster slot.
