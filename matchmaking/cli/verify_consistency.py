@@ -32,7 +32,7 @@ from dataclasses import dataclass
 import redis
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.config.redis.config import REDIS_JOB_KEY, REDIS_NODES_KEY
 from matchmaking.core import utils
 from matchmaking.core.main import select_job
 from matchmaking.models.job import Job
@@ -95,7 +95,7 @@ def _fetch_redis_jobs(r: redis.Redis, job_ids: list[str]) -> dict[str, Job]:
     out: dict[str, Job] = {}
 
     for chunk in _chunked(job_ids, _REDIS_BATCH):
-        raw = r.hmget(PY_REDIS_JOB_KEY, chunk)
+        raw = r.hmget(REDIS_JOB_KEY, chunk)
         for job_id, data in zip(chunk, raw, strict=False):
             if data is not None:
                 out[job_id] = Job.model_validate_json(data)
@@ -122,7 +122,7 @@ def _fetch_redis_nodes(r: redis.Redis, node_ids: list[str]) -> dict[str, Node]:
     out: dict[str, Node] = {}
 
     for chunk in _chunked(node_ids, _REDIS_BATCH):
-        raw = r.hmget(PY_REDIS_NODES_KEY, chunk)
+        raw = r.hmget(REDIS_NODES_KEY, chunk)
         for node_id, data in zip(chunk, raw, strict=False):
             if data is not None:
                 out[node_id] = Node.model_validate_json(data)
@@ -136,8 +136,8 @@ def check_population(conn: sqlite3.Connection, r: redis.Redis) -> CheckReport:
 
     sqlite_job_count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     sqlite_node_count = conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
-    redis_job_count = r.hlen(PY_REDIS_JOB_KEY)
-    redis_node_count = r.hlen(PY_REDIS_NODES_KEY)
+    redis_job_count = r.hlen(REDIS_JOB_KEY)
+    redis_node_count = r.hlen(REDIS_NODES_KEY)
 
     if sqlite_job_count != redis_job_count:
         mismatches.append(f"job count: sqlite={sqlite_job_count} redis={redis_job_count}")
@@ -159,7 +159,7 @@ def check_population(conn: sqlite3.Connection, r: redis.Redis) -> CheckReport:
 def check_jobs(conn: sqlite3.Connection, r: redis.Redis, sample_size: int, rng: random.Random) -> CheckReport:
     """Compare a random sample of jobs by job_id."""
     sqlite_ids = [row[0] for row in conn.execute("SELECT job_id FROM jobs")]
-    redis_ids = list(r.hkeys(PY_REDIS_JOB_KEY))
+    redis_ids = list(r.hkeys(REDIS_JOB_KEY))
 
     common = sorted(set(sqlite_ids) & set(redis_ids))
     only_sqlite = set(sqlite_ids) - set(redis_ids)
@@ -186,7 +186,7 @@ def check_jobs(conn: sqlite3.Connection, r: redis.Redis, sample_size: int, rng: 
 def check_nodes(conn: sqlite3.Connection, r: redis.Redis, sample_size: int, rng: random.Random) -> CheckReport:
     """Compare a random sample of nodes by node_id."""
     sqlite_ids = [row[0] for row in conn.execute("SELECT node_id FROM nodes")]
-    redis_ids = list(r.hkeys(PY_REDIS_NODES_KEY))
+    redis_ids = list(r.hkeys(REDIS_NODES_KEY))
 
     common = sorted(set(sqlite_ids) & set(redis_ids))
     only_sqlite = set(sqlite_ids) - set(redis_ids)
@@ -220,8 +220,8 @@ def check_pipeline(
     """Run ``select_job`` against both backends with identical inputs and compare outcomes."""
     sqlite_job_ids = [row[0] for row in conn.execute("SELECT job_id FROM jobs")]
     sqlite_node_ids = [row[0] for row in conn.execute("SELECT node_id FROM nodes")]
-    redis_job_ids = set(r.hkeys(PY_REDIS_JOB_KEY))
-    redis_node_ids = set(r.hkeys(PY_REDIS_NODES_KEY))
+    redis_job_ids = set(r.hkeys(REDIS_JOB_KEY))
+    redis_node_ids = set(r.hkeys(REDIS_NODES_KEY))
 
     common_job_ids = [j for j in sqlite_job_ids if j in redis_job_ids]
     common_node_ids = [n for n in sqlite_node_ids if n in redis_node_ids]

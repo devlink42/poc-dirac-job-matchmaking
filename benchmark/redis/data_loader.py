@@ -10,7 +10,7 @@ Workflow:
     docker compose up -d redis
 
   2. Generate the benchmark database once:
-    pixi run data_loader --num-jobs 10000000 --num-nodes 50000
+    pixi run redis_data_loader --num-jobs 10000000 --num-nodes 50000
 
   3. Run the benchmark:
     pixi run benchmark -u 100 -r 50 -t 15m --match-mode python_redis --num-jobs 10000000 --num-nodes 50000
@@ -25,7 +25,7 @@ import redis
 
 from benchmark.data_generator import job_generator, node_generator
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.config.redis.config import REDIS_JOB_KEY, REDIS_NODES_KEY
 
 # Number of HSET commands buffered in the pipeline before flushing to Redis.
 # Keeps per-request memory bounded to O(_BATCH_SIZE) regardless of total volume.
@@ -45,7 +45,7 @@ def load_data_from_sqlite(redis_client: redis.Redis, db_path: str) -> None:
 
         for i, row in enumerate(conn.execute("SELECT job_id, data FROM jobs"), 1):
             job_id, data = row
-            pipe.hset(PY_REDIS_JOB_KEY, job_id, data)
+            pipe.hset(REDIS_JOB_KEY, job_id, data)
             pending += 1
 
             if pending >= _BATCH_SIZE:
@@ -64,7 +64,7 @@ def load_data_from_sqlite(redis_client: redis.Redis, db_path: str) -> None:
 
         for i, row in enumerate(conn.execute("SELECT node_id, data FROM nodes"), 1):
             node_id, data = row
-            pipe.hset(PY_REDIS_NODES_KEY, node_id, data)
+            pipe.hset(REDIS_NODES_KEY, node_id, data)
             pending += 1
 
             if pending >= _BATCH_SIZE:
@@ -99,7 +99,7 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     pending = 0
 
     for i, job in enumerate(job_generator(num_jobs), 1):
-        pipe.hset(PY_REDIS_JOB_KEY, job.job_id, job.model_dump_json())
+        pipe.hset(REDIS_JOB_KEY, job.job_id, job.model_dump_json())
         pending += 1
 
         if pending >= _BATCH_SIZE:
@@ -117,7 +117,7 @@ def load_data(redis_client: redis.Redis, num_jobs: int, num_nodes: int) -> None:
     pending = 0
 
     for i, node in enumerate(node_generator(num_nodes), 1):
-        pipe.hset(PY_REDIS_NODES_KEY, node.node_id, node.model_dump_json())
+        pipe.hset(REDIS_NODES_KEY, node.node_id, node.model_dump_json())
         pending += 1
 
         if pending >= _BATCH_SIZE:
@@ -181,8 +181,8 @@ def main() -> None:
     )
 
     # Wipe any stale data before loading a fresh dataset.
-    r.delete(PY_REDIS_JOB_KEY)
-    r.delete(PY_REDIS_NODES_KEY)
+    r.delete(REDIS_JOB_KEY)
+    r.delete(REDIS_NODES_KEY)
 
     if args.db_path:
         logger.info("Loading data from SQLite database at %s", args.db_path)

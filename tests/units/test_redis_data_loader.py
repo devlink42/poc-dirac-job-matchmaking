@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 import redis
 
-from benchmark.py_redis import data_loader
-from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from benchmark.redis import data_loader
+from matchmaking.config.redis.config import REDIS_JOB_KEY, REDIS_NODES_KEY
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
@@ -59,6 +59,6 @@ def test_main_loads_data(monkeypatch: pytest.MonkeyPatch):
     _run_main(monkeypatch, ["--num-jobs", "2", "--num-nodes", "2"])
 
     # Stale keys are wiped before loading the fresh dataset.
-    client.delete.assert_any_call(PY_REDIS_JOB_KEY)
-    client.delete.assert_any_call(PY_REDIS_NODES_KEY)
+    client.delete.assert_any_call(REDIS_JOB_KEY)
+    client.delete.assert_any_call(REDIS_NODES_KEY)
     assert client.pipeline.called

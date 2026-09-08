@@ -15,7 +15,7 @@ matchmaking = "matchmaking.cli.match_making:main"
 # DB for Locust
 generate_db = "benchmark.generate_db:main"
 # Redis DB for Locust
-data_loader = "benchmark.py_redis.data_loader:main"
+redis_data_loader = "benchmark.redis.data_loader:main"
 # Verify consistency between SQLite and Redis
 verify_consistency = "matchmaking.cli.verify_consistency:main"
 #

@@ -17,7 +17,6 @@ redis-py = ">=7.4.0,<7.5"
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }
 
-
 # ---------------------------------------------------------
 # FEATURE: DEVELOPMENT
 # Tools strictly required for local coding and formatting

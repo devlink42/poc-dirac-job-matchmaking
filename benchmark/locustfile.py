@@ -28,9 +28,8 @@ from locust import User, constant, events, task
 from locust.runners import MasterRunner
 
 from matchmaking.config.logger import configure_logger, logger
-from matchmaking.config.py_redis.config import PY_REDIS_JOB_KEY, PY_REDIS_NODES_KEY
+from matchmaking.config.redis.config import REDIS_JOB_KEY, REDIS_NODES_KEY
 from matchmaking.core.main import select_job
-from matchmaking.core.py_redis.scheduler import fetch_candidate_jobs
 from matchmaking.core.router import MatchMode
 from matchmaking.core.utils import set_jobs
 from matchmaking.models.config import SchedulingConfig
@@ -209,9 +208,9 @@ def on_test_start(environment, **kwargs):
 
     try:
         match_mode = MatchMode(opts.match_mode)
-        if match_mode in (MatchMode.PYTHON_REDIS, MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
-            raw_nodes = redis_client.hvals(PY_REDIS_NODES_KEY)
-            JOB_POOL_SIZE = redis_client.hlen(PY_REDIS_JOB_KEY)
+        if match_mode in (MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
+            raw_nodes = redis_client.hvals(REDIS_NODES_KEY)
+            JOB_POOL_SIZE = redis_client.hlen(REDIS_JOB_KEY)
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
 
             logger.info("Loaded from Redis")
@@ -274,8 +273,8 @@ class MatchmakingUser(User):
         match_mode = MatchMode(self.environment.parsed_options.match_mode)
         if match_mode is MatchMode.PYTHON:
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
-        elif match_mode in (MatchMode.PYTHON_REDIS, MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
-            self.job_ids = list(redis_client.hkeys(PY_REDIS_JOB_KEY))
+        elif match_mode in (MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
+            self.job_ids = list(redis_client.hkeys(REDIS_JOB_KEY))
 
     def on_stop(self):
         if self._db_conn:
@@ -286,8 +285,6 @@ class MatchmakingUser(User):
         match_mode = MatchMode(self.environment.parsed_options.match_mode)
         if match_mode is MatchMode.PYTHON:
             self.evaluate_select_job_python()
-        elif match_mode is MatchMode.PYTHON_REDIS:
-            self.evaluate_select_job_python_redis()
         elif match_mode is MatchMode.LUA_ALT_A:
             self.evaluate_select_job_redis_alt_a()
         elif match_mode is MatchMode.LUA_ALT_C:
@@ -319,39 +316,6 @@ class MatchmakingUser(User):
 
         events.request.fire(
             request_type="Python",
-            name="select_job[match]" if selected_job else "select_job[no_match]",
-            response_time=total_time_ms,
-            response_length=sys.getsizeof(selected_job) if selected_job else 0,
-            exception=error,
-            context={"matched": selected_job is not None},
-        )
-
-    def evaluate_select_job_python_redis(self):
-        if not self.job_ids:
-            return
-
-        node = self._rng.choice(NODES_POOL)
-
-        set_jobs(fetch_candidate_jobs(redis_client, self.environment.parsed_options.num_jobs))
-
-        start_time = time.perf_counter()
-        selected_job = None
-        error = None
-
-        try:
-            selected_job = select_job(node)
-            if selected_job is not None:
-                delay = self.environment.parsed_options.reset_delay
-                if delay > 0:
-                    gevent.spawn_later(delay, _reset_job, selected_job)
-        except Exception as e:
-            error = e
-            logger.error("Error during select_job: %s", e)
-
-        total_time_ms = (time.perf_counter() - start_time) * 1000
-
-        events.request.fire(
-            request_type="Redis-Python",
             name="select_job[match]" if selected_job else "select_job[no_match]",
             response_time=total_time_ms,
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
