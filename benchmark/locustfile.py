@@ -43,19 +43,17 @@ CANDIDATE_POOL: list[Job] = []
 SCHEDULING_CONFIG: SchedulingConfig | None = None
 
 _USER_SEQ = itertools.count()
-_CANDIDATE_WINDOW_QUERY = """
-    WITH candidate_window AS (
-        SELECT data, id, 0 AS window_segment
-        FROM jobs
-        WHERE id BETWEEN ? AND ?
-        UNION ALL
-        SELECT data, id, 1 AS window_segment
-        FROM jobs
-        WHERE id BETWEEN 1 AND ?
-    )
-    SELECT data
-    FROM candidate_window
-    ORDER BY window_segment, id
+_CANDIDATE_WINDOW_QUERY = """ \
+                          WITH candidate_window AS (SELECT data, id, 0 AS window_segment \
+                                                    FROM jobs \
+                                                    WHERE id BETWEEN ? AND ? \
+                                                    UNION ALL \
+                                                    SELECT data, id, 1 AS window_segment \
+                                                    FROM jobs \
+                                                    WHERE id BETWEEN 1 AND ?) \
+                          SELECT data \
+                          FROM candidate_window \
+                          ORDER BY window_segment, id
 """
 
 redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
@@ -321,54 +319,6 @@ class MatchmakingUser(User):
             response_length=sys.getsizeof(selected_job) if selected_job else 0,
             exception=error,
             context={"matched": selected_job is not None},
-        )
-
-    def evaluate_select_job_redis_alt_a(self):
-        """Simulate a pilot requesting a job using Redis Lua script (Alternative A)."""
-        node = self._rng.choice(NODES_POOL)
-
-        args = [
-            node.cpu.ram_mb,
-            node.cpu.num_cores,
-            node.site,
-            self._candidates_count,
-            str(node.system.name),
-            str(node.system.glibc),
-            1 if node.system.user_namespaces else 0,
-            node.wall_time,
-            node.cpu_work,
-            str(node.cpu.architecture.name),
-            node.cpu.architecture.microarchitecture_level,
-            node.gpu.count,
-            node.gpu.ram_mb if node.gpu.ram_mb else 0,
-            node.gpu.vendor if node.gpu.vendor else "",
-            str(node.gpu.compute_capability) if node.gpu.compute_capability else "",
-            str(node.gpu.driver_version) if node.gpu.driver_version else "",
-            node.io.scratch_mb if node.io else 0,
-        ]
-
-        start_time = time.perf_counter()
-        selected_job_json = None
-        error = None
-
-        try:
-            selected_job_json = match_script_alt_a(
-                keys=["jobs:pending", "job:"],
-                args=args,
-            )
-        except Exception as e:
-            error = e
-            logger.error("Error during Redis select_job (Alt A): %s", e)
-
-        total_time_ms = (time.perf_counter() - start_time) * 1000
-
-        events.request.fire(
-            request_type="Redis-Lua-AltA",
-            name="select_job_cycle",
-            response_time=total_time_ms,
-            response_length=len(selected_job_json) if selected_job_json else 0,
-            exception=error,
-            context={"matched": selected_job_json is not None},
         )
 
     def evaluate_select_job_redis_alt_c(self):
