@@ -12,6 +12,7 @@ python = ">=3.11,<3.12"
 pydantic = ">=2.13.4,<2.14"
 pyyaml = ">=6.0.3,<6.1"
 packaging = ">=26.2,<26.3"
+redis-py = ">=7.4.0,<7.5"
 
 [pypi-dependencies]
 matchmaking = { path = ".", editable = true }

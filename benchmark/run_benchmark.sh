@@ -12,6 +12,7 @@ T_VAL=900  # 15min
 
 NUM_JOBS=10000000
 NUM_NODES=50000
+MATCH_MODE="python"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -42,12 +43,20 @@ while [[ $# -gt 0 ]]; do
       LOCUST_ARGS="$LOCUST_ARGS -t $2"
       shift 2
       ;;
+    --match-mode)
+      MATCH_MODE="$2"
+      shift 2
+      ;;
     --num-jobs)
       NUM_JOBS="$2"
       shift 2
       ;;
     --num-nodes)
       NUM_NODES="$2"
+      shift 2
+      ;;
+    --match-mode)
+      MATCH_MODE="$2"
       shift 2
       ;;
     *)
@@ -58,7 +67,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 CURRENT_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
-PREFIX_BASE="locust_${CURRENT_DATE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
+PREFIX_BASE="locust_${CURRENT_DATE}_mm-${MATCH_MODE}_jobs-${NUM_JOBS}_nodes-${NUM_NODES}_u-${U_VAL}_r-${R_VAL}_t-${T_VAL}"
 
 CSV_PREFIX="benchmark/results/${PREFIX_BASE}"
 HTML_PREFIX="benchmark/results/html/${PREFIX_BASE}.html"
@@ -66,7 +75,7 @@ FLAMEGRAPH_PATH="benchmark/results/html/svg/${PREFIX_BASE}_flamegraph.svg"
 
 mkdir -p benchmark/results/html/svg
 
-BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES}"
+BASE_LOCUST_CMD="locust -f benchmark/locustfile.py --match-mode ${MATCH_MODE} --num-jobs ${NUM_JOBS} --num-nodes ${NUM_NODES}"
 
 if [[ "$PROFILE" == true ]]; then
   echo "Profiling enabled. FlameGraph will be saved to: $FLAMEGRAPH_PATH"

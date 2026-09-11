@@ -16,6 +16,7 @@ from matchmaking.models.node import System as NodeSystem
 from matchmaking.models.utils import (
     ArchitectureName,
     CustomVersion,
+    JobStatus,
     Range,
     ResourceSpec,
     StrictRange,
@@ -173,11 +174,13 @@ def generate_mock_job(job_id: str) -> Job:
     tag_expr = _generate_tag_expression("job")
 
     return Job(
+        version=CustomVersion("0.1"),
         job_id=job_id,
         submit_time=datetime.now(tz=UTC),
         owner=owner,
         group=group,
         type=job_type,
+        status=JobStatus.WAITING,
         matching_specs=[
             MatchingSpecs(
                 **{
@@ -208,7 +211,7 @@ def generate_mock_job(job_id: str) -> Job:
 
 
 def generate_mock_node(node_id: str) -> Node:
-    """Generate a mock Node (Pilot) object.
+    """Generate a mock Node object.
 
     Args:
         node_id: A unique identifier for the generated node.
@@ -220,6 +223,7 @@ def generate_mock_node(node_id: str) -> Node:
 
     return Node(
         **{
+            "version": CustomVersion("0.1"),
             "node_id": node_id,
             "site": _rng.choice(_SITES),
             "system": NodeSystem(
