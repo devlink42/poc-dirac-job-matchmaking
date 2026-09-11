@@ -3,14 +3,19 @@
 
 from __future__ import annotations
 
+import argparse
+import sqlite3
 from collections.abc import Iterable
 from typing import Any
 
 import redis
 
+from matchmaking.config.logger import configure_logger, logger
 from matchmaking.models.job import Job, MatchingSpecs
 from matchmaking.models.lua.alt_c.requirement_group import RequirementGroup
 from matchmaking.models.utils import JobStatus
+
+ANY_SITE = "__any_site__"
 
 
 class RedisSeeder:
@@ -18,8 +23,8 @@ class RedisSeeder:
 
     Args:
         redis_client: Redis client used to create transactional pipelines.
-        known_sites: Complete site catalogue used to expand a matching specification
-            whose site is ``None``.
+        known_sites: Deprecated site catalogue. Jobs whose site is ``None`` are
+            indexed in the generic all-sites index and do not require this value.
         memory_bucket_mb: Bucket size for RAM and scratch-space requirements.
         cpu_work_bucket: Bucket size for CPU-work requirements.
         wall_time_bucket_seconds: Bucket size for wall-time requirements.
@@ -195,11 +200,10 @@ class RedisSeeder:
         }
 
     def _resolve_eligible_sites(self, specs: list[MatchingSpecs]) -> tuple[str, ...]:
-        explicit_sites = {spec.site for spec in specs if spec.site is not None}
         if any(spec.site is None for spec in specs):
-            if not self._known_sites:
-                raise ValueError("known_sites is required for a matching specification without a site")
-            explicit_sites.update(self._known_sites)
+            return (ANY_SITE,)
+
+        explicit_sites = {spec.site for spec in specs if spec.site is not None}
 
         if not explicit_sites or any(not site for site in explicit_sites):
             raise ValueError("matching specifications must resolve to non-empty sites")
@@ -221,3 +225,75 @@ class RedisSeeder:
     @classmethod
     def _round_optional_up(cls, value: int | None, step: int) -> int | None:
         return cls._round_up(int(value), step) if value is not None else None
+
+
+def seed_database(
+    redis_client: redis.Redis,
+    db_path: str = "benchmark/benchmark.db",
+    *,
+    known_sites: Iterable[str] = (),
+) -> int:
+    """Seed waiting jobs from a SQLite benchmark database into Redis.
+
+    Args:
+        redis_client: Connected Redis client used by :class:`RedisSeeder`.
+        db_path: Read-only SQLite database containing the ``jobs`` table.
+        known_sites: Complete site catalogue for jobs without an explicit site.
+
+    Returns:
+        Number of jobs successfully seeded.
+
+    Raises:
+        sqlite3.Error: If the database cannot be opened or queried.
+    """
+    seeder = RedisSeeder(redis_client, known_sites=known_sites)
+    seeded_count = 0
+
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        for job_id, data in conn.execute("SELECT job_id, data FROM jobs"):
+            try:
+                job = Job.model_validate_json(data)
+                seeder.seed_job(job)
+            except (ValueError, TypeError) as error:
+                logger.warning("Skipping invalid job %s: %s", job_id, error)
+                continue
+            seeded_count += 1
+            if seeded_count % 10000 == 0:
+                logger.info("Seeded %s jobs", seeded_count)
+    finally:
+        conn.close()
+
+    logger.info("Successfully seeded %s jobs", seeded_count)
+    return seeded_count
+
+
+def main() -> None:
+    """Parse CLI arguments and seed Alternative C Redis structures."""
+    parser = argparse.ArgumentParser(description="Seed Redis with Alternative C matchmaking jobs.")
+    parser.add_argument("--db-path", default="benchmark/benchmark.db", help="Path to the benchmark SQLite database.")
+    parser.add_argument("--redis-host", default="localhost", help="Redis host.")
+    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port.")
+    parser.add_argument("--redis-db", type=int, default=0, help="Redis database index.")
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity.",
+    )
+    args = parser.parse_args()
+
+    configure_logger(args.log_level)
+    redis_client = redis.Redis(
+        host=args.redis_host,
+        port=args.redis_port,
+        db=args.redis_db,
+        decode_responses=True,
+    )
+    try:
+        redis_client.ping()
+        redis_client.flushdb()
+        seed_database(redis_client, args.db_path)
+    except (redis.RedisError, sqlite3.Error) as error:
+        logger.error("Alternative C seeding failed: %s", error)
+        raise SystemExit(1) from error

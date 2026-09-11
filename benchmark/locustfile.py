@@ -206,13 +206,13 @@ def on_test_start(environment, **kwargs):
 
     try:
         match_mode = MatchMode(opts.match_mode)
-        if match_mode in (MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
+        if match_mode is MatchMode.LUA_ALT_A:
             raw_nodes = redis_client.hvals(REDIS_NODES_KEY)
             JOB_POOL_SIZE = redis_client.hlen(REDIS_JOB_KEY)
             NODES_POOL = [Node.model_validate_json(n) for n in raw_nodes][: opts.num_nodes]
 
             logger.info("Loaded from Redis")
-        elif match_mode is MatchMode.PYTHON:
+        elif match_mode in (MatchMode.PYTHON, MatchMode.LUA_ALT_C):
             JOB_POOL_SIZE = _get_max_job_id(opts.db_path)
             NODES_POOL = _load_nodes(opts.db_path, opts.num_nodes)
 
@@ -271,7 +271,7 @@ class MatchmakingUser(User):
         match_mode = MatchMode(self.environment.parsed_options.match_mode)
         if match_mode is MatchMode.PYTHON:
             self._db_conn = sqlite3.connect(f"file:{self.environment.parsed_options.db_path}?mode=ro", uri=True)
-        elif match_mode in (MatchMode.LUA_ALT_A, MatchMode.LUA_ALT_C):
+        elif match_mode is MatchMode.LUA_ALT_A:
             self.job_ids = list(redis_client.hkeys(REDIS_JOB_KEY))
 
     def on_stop(self):
@@ -324,10 +324,11 @@ class MatchmakingUser(User):
     def evaluate_select_job_redis_alt_c(self):
         """Simulate a pilot requesting a job using Redis Lua script (Alternative C)."""
         node = self._rng.choice(NODES_POOL)
+        requested_job = self._rng.choice(CANDIDATE_POOL)
 
         args = [
             node.site,
-            "ANALYSIS",  # Placeholder job type
+            requested_job.type.value,
             str(node.cpu.architecture.name),
             "1" if node.gpu.count > 0 else "0",
             node.cpu.ram_mb,

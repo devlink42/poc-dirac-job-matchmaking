@@ -76,7 +76,7 @@ end
 
 local function contains_site(sites, expected_site)
     for _, site in ipairs(sites) do
-        if site == expected_site then
+        if site == "__any_site__" or site == expected_site then
             return true
         end
     end
@@ -139,16 +139,23 @@ if available_ram_mb == nil or available_cores == nil then
     return nil
 end
 
-local current_index_key = index_key(
-    pilot_site,
-    requested_job_type,
-    pilot_architecture,
-    pilot_has_gpu
-)
-local group_ids = redis.pcall("SMEMBERS", current_index_key)
+local index_keys = {
+    index_key(pilot_site, requested_job_type, pilot_architecture, pilot_has_gpu),
+    index_key("__any_site__", requested_job_type, pilot_architecture, pilot_has_gpu)
+}
+local group_ids = {}
+local seen_group_ids = {}
 
-if type(group_ids) ~= "table" or group_ids.err ~= nil then
-    return nil
+for _, candidate_index_key in ipairs(index_keys) do
+    local candidate_group_ids = redis.pcall("SMEMBERS", candidate_index_key)
+    if type(candidate_group_ids) == "table" and candidate_group_ids.err == nil then
+        for _, req_group_id in ipairs(candidate_group_ids) do
+            if not seen_group_ids[req_group_id] then
+                seen_group_ids[req_group_id] = true
+                table.insert(group_ids, req_group_id)
+            end
+        end
+    end
 end
 
 for _, req_group_id in ipairs(group_ids) do
@@ -156,9 +163,13 @@ for _, req_group_id in ipairs(group_ids) do
     local hash_values = redis.pcall("HGETALL", group_key)
 
     if type(hash_values) ~= "table" or hash_values.err ~= nil then
-        remove_index_reference(current_index_key, req_group_id)
+        for _, candidate_index_key in ipairs(index_keys) do
+            remove_index_reference(candidate_index_key, req_group_id)
+        end
     elseif #hash_values == 0 then
-        remove_index_reference(current_index_key, req_group_id)
+        for _, candidate_index_key in ipairs(index_keys) do
+            remove_index_reference(candidate_index_key, req_group_id)
+        end
     else
         local group = list_to_hash(hash_values)
         local min_ram_mb = parse_non_negative_integer(group.min_ram_mb)
@@ -173,7 +184,9 @@ for _, req_group_id in ipairs(group_ids) do
             and contains_site(eligible_sites, pilot_site)
 
         if not valid_group then
-            remove_index_reference(current_index_key, req_group_id)
+            for _, candidate_index_key in ipairs(index_keys) do
+                remove_index_reference(candidate_index_key, req_group_id)
+            end
         elseif available_ram_mb >= min_ram_mb and available_cores >= min_cpu_cores then
             local queue_key = "queue:" .. req_group_id
             local job_id = redis.pcall("RPOP", queue_key)
@@ -182,9 +195,9 @@ for _, req_group_id in ipairs(group_ids) do
                 remove_index_reference(current_index_key, req_group_id)
             else
                 if job_id == false or job_id == nil then
-                    delete_empty_group(req_group_id, group, eligible_sites, current_index_key)
+                    delete_empty_group(req_group_id, group, eligible_sites, index_keys[1])
                 elseif redis.call("LLEN", queue_key) == 0 then
-                    delete_empty_group(req_group_id, group, eligible_sites, current_index_key)
+                    delete_empty_group(req_group_id, group, eligible_sites, index_keys[1])
                 end
 
                 if type(job_id) == "string" and job_id ~= "" then

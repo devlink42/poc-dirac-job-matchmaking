@@ -8,24 +8,24 @@ from unittest.mock import MagicMock
 import pytest
 import redis
 
-from benchmark.redis import data_loader
+from benchmark import redis_data_loader
 from matchmaking.config.redis.config import REDIS_JOB_KEY, REDIS_NODES_KEY
 
 
 def _run_main(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
-    monkeypatch.setattr(sys, "argv", ["data_loader.py", *args])
-    data_loader.main()
+    monkeypatch.setattr(sys, "argv", ["redis_data_loader.py", *args])
+    redis_data_loader.main()
 
 
 def test_load_data_batches_and_flushes_remainder(monkeypatch: pytest.MonkeyPatch):
     # A small batch size forces both the in-loop flush and the trailing flush.
-    monkeypatch.setattr(data_loader, "_BATCH_SIZE", 2)
+    monkeypatch.setattr(redis_data_loader, "_BATCH_SIZE", 2)
 
     pipe = MagicMock()
     client = MagicMock()
     client.pipeline.return_value = pipe
 
-    data_loader.load_data(client, num_jobs=3, num_nodes=3)
+    redis_data_loader.load_data(client, num_jobs=3, num_nodes=3)
 
     # 3 jobs + 3 nodes with batch size 2 => one mid-loop flush + one trailing
     # flush per entity type = 4 executes total.
@@ -40,7 +40,7 @@ def test_main_connection_error_exits(monkeypatch: pytest.MonkeyPatch, capsys: py
         client.ping.side_effect = redis.ConnectionError("down")
         return client
 
-    monkeypatch.setattr(data_loader.redis, "Redis", _raise)
+    monkeypatch.setattr(redis_data_loader.redis, "Redis", _raise)
 
     with pytest.raises(SystemExit) as exc:
         _run_main(monkeypatch, ["--num-jobs", "1", "--num-nodes", "1"])
@@ -54,7 +54,7 @@ def test_main_loads_data(monkeypatch: pytest.MonkeyPatch):
     client.ping.return_value = True
     client.pipeline.return_value = MagicMock()
 
-    monkeypatch.setattr(data_loader.redis, "Redis", lambda **_kwargs: client)
+    monkeypatch.setattr(redis_data_loader.redis, "Redis", lambda **_kwargs: client)
 
     _run_main(monkeypatch, ["--num-jobs", "2", "--num-nodes", "2"])
 

@@ -89,7 +89,7 @@ def test_build_requirement_group_normalizes_any_site_and_gpu(load_job):
         core_bucket=1,
     ).build_requirement_group(job)
 
-    assert group.eligible_sites == ("site-a", "site-b")
+    assert group.eligible_sites == ("__any_site__",)
     assert group.min_cpu_cores == 1
     assert group.max_cpu_cores == 4
     assert group.min_ram_mb == 8000
@@ -110,10 +110,6 @@ def test_build_requirement_group_rejects_invalid_jobs(load_job):
     job.status = JobStatus.RUNNING
     with pytest.raises(ValueError, match="waiting"):
         seeder.build_requirement_group(job)
-
-    job = load_job("job_01_mcsimulation_any_site")
-    with pytest.raises(ValueError, match="known_sites"):
-        RedisSeeder(Mock()).build_requirement_group(job)
 
     job = load_job("job_02_mcsimulation_multi_site")
     job.matching_specs[1].cpu_work += 1
